@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Sistema de gestão de ordens de serviço para oficina de veículos elétricos">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>OS Manager — Gestão de Ordens de Serviço</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ========== LOGIN SCREEN ========== -->
+    <div class="login-screen" id="login-screen">
+      <div class="login-logo">
+        <div class="login-logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </div>
+        <h1>OS Manager</h1>
+        <p>Gestão de Ordens de Serviço</p>
+      </div>
+      <div class="login-card">
+        <div class="login-error" id="login-error"></div>
+        <form id="login-form">
+          <div class="form-group">
+            <label class="form-label" for="login-usuario">Usuário</label>
+            <input type="text" class="form-input" id="login-usuario" placeholder="Digite seu usuário" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="login-senha">Senha</label>
+            <input type="password" class="form-input" id="login-senha" placeholder="Digite sua senha" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+            Entrar
+          </button>
+        </form>
+        <p style="text-align:center;margin-top:16px;font-size:0.7rem;color:var(--text-tertiary)">Primeiro acesso: admin / admin123</p>
+      </div>
+    </div>
+
+    <!-- ========== MAIN LAYOUT ========== -->
+    <div class="main-layout" id="main-layout">
+
+      <!-- Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button class="header-btn" id="btn-back" style="display:none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+          </button>
+          <div>
+            <div class="header-title" id="header-title">Serviços</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="header-user-badge">
+            <span class="role-dot"></span>
+            <span id="header-user-name">Admin</span>
+            <span style="opacity:0.5;font-size:0.6rem" id="header-user-role"></span>
+          </div>
+          <!-- Admin gear button -->
+          <button class="header-btn" id="btn-admin" title="Configurações" style="display:none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-area">
+
+        <!-- ===== HOME PAGE ===== -->
+        <div class="page active" id="page-home">
+          <div class="page-header">
+            <div class="page-title" id="home-welcome-title">Olá, Bem-vindo!</div>
+            <div class="page-subtitle">Dashboard operacional da oficina</div>
+          </div>
+
+          <!-- Ação Principal: Novo Orçamento -->
+          <div style="width:100%; margin-bottom:var(--space-md);">
+            <button class="btn btn-primary btn-lg" id="home-btn-novo-orcamento" style="width:100%; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:var(--space-sm); padding:var(--space-md) var(--space-lg); border-radius:var(--radius-md); font-weight:700; height:54px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+              <span>Novo Orçamento</span>
+            </button>
+          </div>
+
+          <!-- Bloco Atraente de Estatísticas da Semana -->
+          <div class="dashboard-card" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-bottom:var(--space-lg); width:100%;">
+            <div style="display:flex; justify-content:flex-start; align-items:center; margin-bottom:var(--space-md); border-bottom:1px dashed rgba(255,255,255,0.08); padding-bottom:var(--space-xs); width:100%;">
+              <span style="font-size:var(--font-xs); font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px;">Estatísticas da Semana</span>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:var(--space-xs); text-align:center; width:100%;">
+              <div id="home-stat-afazer" style="background:rgba(234, 179, 8, 0.08); border:1px solid rgba(234, 179, 8, 0.2); padding:var(--space-sm); border-radius:var(--radius-sm); cursor:pointer; transition:transform 0.15s ease;" title="Ver serviços a fazer">
+                <div id="home-semana-aguardando" style="font-size:var(--font-xl); font-weight:800; color:var(--status-aguardando-text);">0</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; margin-top:2px;">A Fazer</div>
+              </div>
+              <div id="home-stat-andamento" style="background:rgba(59, 130, 246, 0.08); border:1px solid rgba(59, 130, 246, 0.2); padding:var(--space-sm); border-radius:var(--radius-sm); cursor:pointer; transition:transform 0.15s ease;" title="Ver serviços em andamento">
+                <div id="home-semana-andamento" style="font-size:var(--font-xl); font-weight:800; color:var(--status-andamento-text);">0</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; margin-top:2px;">Em Andamento</div>
+              </div>
+              <div id="home-stat-concluidos" style="background:rgba(34, 197, 94, 0.08); border:1px solid rgba(34, 197, 94, 0.2); padding:var(--space-sm); border-radius:var(--radius-sm); cursor:pointer; transition:transform 0.15s ease;" title="Ver serviços concluídos">
+                <div id="home-semana-concluido" style="font-size:var(--font-xl); font-weight:800; color:var(--status-concluido-text);">0</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; margin-top:2px;">Concluídos</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cards de Resumo Geral -->
+          <div class="section-divider">Resumo Geral</div>
+          
+          <!-- Serviços Pendentes -->
+          <div class="dashboard-card" id="home-card-pendentes" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-bottom:var(--space-md); cursor:pointer; width:100%;">
+            <div style="font-size:var(--font-sm); color:var(--text-secondary); font-weight:600;">Serviços Pendentes</div>
+            <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-top:2px;">Total de OS em aberto na oficina</div>
+            <div id="home-count-pendentes" style="font-size:var(--font-xl); font-weight:800; color:var(--accent); margin-top:var(--space-xs);">0</div>
+          </div>
+
+          <!-- Faturamento / Resumo Mensal -->
+          <div class="dashboard-card" id="home-card-mensal" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-bottom:var(--space-md); cursor:pointer; width:100%;">
+            <div style="font-size:var(--font-sm); color:var(--text-secondary); font-weight:600;">Resumo Mensal</div>
+            <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-top:2px;">Faturamento estimado este mês</div>
+            <div id="home-faturamento-mensal" style="font-size:var(--font-lg); font-weight:800; color:var(--status-concluido-text); margin-top:var(--space-xs);">R$ 0,00</div>
+          </div>
+        </div>
+
+        <!-- ===== NOVA OS PAGE ===== -->
+        <div class="page" id="page-nova-os">
+          <div class="page-header">
+            <div class="page-title" id="nova-os-title">Nova Ordem de Serviço</div>
+            <div class="page-subtitle">Preencha os dados do atendimento</div>
+          </div>
+
+          <form id="form-nova-os">
+            <!-- Cliente -->
+            <div class="section-divider">Dados do Cliente</div>
+            <div class="form-group">
+              <label class="form-label required" for="os-cliente-nome">Nome Completo</label>
+              <input type="text" class="form-input" id="os-cliente-nome" placeholder="Nome do cliente" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label required" for="os-telefone">Telefone (WhatsApp)</label>
+              <input type="tel" class="form-input" id="os-telefone" placeholder="(00) 00000-0000" required>
+            </div>
+
+            <!-- Veículo -->
+            <div class="section-divider">Dados do Veículo</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label required" for="os-modelo">Modelo</label>
+                <select class="form-select" id="os-modelo" required>
+                  <option value="">Selecione o modelo...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label required" for="os-cor">Cor</label>
+                <select class="form-select" id="os-cor" required>
+                  <option value="">Selecione a cor...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Serviços -->
+            <div class="section-divider">Serviços</div>
+            <div class="servico-list" id="servico-items"></div>
+            <button type="button" class="btn btn-secondary btn-sm btn-block" id="btn-add-servico">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+              Adicionar Serviço
+            </button>
+
+            <!-- Bloco Anexo de Fotos do Veículo (Opcional - Posicionado ACIMA do Valor Total) -->
+            <div class="form-group" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-top:var(--space-md); margin-bottom:var(--space-md);">
+              <div class="form-toggle" style="padding:0; background:transparent; border:none; min-height:auto;">
+                <span class="form-toggle-label" style="font-weight:700; font-size:var(--font-sm); color:var(--text-primary);">Adicionar fotos</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="os-check-fotos">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div id="container-fotos" style="display:none; margin-top:var(--space-md); padding-top:var(--space-md); border-top:1px dashed rgba(255,255,255,0.08);">
+                <input type="file" id="os-input-foto" accept="image/*" capture="environment" multiple style="display:none;">
+                <button type="button" class="btn btn-secondary btn-block" id="btn-add-foto" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                  📷 Tirar / Adicionar Fotos
+                </button>
+                <div id="os-fotos-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:var(--space-md);"></div>
+              </div>
+            </div>
+
+            <div class="valor-total-display">
+              <span class="valor-total-label">Valor Total</span>
+              <span class="valor-total-value" id="valor-total">R$ 0,00</span>
+            </div>
+
+            <!-- Pagamento -->
+            <div class="section-divider">Pagamento & Agendamento</div>
+
+            <div class="form-group">
+              <label class="form-label required">Forma de Pagamento</label>
+              <div class="payment-grid">
+                <label class="payment-option">
+                  <input type="checkbox" class="payment-check" value="pix">
+                  <span class="payment-label">💠 Pix</span>
+                </label>
+                <label class="payment-option">
+                  <input type="checkbox" class="payment-check" value="dinheiro">
+                  <span class="payment-label">💵 Dinheiro</span>
+                </label>
+                <label class="payment-option">
+                  <input type="checkbox" class="payment-check" value="credito">
+                  <span class="payment-label">💳 Crédito</span>
+                </label>
+                <label class="payment-option">
+                  <input type="checkbox" class="payment-check" value="debito">
+                  <span class="payment-label">💳 Débito</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label required" for="os-status-pagamento">Status Pagamento</label>
+                <select class="form-select" id="os-status-pagamento" required>
+                  <option value="pendente">⏳ Pendente</option>
+                  <option value="pago">✅ Pago</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label required" for="os-prioridade">Prioridade</label>
+                <select class="form-select" id="os-prioridade" required>
+                  <option value="normal">Normal</option>
+                  <option value="urgente">🔴 Urgente</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Bloco Único de Previsão de Entrega (Opcional) -->
+            <div class="form-group" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-top:var(--space-md); margin-bottom:var(--space-md);">
+              <div class="form-toggle" style="padding:0; background:transparent; border:none; min-height:auto;">
+                <span class="form-toggle-label" style="font-weight:700; font-size:var(--font-sm); color:var(--text-primary);">Definir Previsão de Entrega</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="os-check-data-entrega">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <!-- Campos Revelados dentro do mesmo bloco -->
+              <div id="container-data-entrega" style="display:none; margin-top:var(--space-md); padding-top:var(--space-md); border-top:1px dashed rgba(255,255,255,0.08);">
+                <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-sm);">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" for="os-data-entrega" style="font-size:var(--font-xs);">Data de Entrega</label>
+                    <input type="date" class="form-input" id="os-data-entrega">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" for="os-hora-entrega" style="font-size:var(--font-xs);">Horário</label>
+                    <select class="form-select" id="os-hora-entrega">
+                      <option value="">--:--</option>
+                      <option value="08:00">08:00</option>
+                      <option value="08:30">08:30</option>
+                      <option value="09:00">09:00</option>
+                      <option value="09:30">09:30</option>
+                      <option value="10:00">10:00</option>
+                      <option value="10:30">10:30</option>
+                      <option value="11:00">11:00</option>
+                      <option value="11:30">11:30</option>
+                      <option value="12:00">12:00</option>
+                      <option value="12:30">12:30</option>
+                      <option value="13:00">13:00</option>
+                      <option value="13:30">13:30</option>
+                      <option value="14:00">14:00</option>
+                      <option value="14:30">14:30</option>
+                      <option value="15:00">15:00</option>
+                      <option value="15:30">15:30</option>
+                      <option value="16:00">16:00</option>
+                      <option value="16:30">16:30</option>
+                      <option value="17:00">17:00</option>
+                      <option value="17:30">17:30</option>
+                      <option value="18:00">18:00</option>
+                      <option value="18:30">18:30</option>
+                      <option value="19:00">19:00</option>
+                      <option value="19:30">19:30</option>
+                      <option value="20:00">20:00</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="display-dia-semana-entrega" style="margin-top:var(--space-sm); font-size:var(--font-xs); font-weight:700; color:var(--accent); display:none;"></div>
+              </div>
+            </div>
+
+            <!-- Campos Personalizados (dynamic) -->
+            <div id="campos-personalizados"></div>
+
+            <!-- Observações -->
+            <div class="form-group">
+              <label class="form-label" for="os-observacoes">Observações</label>
+              <textarea class="form-textarea" id="os-observacoes" placeholder="Informações adicionais..."></textarea>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn btn-primary btn-block mt-lg" style="margin-bottom:var(--space-lg)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Salvar OS
+            </button>
+          </form>
+        </div>
+
+        <!-- ===== SERVIÇOS (Aguardando) PAGE ===== -->
+        <div class="page" id="page-servicos">
+          <div class="page-header">
+            <div class="page-title">🟡 Aguardando Serviço</div>
+            <div class="page-subtitle">OS aguardando execução · <span id="count-servicos">0</span> itens</div>
+          </div>
+          <div class="search-bar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="search-input" placeholder="Buscar OS, cliente, modelo...">
+          </div>
+          <div class="kanban-list" id="list-servicos"></div>
+        </div>
+
+        <!-- ===== EM ANDAMENTO PAGE ===== -->
+        <div class="page" id="page-andamento">
+          <div class="page-header">
+            <div class="page-title">🔵 Em Andamento</div>
+            <div class="page-subtitle">Serviços sendo executados · <span id="count-andamento">0</span> itens</div>
+          </div>
+          <div class="kanban-list" id="list-andamento"></div>
+        </div>
+
+        <!-- ===== CONCLUÍDOS PAGE (HISTÓRICO PROFISSIONAL) ===== -->
+        <div class="page" id="page-concluidos">
+          <div class="page-header">
+            <div class="page-title">Histórico de Concluídos</div>
+            <div class="page-subtitle">Histórico profissional · <span id="count-concluidos">0</span> serviços finalizados</div>
+          </div>
+          <div class="search-bar" style="margin-bottom:var(--space-md);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="search-concluidos-input" placeholder="🔍 Pesquisar cliente antigo, OS ou modelo...">
+          </div>
+          <div class="kanban-list" id="list-concluidos"></div>
+        </div>
+
+        <!-- ===== OS DETAIL PAGE ===== -->
+        <div class="page" id="page-os-detail">
+          <div id="os-detail-content"></div>
+        </div>
+
+        <!-- ===== ADMIN PAGE ===== -->
+        <div class="page" id="page-admin">
+          <div class="page-header">
+            <div class="page-title">⚙️ Configurações</div>
+            <div class="page-subtitle">Gerencie o sistema</div>
+          </div>
+
+          <!-- Usuários -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Usuários</div>
+                <div class="admin-card-desc">Gerencie quem acessa o sistema</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="App.openModalNovoUsuario()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                Novo
+              </button>
+            </div>
+            <div id="admin-usuarios-list"></div>
+          </div>
+
+          <!-- Cargos e Permissões -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Cargos & Permissões</div>
+                <div class="admin-card-desc">Defina o que cada cargo pode fazer</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="App.openModalNovoCargo()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Novo Cargo
+              </button>
+            </div>
+            <div id="admin-cargos-list"></div>
+          </div>
+
+          <!-- Listas de Opções -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Listas de Opções</div>
+                <div class="admin-card-desc">Cores, Modelos, etc.</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="App.openModalNovaOpcao()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Nova Lista
+              </button>
+            </div>
+            <div id="admin-opcoes-list"></div>
+          </div>
+
+          <!-- Campos Personalizados -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Campos Personalizados</div>
+                <div class="admin-card-desc">Campos extras para o formulário da OS</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="App.openModalNovoCampo()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Novo Campo
+              </button>
+            </div>
+            <div id="admin-campos-list"></div>
+          </div>
+
+          <!-- Modelo de Mensagem WhatsApp Personalizado -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Mensagem do WhatsApp</div>
+                <div class="admin-card-desc">Personalize o texto enviado ao cliente no WhatsApp</div>
+              </div>
+            </div>
+            <div style="margin-top:var(--space-sm); position:relative;">
+              <label class="form-label" style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:4px; display:block;">
+                Clique no atalho ou digite <strong>@</strong> no texto para inserir variáveis
+              </label>
+              
+              <!-- Chips rápidos de atalho -->
+              <div id="whatsapp-vars-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                <button type="button" class="chip-var" data-var="@{nome_cliente}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{nome_cliente}</button>
+                <button type="button" class="chip-var" data-var="@{veiculo}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{veiculo}</button>
+                <button type="button" class="chip-var" data-var="@{lista_servicos}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{lista_servicos}</button>
+                <button type="button" class="chip-var" data-var="@{valor_total}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{valor_total}</button>
+                <button type="button" class="chip-var" data-var="@{forma_pagamento}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{forma_pagamento}</button>
+                <button type="button" class="chip-var" data-var="@{status_pagamento}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{status_pagamento}</button>
+                <button type="button" class="chip-var" data-var="@{data}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{data}</button>
+                <button type="button" class="chip-var" data-var="@{hora}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{hora}</button>
+              </div>
+
+              <div style="position:relative;">
+                <textarea class="form-textarea" id="admin-template-whatsapp" rows="9" style="font-family:monospace; font-size:var(--font-xs); line-height:1.4; width:100%; resize:vertical; padding:10px;"></textarea>
+
+                <!-- Dropdown do Autocomplete ao digitar @ -->
+                <div id="whatsapp-autocomplete-dropdown" style="display:none; position:absolute; left:10px; bottom:20px; z-index:300; background:var(--bg-tertiary); border:1px solid var(--accent); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); width:calc(100% - 20px); max-height:220px; overflow-y:auto;">
+                </div>
+              </div>
+
+              <div style="display:flex; gap:var(--space-sm); margin-top:var(--space-sm);">
+                <button type="button" class="btn btn-primary btn-block" id="btn-save-template-wa">Salvar Mensagem</button>
+                <button type="button" class="btn btn-secondary" id="btn-reset-template-wa" title="Restaurar padrão">Restaurar Padrão</button>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Ações da Conta -->
+          <div style="margin-top: var(--space-xl); padding: 0 var(--space-sm);">
+            <button class="btn btn-danger btn-block" id="btn-logout-admin">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+              Sair da Conta
+            </button>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- Bottom Navigation — 5 tabs -->
+      <nav class="bottom-nav">
+        <button class="nav-item active" data-page="home">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Home</span>
+        </button>
+        <button class="nav-item" data-page="servicos">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Serviços</span>
+          <span class="nav-badge" id="badge-servicos" style="display:none">0</span>
+        </button>
+        <button class="nav-item" data-page="nova-os">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+          <span>+Orçamento</span>
+        </button>
+        <button class="nav-item" data-page="andamento">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Andamento</span>
+          <span class="nav-badge" id="badge-andamento" style="display:none;background:var(--status-andamento)">0</span>
+        </button>
+        <button class="nav-item" data-page="concluidos">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span>Concluídos</span>
+          <span class="nav-badge" id="badge-concluidos" style="display:none;background:var(--status-concluido)">0</span>
+        </button>
+      </nav>
+
+    </div>
+
+    <!-- ========== MODAL / BOTTOM SHEET ========== -->
+    <div class="modal-overlay" id="modal-overlay"></div>
+    <div class="bottom-sheet" id="bottom-sheet">
+      <div class="bottom-sheet-handle"></div>
+      <div class="bottom-sheet-header">
+        <h3 class="bottom-sheet-title" id="bottom-sheet-title">Modal</h3>
+        <button class="header-btn" onclick="document.getElementById('modal-overlay').classList.remove('active');document.getElementById('bottom-sheet').classList.remove('active');">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="bottom-sheet-body" id="bottom-sheet-body"></div>
+      <div class="bottom-sheet-footer">
+        <button class="btn btn-primary btn-block" id="bottom-sheet-confirm">Confirmar</button>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="utils.js"></script>
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

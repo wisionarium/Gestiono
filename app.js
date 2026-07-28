@@ -1,0 +1,2022 @@
+// ============================================
+// APP.JS — Aplicação Principal (v2)
+// ============================================
+
+const App = (() => {
+
+  // ---------- STATE ----------
+  let currentPage = 'home';
+  let currentUser = null;
+  let currentOSId = null;
+  let editingOS = null;
+
+  function temPermissao(permissao) {
+    if (!currentUser) return false;
+    if (currentUser.usuario === 'admin' || currentUser.role === 'admin' || currentUser.role === 'role_admin') return true;
+    const cargo = Storage.getCargoById(currentUser.role);
+    if (!cargo) return false;
+    return cargo.permissoes && cargo.permissoes.includes(permissao);
+  }
+
+  // ---------- INIT ----------
+
+  function init() {
+    Storage.initialize();
+    if (typeof Storage.sincronizarTudoComSupabase === 'function') {
+      Storage.sincronizarTudoComSupabase();
+    }
+    currentUser = Storage.getUsuarioLogado();
+
+    if (currentUser) {
+      showMainLayout();
+      navigateTo('home');
+    } else {
+      showLoginScreen();
+    }
+
+    bindGlobalEvents();
+  }
+
+  function bindGlobalEvents() {
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        if (page) navigateTo(page);
+      });
+    });
+
+    document.getElementById('modal-overlay').addEventListener('click', closeModal);
+
+    const btnLogoutAdmin = document.getElementById('btn-logout-admin');
+    if (btnLogoutAdmin) {
+      btnLogoutAdmin.addEventListener('click', handleLogout);
+    }
+
+    const btnAdmin = document.getElementById('btn-admin');
+    if (btnAdmin) btnAdmin.addEventListener('click', () => navigateTo('admin'));
+
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', Utils.debounce((e) => {
+        renderCurrentList();
+      }, 300));
+    }
+
+    const searchConcluidos = document.getElementById('search-concluidos-input');
+    if (searchConcluidos) {
+      searchConcluidos.addEventListener('input', Utils.debounce((e) => {
+        renderCurrentList();
+      }, 300));
+    }
+
+    // Home navigation links
+    const btnHomeNovoOrcamento = document.getElementById('home-btn-novo-orcamento');
+    if (btnHomeNovoOrcamento) {
+      btnHomeNovoOrcamento.addEventListener('click', () => navigateTo('nova-os'));
+    }
+
+    const cardHomeSemana = document.getElementById('home-card-estatisticas-semana');
+    if (cardHomeSemana) {
+      cardHomeSemana.addEventListener('click', () => navigateTo('servicos'));
+    }
+
+    const cardHomePendentes = document.getElementById('home-card-pendentes');
+    if (cardHomePendentes) {
+      cardHomePendentes.addEventListener('click', () => navigateTo('servicos'));
+    }
+
+    const cardHomeMensal = document.getElementById('home-card-mensal');
+    if (cardHomeMensal) {
+      cardHomeMensal.addEventListener('click', () => navigateTo('servicos'));
+    }
+
+    // Delivery date & time handlers
+    const checkEntrega = document.getElementById('os-check-data-entrega');
+    const containerEntrega = document.getElementById('container-data-entrega');
+    const inputEntrega = document.getElementById('os-data-entrega');
+    const inputHoraEntrega = document.getElementById('os-hora-entrega');
+    const displayDiaSemana = document.getElementById('display-dia-semana-entrega');
+
+    function updateDisplayEntrega() {
+      if (!inputEntrega) return;
+      const dataVal = inputEntrega.value;
+      const horaVal = inputHoraEntrega ? inputHoraEntrega.value : '';
+      if (dataVal) {
+        const info = Utils.formatarDataEntrega(dataVal, horaVal);
+        if (info) {
+          displayDiaSemana.textContent = `📅 ${info.textoCompleto}`;
+          displayDiaSemana.style.display = 'block';
+        } else {
+          displayDiaSemana.style.display = 'none';
+        }
+      } else {
+        displayDiaSemana.style.display = 'none';
+      }
+    }
+
+    if (checkEntrega) {
+      checkEntrega.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          containerEntrega.style.display = 'block';
+          if (!inputEntrega.value) {
+            inputEntrega.value = new Date().toISOString().split('T')[0];
+          }
+          updateDisplayEntrega();
+        } else {
+          containerEntrega.style.display = 'none';
+          inputEntrega.value = '';
+          if (inputHoraEntrega) inputHoraEntrega.value = '';
+          displayDiaSemana.style.display = 'none';
+        }
+      });
+    }
+
+    if (inputEntrega) inputEntrega.addEventListener('change', updateDisplayEntrega);
+    if (inputHoraEntrega) inputHoraEntrega.addEventListener('change', updateDisplayEntrega);
+
+    // Home stats sub-cards navigation
+    const btnStatAFazer = document.getElementById('home-stat-afazer');
+    if (btnStatAFazer) btnStatAFazer.addEventListener('click', () => navigateTo('servicos'));
+
+    const btnStatAndamento = document.getElementById('home-stat-andamento');
+    if (btnStatAndamento) btnStatAndamento.addEventListener('click', () => navigateTo('andamento'));
+
+    const btnStatConcluidos = document.getElementById('home-stat-concluidos');
+    if (btnStatConcluidos) btnStatConcluidos.addEventListener('click', () => navigateTo('concluidos'));
+
+    // Photo attachments handlers
+    const checkFotos = document.getElementById('os-check-fotos');
+    const containerFotos = document.getElementById('container-fotos');
+    const btnAddFoto = document.getElementById('btn-add-foto');
+    const inputFoto = document.getElementById('os-input-foto');
+
+    if (checkFotos) {
+      checkFotos.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          containerFotos.style.display = 'block';
+        } else {
+          containerFotos.style.display = 'none';
+          fotosAnexadas = [];
+          renderFotosGrid();
+        }
+      });
+    }
+
+    if (btnAddFoto && inputFoto) {
+      btnAddFoto.addEventListener('click', () => {
+        inputFoto.click();
+      });
+
+      inputFoto.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        showToast('Processando e comprimindo foto(s)...', 'info');
+        for (const file of files) {
+          try {
+            const base64Comprimida = await Utils.comprimirFotoBase64(file, 900, 0.65);
+            fotosAnexadas.push(base64Comprimida);
+          } catch (err) {
+            console.error('Erro ao comprimir foto:', err);
+          }
+        }
+        inputFoto.value = '';
+        renderFotosGrid();
+        showToast('Foto(s) anexada(s) com sucesso!', 'success');
+      });
+    }
+
+    // Initialize WhatsApp template editor controls
+    initWhatsAppTemplateEditor();
+  }
+
+  // ---------- AUTH ----------
+
+  function handleLogin(e) {
+    e.preventDefault();
+    const usuario = document.getElementById('login-usuario').value.trim();
+    const senha = document.getElementById('login-senha').value;
+    const errorEl = document.getElementById('login-error');
+
+    const user = Storage.autenticar(usuario, senha);
+    if (user) {
+      currentUser = user;
+      Storage.setUsuarioLogado(user);
+      errorEl.classList.remove('show');
+      showMainLayout();
+      navigateTo('home');
+    } else {
+      errorEl.textContent = 'Usuário ou senha incorretos';
+      errorEl.classList.add('show');
+    }
+  }
+
+  function handleLogout() {
+    Storage.logout();
+    currentUser = null;
+    showLoginScreen();
+  }
+
+  // ---------- NAVIGATION ----------
+
+  function showLoginScreen() {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('main-layout').classList.remove('active');
+    document.getElementById('login-usuario').value = '';
+    document.getElementById('login-senha').value = '';
+  }
+
+  function showMainLayout() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-layout').classList.add('active');
+    updateHeaderUser();
+    updateNavVisibility();
+  }
+
+  function navigateTo(page) {
+    currentPage = page;
+    document.getElementById('btn-back').style.display = 'none';
+
+    // Update pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const pageEl = document.getElementById(`page-${page}`);
+    if (pageEl) pageEl.classList.add('active');
+
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (navItem) navItem.classList.add('active');
+
+    // Update header
+    updateHeaderTitle(page);
+
+    // Show/hide admin button
+    const btnAdmin = document.getElementById('btn-admin');
+    if (btnAdmin) {
+      btnAdmin.style.display = (currentUser && temPermissao('configuracoes') && page !== 'admin') ? 'flex' : 'none';
+    }
+
+    // Render page
+    switch (page) {
+      case 'home': renderDashboard(); break;
+      case 'nova-os': renderNovaOS(); break;
+      case 'servicos': renderListaOS('aguardando'); break;
+      case 'andamento': renderListaOS('em_andamento'); break;
+      case 'concluidos': renderListaOS('concluido'); break;
+      case 'admin': renderAdmin(); break;
+    }
+  }
+
+  // ---------- HOME DASHBOARD ----------
+
+  function renderDashboard() {
+    if (!currentUser) return;
+    
+    const welcomeTitle = document.getElementById('home-welcome-title');
+    if (welcomeTitle) {
+      welcomeTitle.textContent = `Olá, ${currentUser.nome.split(' ')[0]}!`;
+    }
+
+    const ordens = Storage.getOrdens();
+    
+    // Contagem de Estatísticas da Semana Atual
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() + diffToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const ordensDaSemana = ordens.filter(o => {
+      if (!o.criadoEm) return false;
+      const dataCriacao = new Date(o.criadoEm);
+      return dataCriacao >= startOfWeek && dataCriacao <= endOfWeek;
+    });
+
+    const semanaAguardando = ordensDaSemana.filter(o => o.status === 'aguardando').length;
+    const semanaAndamento = ordensDaSemana.filter(o => o.status === 'em_andamento').length;
+    const semanaConcluido = ordensDaSemana.filter(o => o.status === 'concluido').length;
+
+    const elSemAguardando = document.getElementById('home-semana-aguardando');
+    if (elSemAguardando) elSemAguardando.textContent = semanaAguardando;
+
+    const elSemAndamento = document.getElementById('home-semana-andamento');
+    if (elSemAndamento) elSemAndamento.textContent = semanaAndamento;
+
+    const elSemConcluido = document.getElementById('home-semana-concluido');
+    if (elSemConcluido) elSemConcluido.textContent = semanaConcluido;
+
+    // Status counts gerais
+    const countAguardando = ordens.filter(o => o.status === 'aguardando').length;
+    const countAndamento = ordens.filter(o => o.status === 'em_andamento').length;
+
+    // Pendentes gerais = aguardando + em_andamento
+    const pendentesCount = countAguardando + countAndamento;
+    const countPendentesEl = document.getElementById('home-count-pendentes');
+    if (countPendentesEl) countPendentesEl.textContent = pendentesCount;
+
+    // Resumo mensal: faturamento de ordens do mês atual
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const ordensDoMes = ordens.filter(o => {
+      if (!o.criadoEm) return false;
+      const dataCriacao = new Date(o.criadoEm);
+      return dataCriacao.getMonth() === currentMonth && dataCriacao.getFullYear() === currentYear;
+    });
+
+    const faturamentoTotal = ordensDoMes.reduce((acc, o) => acc + (o.valorTotal || 0), 0);
+
+    const faturamentoEl = document.getElementById('home-faturamento-mensal');
+    if (faturamentoEl) {
+      if (temPermissao('ver_valores_cliente')) {
+        faturamentoEl.textContent = Utils.formatarMoeda(faturamentoTotal);
+      } else {
+        faturamentoEl.textContent = '🔒 Restrito';
+      }
+    }
+  }
+
+  function updateHeaderTitle(page) {
+    const titles = {
+      'home': 'Início',
+      'nova-os': 'Novo Orçamento',
+      'servicos': 'Serviços',
+      'andamento': 'Em Andamento',
+      'concluidos': 'Concluídos',
+      'admin': 'Configurações',
+      'os-detail': 'Detalhes da OS'
+    };
+    document.getElementById('header-title').textContent = titles[page] || 'OS Manager';
+  }
+
+  function updateHeaderUser() {
+    if (!currentUser) return;
+    document.getElementById('header-user-name').textContent = currentUser.nome.split(' ')[0];
+    const cargo = Storage.getCargoById(currentUser.role);
+    const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(currentUser.role);
+    document.getElementById('header-user-role').textContent = cargoNome;
+  }
+
+  function updateNavVisibility() {
+    // Nova OS tab: baseada na permissão criar_os
+    const novaOsNav = document.querySelector('.nav-item[data-page="nova-os"]');
+    if (novaOsNav) {
+      novaOsNav.style.display = temPermissao('criar_os') ? 'flex' : 'none';
+    }
+    // Admin button in header: baseado na permissão configuracoes
+    const btnAdmin = document.getElementById('btn-admin');
+    if (btnAdmin) {
+      btnAdmin.style.display = temPermissao('configuracoes') ? 'flex' : 'none';
+    }
+  }
+
+  function renderCurrentList() {
+    switch (currentPage) {
+      case 'servicos': renderListaOS('aguardando'); break;
+      case 'andamento': renderListaOS('em_andamento'); break;
+      case 'concluidos': renderListaOS('concluido'); break;
+    }
+  }
+
+  let historicoExpandedSections = {};
+
+  function getHistoricoGroupInfo(os) {
+    const dateStr = os.horaFim || os.dataServico || os.criadoEm;
+    const date = dateStr ? new Date(dateStr) : new Date();
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    const diffTime = today.getTime() - targetDate.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+    if (diffDays === 0) {
+      return { key: 'hoje', label: 'Hoje', order: 1 };
+    }
+    if (diffDays === 1) {
+      return { key: 'ontem', label: 'Ontem', order: 2 };
+    }
+
+    const meses = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    const mesNome = meses[date.getMonth()];
+    const ano = date.getFullYear();
+    const isCurrentMonth = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+
+    if (isCurrentMonth) {
+      return { key: `mes_${ano}_${date.getMonth()}`, label: `Este Mês (${mesNome})`, order: 3 };
+    } else {
+      const orderVal = 10000 - (ano * 12 + date.getMonth());
+      return { key: `mes_${ano}_${date.getMonth()}`, label: `${mesNome} de ${ano}`, order: orderVal };
+    }
+  }
+
+  // ---------- OS LIST (replaces kanban) ----------
+
+  function renderListaOS(status) {
+    const containerId = {
+      'aguardando': 'list-servicos',
+      'em_andamento': 'list-andamento',
+      'concluido': 'list-concluidos'
+    }[status];
+
+    const countId = {
+      'aguardando': 'count-servicos',
+      'em_andamento': 'count-andamento',
+      'concluido': 'count-concluidos'
+    }[status];
+
+    const container = document.getElementById(containerId);
+    const countEl = document.getElementById(countId);
+    if (!container) return;
+
+    let ordens = Storage.getOrdensByStatus(status);
+
+    // Search filter
+    const searchConcluidos = document.getElementById('search-concluidos-input');
+    const searchGeneral = document.getElementById('search-input');
+    const rawQuery = (status === 'concluido' && searchConcluidos && searchConcluidos.value.trim() ? searchConcluidos.value : (searchGeneral ? searchGeneral.value : '')).trim();
+    const qClean = Utils.removerAcentos(rawQuery);
+    
+    if (qClean) {
+      ordens = ordens.filter(os =>
+        Utils.removerAcentos(os.id).includes(qClean) ||
+        Utils.removerAcentos(os.clienteNome).includes(qClean) ||
+        Utils.removerAcentos(os.clienteTelefone).includes(qClean) ||
+        Utils.removerAcentos(os.modeloVeiculo).includes(qClean) ||
+        Utils.removerAcentos(os.corVeiculo).includes(qClean) ||
+        Utils.removerAcentos(os.mecanico).includes(qClean)
+      );
+    }
+
+    // Sort: urgente first, then by date
+    ordens.sort((a, b) => {
+      if (a.prioridade === 'urgente' && b.prioridade !== 'urgente') return -1;
+      if (b.prioridade === 'urgente' && a.prioridade !== 'urgente') return 1;
+      const dataA = a.horaFim || a.dataServico || a.criadoEm;
+      const dataB = b.horaFim || b.dataServico || b.criadoEm;
+      return new Date(dataB) - new Date(dataA);
+    });
+
+    // Update counter
+    if (countEl) countEl.textContent = ordens.length;
+
+    // Update all nav badges
+    updateNavBadges();
+
+    if (ordens.length === 0) {
+      const emptyTexts = {
+        'aguardando': 'Nenhum serviço aguardando',
+        'em_andamento': 'Nenhum serviço em andamento',
+        'concluido': 'Nenhum serviço no histórico'
+      };
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+          </div>
+          <div class="empty-state-title">${emptyTexts[status]}</div>
+          <div class="empty-state-text">${query ? 'Tente outro termo de busca' : ''}</div>
+        </div>`;
+      return;
+    }
+
+    // Render Especial para Concluídos (Histórico por Seção Temporal)
+    if (status === 'concluido') {
+      const groupsMap = {};
+      ordens.forEach(os => {
+        const groupInfo = getHistoricoGroupInfo(os);
+        if (!groupsMap[groupInfo.key]) {
+          groupsMap[groupInfo.key] = {
+            key: groupInfo.key,
+            label: groupInfo.label,
+            order: groupInfo.order,
+            ordens: []
+          };
+        }
+        groupsMap[groupInfo.key].ordens.push(os);
+      });
+
+      const sortedGroups = Object.values(groupsMap).sort((a, b) => a.order - b.order);
+
+      let htmlResult = '';
+      sortedGroups.forEach(grp => {
+        const isExpanded = !!historicoExpandedSections[grp.key];
+        const visibleOrdens = isExpanded ? grp.ordens : grp.ordens.slice(0, 2);
+        const hasMore = grp.ordens.length > 2;
+
+        htmlResult += `
+          <div class="historico-section" style="margin-bottom:var(--space-lg);">
+            <div class="historico-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-sm); padding-bottom:6px; border-bottom:1px dashed rgba(255,255,255,0.08);">
+              <div style="font-size:var(--font-xs); font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+                <span>📅 ${grp.label}</span>
+                <span style="font-size:var(--font-xs); color:var(--text-tertiary); font-weight:500;">(${grp.ordens.length})</span>
+              </div>
+              ${hasMore ? `
+                <button class="btn-toggle-historico-sec" data-key="${grp.key}" style="font-size:var(--font-xs); color:var(--accent); font-weight:700; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); padding:4px 10px; border-radius:var(--radius-full); cursor:pointer;">
+                  ${isExpanded ? 'Recolher ⌃' : `Ver mais (+${grp.ordens.length - 2}) →`}
+                </button>
+              ` : ''}
+            </div>
+            <div class="kanban-list">
+              ${visibleOrdens.map(os => renderOSCard(os)).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = htmlResult;
+
+      // Bind toggle click
+      container.querySelectorAll('.btn-toggle-historico-sec').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const k = btn.dataset.key;
+          historicoExpandedSections[k] = !historicoExpandedSections[k];
+          renderListaOS('concluido');
+        });
+      });
+    } else {
+      container.innerHTML = ordens.map(os => renderOSCard(os)).join('');
+    }
+
+    // Bind clicks
+    container.querySelectorAll('.os-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.os-card-action-btn')) return;
+        openOSDetail(card.dataset.id);
+      });
+    });
+
+    container.querySelectorAll('.btn-assumir').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); assumirServico(btn.dataset.id); });
+    });
+
+    container.querySelectorAll('.btn-delegar').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); openModalDelegarServico(btn.dataset.id); });
+    });
+
+    container.querySelectorAll('.btn-concluir').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); concluirServico(btn.dataset.id); });
+    });
+  }
+
+  function updateNavBadges() {
+    const ordens = Storage.getOrdens();
+    const aguardando = ordens.filter(o => o.status === 'aguardando').length;
+    const andamento = ordens.filter(o => o.status === 'em_andamento').length;
+    const concluido = ordens.filter(o => o.status === 'concluido').length;
+
+    setBadge('badge-servicos', aguardando);
+    setBadge('badge-andamento', andamento);
+    setBadge('badge-concluidos', concluido);
+  }
+
+  function setBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = count;
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  function renderOSCard(os) {
+    const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
+    const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento' && 
+      (currentUser.usuario === 'admin' || os.mecanico === currentUser.nome);
+    const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
+
+    let fotosBadgeHtml = '';
+    if (os.temFotos && Array.isArray(os.fotos) && os.fotos.length > 0) {
+      fotosBadgeHtml = `<span class="badge" style="background:rgba(139,92,246,0.15); color:var(--accent); border:1px solid rgba(139,92,246,0.3); display:inline-flex; align-items:center; gap:4px; font-size:var(--font-xs); padding:2px 7px; border-radius:var(--radius-full); font-weight:700;">
+        <img src="${os.fotos[0]}" style="width:14px; height:14px; border-radius:3px; object-fit:cover;">
+        📷 ${os.fotos.length} foto${os.fotos.length > 1 ? 's' : ''}
+      </span>`;
+    }
+
+    let actionsHtml = '';
+    if (canAssumir) {
+      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-assumir" data-id="${os.id}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        Assumir
+      </button>`;
+    }
+    if (canDelegar) {
+      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-delegar" data-id="${os.id}" style="background:var(--accent);border-color:var(--accent);color:#ffffff;margin-left:6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+        Delegar
+      </button>`;
+    }
+    if (canConcluir) {
+      actionsHtml += `<button class="btn btn-success btn-xs os-card-action-btn btn-concluir" data-id="${os.id}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Concluir
+      </button>`;
+    }
+
+    const valorMostrar = temPermissao('ver_valores_cliente') ? Utils.formatarMoeda(os.valorTotal) : 'Restrito 🔒';
+    const pagamentoStr = temPermissao('ver_valores_cliente') ? Utils.traduzirPagamento(os.formaPagamento) : 'Restrito';
+
+    let entregaHtml = '';
+    if (os.temDataEntrega && os.dataEntrega) {
+      const infoEntrega = Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega);
+      if (infoEntrega) {
+        entregaHtml = `<div class="os-card-entrega-row" style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.06); font-size:var(--font-xs); font-weight:700; color:#ef4444; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+          <span>DATA DE ENTREGA: ${infoEntrega.textoCompleto}</span>
+        </div>`;
+      }
+    }
+
+    return `
+      <div class="os-card" data-id="${os.id}" data-status="${os.status}">
+        <div class="os-card-header">
+          <span class="os-card-code">${os.id}</span>
+          <div class="os-card-badges">
+            ${fotosBadgeHtml}
+            ${os.prioridade === 'urgente' ? '<span class="badge badge-urgente">URGENTE</span>' : ''}
+            <span class="badge badge-${os.statusPagamento}">${Utils.traduzirStatusPagamento(os.statusPagamento)}</span>
+          </div>
+        </div>
+        <div class="os-card-cliente">${os.clienteNome}</div>
+        <div class="os-card-info">
+          <span class="os-card-info-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-5"/></svg>
+            ${os.modeloVeiculo || '—'}
+          </span>
+          <span class="os-card-info-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+            ${Utils.formatarData(os.dataServico)}
+          </span>
+          ${os.mecanico ? `<span class="os-card-info-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            ${os.mecanico}
+          </span>` : ''}
+        </div>
+        ${entregaHtml}
+        <div class="os-card-footer">
+          <div>
+            <span class="os-card-valor">${valorMostrar}</span>
+            <span class="os-card-pagamento">${pagamentoStr}</span>
+          </div>
+          <div class="os-card-actions">${actionsHtml}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---------- AÇÕES DO SERVIÇO ----------
+
+  function assumirServico(id) {
+    const os = Storage.getOrdemById(id);
+    if (!os || os.status !== 'aguardando') return;
+    Storage.updateOrdem(id, { status: 'em_andamento', mecanico: currentUser.nome, horaInicio: new Date().toISOString() });
+    Storage.addHistorico(id, `Serviço assumido por ${currentUser.nome}`, currentUser.nome);
+    showToast('Serviço assumido!', 'success');
+    renderCurrentList();
+  }
+
+  function concluirServico(id) {
+    const os = Storage.getOrdemById(id);
+    if (!os || os.status !== 'em_andamento') return;
+    const horaFim = new Date().toISOString();
+    const tempoTotal = Utils.calcularTempoTotal(os.horaInicio, horaFim);
+    Storage.updateOrdem(id, { status: 'concluido', horaFim, tempoTotal });
+    Storage.addHistorico(id, `Serviço concluído por ${currentUser.nome} (${tempoTotal})`, currentUser.nome);
+    showToast(`Serviço concluído! Tempo: ${tempoTotal}`, 'success');
+    renderCurrentList();
+  }
+
+  // ---------- NOVA OS ----------
+
+  function openNovaOS() {
+    editingOS = null;
+    navigateTo('nova-os');
+  }
+
+  function renderNovaOS(osData) {
+    const form = document.getElementById('form-nova-os');
+    const campos = Storage.getCamposAtivos();
+    const opcoes = Storage.getOpcoes();
+
+    form.reset();
+    document.getElementById('servico-items').innerHTML = '';
+    addServicoItem();
+
+    const checkEntrega = document.getElementById('os-check-data-entrega');
+    const containerEntrega = document.getElementById('container-data-entrega');
+    const inputEntrega = document.getElementById('os-data-entrega');
+    const inputHoraEntrega = document.getElementById('os-hora-entrega');
+    const displayDiaSemana = document.getElementById('display-dia-semana-entrega');
+
+    // Populate configurable selects
+    populateOpcaoSelect('os-modelo', 'modelo', 'Selecione o modelo...');
+    populateOpcaoSelect('os-cor', 'cor', 'Selecione a cor...');
+
+    // Reset payment checkboxes
+    document.querySelectorAll('.payment-check').forEach(cb => cb.checked = false);
+
+    // Render custom fields
+    renderCamposPersonalizados(campos);
+
+    // If editing
+    if (osData) {
+      editingOS = osData;
+      document.getElementById('nova-os-title').textContent = `Editar ${osData.id}`;
+      document.getElementById('os-cliente-nome').value = osData.clienteNome;
+      document.getElementById('os-telefone').value = osData.clienteTelefone;
+      document.getElementById('os-modelo').value = osData.modeloVeiculo || '';
+      document.getElementById('os-cor').value = osData.corVeiculo || '';
+      document.getElementById('os-status-pagamento').value = osData.statusPagamento;
+      document.getElementById('os-prioridade').value = osData.prioridade;
+      document.getElementById('os-observacoes').value = osData.observacoes || '';
+
+      if (osData.temDataEntrega && osData.dataEntrega) {
+        checkEntrega.checked = true;
+        containerEntrega.style.display = 'block';
+        inputEntrega.value = osData.dataEntrega;
+        if (inputHoraEntrega) inputHoraEntrega.value = osData.horaEntrega || '';
+        const info = Utils.formatarDataEntrega(osData.dataEntrega, osData.horaEntrega);
+        if (info) {
+          displayDiaSemana.textContent = `📅 ${info.textoCompleto}`;
+          displayDiaSemana.style.display = 'block';
+        }
+      } else {
+        checkEntrega.checked = false;
+        containerEntrega.style.display = 'none';
+        inputEntrega.value = new Date().toISOString().split('T')[0];
+        if (inputHoraEntrega) inputHoraEntrega.value = '';
+        displayDiaSemana.style.display = 'none';
+      }
+
+      const checkFotos = document.getElementById('os-check-fotos');
+      const containerFotos = document.getElementById('container-fotos');
+
+      if (osData.temFotos && Array.isArray(osData.fotos) && osData.fotos.length > 0) {
+        if (checkFotos) checkFotos.checked = true;
+        if (containerFotos) containerFotos.style.display = 'block';
+        fotosAnexadas = [...osData.fotos];
+      } else {
+        if (checkFotos) checkFotos.checked = false;
+        if (containerFotos) containerFotos.style.display = 'none';
+        fotosAnexadas = [];
+      }
+      renderFotosGrid();
+
+      // Restore payment checkboxes
+      const formas = Array.isArray(osData.formaPagamento) ? osData.formaPagamento : [osData.formaPagamento];
+      formas.forEach(f => {
+        const cb = document.querySelector(`.payment-check[value="${f}"]`);
+        if (cb) cb.checked = true;
+      });
+
+      // Restore services
+      document.getElementById('servico-items').innerHTML = '';
+      osData.servicos.forEach(s => addServicoItem(s.descricao, s.valor));
+
+      // Restore custom fields
+      if (osData.camposPersonalizados) {
+        Object.entries(osData.camposPersonalizados).forEach(([campoId, data]) => {
+          const el = document.getElementById(`campo-${campoId}`);
+          if (el) {
+            if (el.type === 'checkbox') {
+              el.checked = data.valor;
+              const qtyWrapper = document.getElementById(`campo-qty-${campoId}`);
+              if (qtyWrapper) qtyWrapper.classList.toggle('hidden', !data.valor);
+              const qtyInput = document.getElementById(`campo-qty-input-${campoId}`);
+              if (qtyInput && data.quantidade !== undefined) qtyInput.value = data.quantidade;
+            } else {
+              el.value = data.valor || '';
+            }
+          }
+        });
+      }
+      updateValorTotal();
+    } else {
+      document.getElementById('nova-os-title').textContent = 'Nova Ordem de Serviço';
+    }
+
+    form.onsubmit = handleSalvarOS;
+    document.getElementById('btn-add-servico').onclick = () => addServicoItem();
+  }
+
+  function populateOpcaoSelect(selectId, campo, placeholder) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const opcao = Storage.getOpcaoByCampo(campo);
+    const itens = opcao ? opcao.itens : [];
+
+    // Keep as text input if no options configured, otherwise use select
+    if (select.tagName === 'SELECT') {
+      select.innerHTML = `<option value="">${placeholder}</option>` +
+        itens.map(item => `<option value="${item}">${item}</option>`).join('');
+    }
+  }
+
+  function renderCamposPersonalizados(campos) {
+    const container = document.getElementById('campos-personalizados');
+    if (!campos.length) {
+      container.innerHTML = '';
+      return;
+    }
+
+    // Group by section
+    const sections = {};
+    campos.forEach(campo => {
+      const sec = campo.secao || 'Outros';
+      if (!sections[sec]) sections[sec] = [];
+      sections[sec].push(campo);
+    });
+
+    let html = '';
+    Object.entries(sections).forEach(([secName, secCampos]) => {
+      html += `
+        <div class="collapsible-section">
+          <div class="collapsible-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <span>${secName}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="collapsible-body">
+            ${secCampos.map(campo => renderCampoInput(campo)).join('')}
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function renderCampoInput(campo) {
+    if (campo.tipo === 'sim_nao') {
+      return `
+        <div class="form-toggle" onclick="this.querySelector('input').click()">
+          <span class="form-toggle-label">${campo.nome}</span>
+          <label class="toggle-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" id="campo-${campo.id}" data-campo-id="${campo.id}" data-campo-tipo="${campo.tipo}">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`;
+    } else if (campo.tipo === 'sim_nao_quantidade') {
+      return `
+        <div class="toggle-quantity-wrapper">
+          <div class="toggle-quantity-row" onclick="this.querySelector('input[type=checkbox]').click()">
+            <span class="form-toggle-label">${campo.nome}</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="campo-${campo.id}" data-campo-id="${campo.id}" data-campo-tipo="${campo.tipo}"
+                onchange="document.getElementById('campo-qty-${campo.id}').classList.toggle('hidden', !this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-quantity-input hidden" id="campo-qty-${campo.id}">
+            <label>Quantidade:</label>
+            <input type="number" class="form-input" id="campo-qty-input-${campo.id}" min="0" value="1" style="width:80px;min-height:38px;padding:8px;">
+          </div>
+        </div>`;
+    } else {
+      return `
+        <div class="form-group">
+          <label class="form-label">${campo.nome}</label>
+          <input type="text" class="form-input" id="campo-${campo.id}" data-campo-id="${campo.id}" data-campo-tipo="texto" placeholder="Digite aqui...">
+        </div>`;
+    }
+  }
+
+  function addServicoItem(desc = '', valor = '') {
+    const container = document.getElementById('servico-items');
+    const div = document.createElement('div');
+    div.className = 'servico-item';
+    div.innerHTML = `
+      <input type="text" class="form-input servico-desc" placeholder="Descrição do serviço" value="${desc}" required>
+      <input type="number" class="form-input servico-valor" placeholder="R$ 0,00" value="${valor}" step="0.01" min="0" required oninput="App.updateValorTotal()">
+      <button type="button" class="btn-remove-servico" onclick="this.parentElement.remove(); App.updateValorTotal();">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+      </button>`;
+    container.appendChild(div);
+    updateValorTotal();
+  }
+
+  function updateValorTotal() {
+    const items = document.querySelectorAll('.servico-valor');
+    let total = 0;
+    items.forEach(input => { total += parseFloat(input.value) || 0; });
+    document.getElementById('valor-total').textContent = Utils.formatarMoeda(total);
+  }
+
+  function handleSalvarOS(e) {
+    e.preventDefault();
+
+    // Collect services
+    const servicos = [];
+    document.querySelectorAll('.servico-item').forEach(item => {
+      const desc = item.querySelector('.servico-desc').value.trim();
+      const valor = parseFloat(item.querySelector('.servico-valor').value) || 0;
+      if (desc) servicos.push({ descricao: desc, valor });
+    });
+
+    if (servicos.length === 0) {
+      showToast('Adicione pelo menos um serviço', 'error');
+      return;
+    }
+
+    // Collect payment methods
+    const formasPagamento = [];
+    document.querySelectorAll('.payment-check:checked').forEach(cb => {
+      formasPagamento.push(cb.value);
+    });
+    if (formasPagamento.length === 0) {
+      showToast('Selecione pelo menos uma forma de pagamento', 'error');
+      return;
+    }
+
+    const valorTotal = servicos.reduce((sum, s) => sum + s.valor, 0);
+
+    // Collect custom fields
+    const camposPersonalizados = {};
+    document.querySelectorAll('[data-campo-id]').forEach(el => {
+      const campoId = el.dataset.campoId;
+      const tipo = el.dataset.campoTipo;
+      if (tipo === 'sim_nao') {
+        camposPersonalizados[campoId] = { valor: el.checked };
+      } else if (tipo === 'sim_nao_quantidade') {
+        const qtyInput = document.getElementById(`campo-qty-input-${campoId}`);
+        camposPersonalizados[campoId] = { valor: el.checked, quantidade: el.checked ? (parseInt(qtyInput?.value) || 0) : 0 };
+      } else if (tipo === 'texto') {
+        camposPersonalizados[campoId] = { valor: el.value.trim() };
+      }
+    });
+
+    const temDataEntrega = document.getElementById('os-check-data-entrega').checked;
+    const dataEntrega = temDataEntrega ? document.getElementById('os-data-entrega').value : null;
+    const horaEntrega = temDataEntrega ? document.getElementById('os-hora-entrega').value : null;
+
+    const checkFotos = document.getElementById('os-check-fotos');
+    const temFotos = checkFotos ? checkFotos.checked : false;
+    const fotos = temFotos ? [...fotosAnexadas] : [];
+
+    const osData = {
+      clienteNome: document.getElementById('os-cliente-nome').value.trim(),
+      clienteTelefone: document.getElementById('os-telefone').value.trim(),
+      modeloVeiculo: document.getElementById('os-modelo').value,
+      corVeiculo: document.getElementById('os-cor').value,
+      servicos,
+      valorTotal,
+      formaPagamento: formasPagamento,
+      statusPagamento: document.getElementById('os-status-pagamento').value,
+      dataServico: editingOS ? editingOS.dataServico : new Date().toISOString().split('T')[0],
+      temDataEntrega,
+      dataEntrega,
+      horaEntrega,
+      temFotos,
+      fotos,
+      prioridade: document.getElementById('os-prioridade').value,
+      status: editingOS ? editingOS.status : 'aguardando',
+      atendente: editingOS ? editingOS.atendente : currentUser.nome,
+      mecanico: editingOS ? editingOS.mecanico : null,
+      observacoes: document.getElementById('os-observacoes').value.trim(),
+      camposPersonalizados,
+      horaInicio: editingOS ? editingOS.horaInicio : null,
+      horaFim: editingOS ? editingOS.horaFim : null,
+      tempoTotal: editingOS ? editingOS.tempoTotal : null,
+      criadoPor: editingOS ? editingOS.criadoPor : currentUser.nome,
+      criadoEm: editingOS ? editingOS.criadoEm : new Date().toISOString(),
+      editadoPor: editingOS ? currentUser.nome : null,
+      editadoEm: editingOS ? new Date().toISOString() : null
+    };
+
+    if (editingOS) {
+      Storage.updateOrdem(editingOS.id, osData);
+      Storage.addHistorico(editingOS.id, 'OS editada', currentUser.nome);
+      showToast(`OS ${editingOS.id} atualizada!`, 'success');
+    } else {
+      const saved = Storage.saveOrdem(osData);
+      showToast(`OS ${saved.id} criada com sucesso!`, 'success');
+    }
+
+    editingOS = null;
+    navigateTo('servicos');
+  }
+
+  // ---------- OS DETAIL ----------
+
+  function openOSDetail(id) {
+    currentOSId = id;
+    const os = Storage.getOrdemById(id);
+    if (!os) return;
+
+    currentPage = 'os-detail';
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-os-detail').classList.add('active');
+    updateHeaderTitle('os-detail');
+
+    // Hide admin btn, show back
+    document.getElementById('btn-admin').style.display = 'none';
+    document.getElementById('btn-back').style.display = 'flex';
+    document.getElementById('btn-back').onclick = () => {
+      document.getElementById('btn-back').style.display = 'none';
+      // Go back to the list that matches this OS status
+      const pageMap = { 'aguardando': 'servicos', 'em_andamento': 'andamento', 'concluido': 'concluidos' };
+      navigateTo(pageMap[os.status] || 'servicos');
+    };
+
+    renderOSDetail(os);
+  }
+
+  function renderOSDetail(os) {
+    const container = document.getElementById('os-detail-content');
+    const campos = Storage.getCampos();
+
+    // Custom fields display
+    let camposHtml = '';
+    if (os.camposPersonalizados && Object.keys(os.camposPersonalizados).length > 0) {
+      const entries = Object.entries(os.camposPersonalizados).map(([campoId, data]) => {
+        const campo = campos.find(c => c.id === campoId);
+        if (!campo) return '';
+        let displayValue = '';
+        if (campo.tipo === 'sim_nao') displayValue = data.valor ? 'Sim ✅' : 'Não ❌';
+        else if (campo.tipo === 'sim_nao_quantidade') displayValue = data.valor ? `Sim ✅ (${data.quantidade || 0})` : 'Não ❌';
+        else displayValue = data.valor || '—';
+        return `<div class="os-detail-row"><span class="os-detail-label">${campo.nome}</span><span class="os-detail-value">${displayValue}</span></div>`;
+      }).join('');
+
+      if (entries) {
+        camposHtml = `<div class="os-detail-section"><div class="os-detail-section-title">Campos Personalizados</div>${entries}</div>`;
+      }
+    }
+
+    // Actions
+    let actionsHtml = '';
+    const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
+    const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento' && 
+      (currentUser.usuario === 'admin' || os.mecanico === currentUser.nome);
+    const canEditar = temPermissao('editar_os') && os.status === 'aguardando';
+    const canExcluir = temPermissao('excluir_os');
+    const canWhatsApp = temPermissao('enviar_whatsapp');
+    const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
+
+    if (canAssumir) {
+      actionsHtml += `<button class="btn btn-blue btn-block" id="btn-detail-assumir">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        Assumir Serviço</button>`;
+    }
+    if (canDelegar) {
+      actionsHtml += `<button class="btn btn-blue btn-block" id="btn-detail-delegar" style="background:var(--accent);border-color:var(--accent)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+        Delegar Serviço</button>`;
+    }
+    if (canEditar) {
+      actionsHtml += `<button class="btn btn-secondary btn-block" id="btn-detail-editar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        Editar OS</button>`;
+    }
+    if (canConcluir) {
+      actionsHtml += `<button class="btn btn-success btn-block" id="btn-detail-concluir">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Concluir Serviço</button>`;
+    }
+    if (canWhatsApp) {
+      actionsHtml += `<button class="btn btn-whatsapp btn-block" id="btn-detail-whatsapp">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Enviar WhatsApp</button>`;
+    }
+    if (canExcluir) {
+      actionsHtml += `<button class="btn btn-danger btn-block btn-sm mt-md" id="btn-detail-excluir">Excluir OS</button>`;
+    }
+
+    const telMostrar = temPermissao('ver_valores_cliente') ? Utils.formatarTelefone(os.clienteTelefone) : '🔒 Restrito';
+    const pagamentoStr = temPermissao('ver_valores_cliente') ? Utils.traduzirPagamento(os.formaPagamento) : '🔒 Restrito';
+    const statusPgtoStr = temPermissao('ver_valores_cliente') ? `<span class="badge badge-${os.statusPagamento}">${Utils.traduzirStatusPagamento(os.statusPagamento)}</span>` : '🔒 Restrito';
+
+    const ticketEditableClass = temPermissao('editar_os') ? 'os-ticket-editavel' : '';
+
+    container.innerHTML = `
+      <div class="os-detail-header">
+        <div class="os-detail-code" data-status="${os.status}">${os.id}</div>
+        <span class="badge badge-status" data-status="${os.status}">${Utils.traduzirStatus(os.status)}</span>
+      </div>
+
+      <!-- Notinha de Serviço Unificada -->
+      <div class="os-ticket ${ticketEditableClass}" id="os-ticket-click">
+        <div class="os-ticket-header">
+          <div class="os-ticket-title">Notinha de Serviço</div>
+          <div class="os-ticket-code-small">${os.id}</div>
+        </div>
+        
+        <div class="os-ticket-section">
+          <div class="os-ticket-row"><strong>Cliente:</strong> <span>${os.clienteNome}</span></div>
+          <div class="os-ticket-row"><strong>Telefone:</strong> <span>${telMostrar}</span></div>
+          <div class="os-ticket-row"><strong>Veículo:</strong> <span>${os.modeloVeiculo || '—'} (${os.corVeiculo || '—'})</span></div>
+          ${os.temDataEntrega && os.dataEntrega ? `<div class="os-ticket-row" style="color:#ef4444; font-weight:700;"><strong>Data de Entrega:</strong> <span>${Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega)?.textoCompleto || os.dataEntrega}</span></div>` : ''}
+        </div>
+        
+        <div class="os-ticket-divider"></div>
+        
+        <div class="os-ticket-section">
+          <div class="os-ticket-subtitle">Serviços a Executar</div>
+          <div class="os-ticket-servicos">
+            ${os.servicos.map(s => `
+              <div class="os-ticket-servico-item">
+                <div class="os-ticket-servico-desc">${s.descricao}</div>
+                <div class="os-ticket-servico-valor">${temPermissao('ver_valores_cliente') ? Utils.formatarMoeda(s.valor) : '🔒 Restrito'}</div>
+              </div>
+            `).join('')}
+          </div>
+          ${os.observacoes ? `
+            <div class="os-ticket-observacoes" style="margin-top:12px; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:var(--radius-sm); border-left:3px solid var(--accent); font-size:var(--font-xs); color:var(--text-secondary); text-align:left; line-height:1.4;">
+              <strong style="color:var(--text-primary); display:block; margin-bottom:2px; font-weight:700;">Observações:</strong>
+              ${os.observacoes}
+            </div>
+          ` : ''}
+          ${os.temFotos && Array.isArray(os.fotos) && os.fotos.length > 0 ? `
+            <div class="os-ticket-fotos-section" style="margin-top:14px; text-align:left;">
+              <strong style="color:var(--text-tertiary); font-size:var(--font-xs); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px;">📷 Fotos do Veículo (${os.fotos.length})</strong>
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+                ${os.fotos.map((src) => `
+                  <img src="${src}" onclick="window.open('${src}', '_blank')" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.1); cursor:pointer; transition:transform 0.2s;" title="Clique para expandir">
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+        
+        <div class="os-ticket-divider"></div>
+        
+        <div class="os-ticket-footer-row">
+          <div class="os-ticket-total">
+            <span>Valor Total</span>
+            <strong>${temPermissao('ver_valores_cliente') ? Utils.formatarMoeda(os.valorTotal) : '🔒 Restrito'}</strong>
+          </div>
+        </div>
+        ${temPermissao('editar_os') ? `<div class="os-ticket-edit-badge">✏️ Toque em qualquer parte do cupom para editar</div>` : ''}
+      </div>
+
+      <div class="os-detail-section">
+        <div class="os-detail-section-title">Informações Adicionais</div>
+        <div class="os-detail-row"><span class="os-detail-label">Pagamento</span><span class="os-detail-value">${pagamentoStr}</span></div>
+        <div class="os-detail-row"><span class="os-detail-label">Status Pgto</span><span class="os-detail-value">${statusPgtoStr}</span></div>
+        <div class="os-detail-row"><span class="os-detail-label">Prioridade</span><span class="os-detail-value">${os.prioridade === 'urgente' ? '<span class="badge badge-urgente">Urgente</span>' : '<span class="badge badge-normal">Normal</span>'}</span></div>
+        <div class="os-detail-row"><span class="os-detail-label">Data Agendada</span><span class="os-detail-value">${Utils.formatarData(os.dataServico)}</span></div>
+        <div class="os-detail-row"><span class="os-detail-label">Criado por</span><span class="os-detail-value">${os.criadoPor || os.atendente || 'Sistema'}</span></div>
+        ${os.editadoPor ? `<div class="os-detail-row"><span class="os-detail-label">Editado por</span><span class="os-detail-value">${os.editadoPor}</span></div>` : ''}
+        ${os.mecanico ? `<div class="os-detail-row"><span class="os-detail-label">Mecânico</span><span class="os-detail-value">${os.mecanico}</span></div>` : ''}
+        ${os.horaInicio ? `<div class="os-detail-row"><span class="os-detail-label">Início</span><span class="os-detail-value">${Utils.formatarDataHora(os.horaInicio)}</span></div>` : ''}
+        ${os.horaFim ? `<div class="os-detail-row"><span class="os-detail-label">Fim</span><span class="os-detail-value">${Utils.formatarDataHora(os.horaFim)}</span></div>` : ''}
+        ${os.tempoTotal ? `<div class="os-detail-row"><span class="os-detail-label">Tempo Total</span><span class="os-detail-value" style="color:var(--accent);font-weight:700">${os.tempoTotal}</span></div>` : ''}
+      </div>
+
+      ${os.observacoes ? `<div class="os-detail-section"><div class="os-detail-section-title">Observações</div><p style="font-size:var(--font-sm);color:var(--text-secondary);line-height:1.6">${os.observacoes}</p></div>` : ''}
+
+      ${camposHtml}
+
+      <div class="os-detail-section">
+        <div class="os-detail-section-title">Histórico da OS</div>
+        <div class="timeline">
+          ${(os.historico || []).map(h => `
+            <div class="timeline-item">
+              <div class="timeline-item-time">${Utils.formatarDataHora(h.timestamp)}</div>
+              <div class="timeline-item-text">${h.acao}</div>
+              <div class="timeline-item-user">por ${h.usuario}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="os-detail-actions">${actionsHtml}</div>
+    `;
+
+    // Bind actions
+    const ticketClick = document.getElementById('os-ticket-click');
+    if (ticketClick && temPermissao('editar_os')) {
+      ticketClick.addEventListener('click', () => {
+        document.getElementById('btn-back').style.display = 'none';
+        editingOS = os;
+        navigateTo('nova-os');
+        renderNovaOS(os);
+      });
+    }
+
+    const btnAssumir = document.getElementById('btn-detail-assumir');
+    if (btnAssumir) btnAssumir.addEventListener('click', () => { assumirServico(os.id); openOSDetail(os.id); });
+
+    const btnDelegar = document.getElementById('btn-detail-delegar');
+    if (btnDelegar) btnDelegar.addEventListener('click', () => { openModalDelegarServico(os.id); });
+
+    const btnConcluir = document.getElementById('btn-detail-concluir');
+    if (btnConcluir) btnConcluir.addEventListener('click', () => { concluirServico(os.id); openOSDetail(os.id); });
+
+    const btnEditar = document.getElementById('btn-detail-editar');
+    if (btnEditar) btnEditar.addEventListener('click', () => {
+      document.getElementById('btn-back').style.display = 'none';
+      editingOS = os;
+      navigateTo('nova-os');
+      renderNovaOS(os);
+    });
+
+    const btnWhatsApp = document.getElementById('btn-detail-whatsapp');
+    if (btnWhatsApp) btnWhatsApp.addEventListener('click', () => {
+      const msg = Utils.gerarMensagemWhatsApp(os);
+      const link = Utils.gerarLinkWhatsApp(os.clienteTelefone, msg);
+      window.open(link, '_blank');
+    });
+
+    const btnExcluir = document.getElementById('btn-detail-excluir');
+    if (btnExcluir) btnExcluir.addEventListener('click', () => {
+      if (confirm('Tem certeza que deseja excluir esta OS?')) {
+        Storage.deleteOrdem(os.id);
+        showToast('OS excluída', 'info');
+        document.getElementById('btn-back').style.display = 'none';
+        navigateTo('servicos');
+      }
+    });
+  }
+
+  // ---------- ADMIN ----------
+
+  function renderAdmin() {
+    if (!temPermissao('configuracoes')) {
+      showToast('Acesso negado', 'error');
+      navigateTo('servicos');
+      return;
+    }
+
+    // Show back button
+    document.getElementById('btn-back').style.display = 'flex';
+    document.getElementById('btn-back').onclick = () => {
+      document.getElementById('btn-back').style.display = 'none';
+      navigateTo('servicos');
+    };
+
+    renderUsuarios();
+    renderCargosAdmin();
+    renderOpcoesAdmin();
+    renderCamposAdmin();
+    renderTemplateWhatsAppAdmin();
+  }
+
+  // --- Usuários ---
+  function renderUsuarios() {
+    const usuarios = Storage.getUsuarios();
+    const cargos = Storage.getCargos();
+    const container = document.getElementById('admin-usuarios-list');
+    container.innerHTML = usuarios.map(u => {
+      const cargo = cargos.find(c => c.id === u.role);
+      const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(u.role);
+      return `
+        <div class="admin-item">
+          <div class="admin-item-info">
+            <div class="admin-item-name">${u.nome}</div>
+            <div class="admin-item-meta">@${u.usuario} · <span class="role-badge" style="background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:var(--font-xs);">${cargoNome}</span></div>
+          </div>
+          <div class="admin-item-actions">
+            <button class="btn btn-secondary btn-xs btn-edit-user" data-id="${u.id}">Editar</button>
+            ${u.usuario !== 'admin' ? `<button class="btn btn-danger btn-xs btn-delete-user" data-id="${u.id}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+            </button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    container.querySelectorAll('.btn-delete-user').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (confirm('Excluir este usuário?')) {
+          Storage.deleteUsuario(btn.dataset.id);
+          showToast('Usuário excluído', 'info');
+          renderUsuarios();
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-edit-user').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openModalEditarUsuario(btn.dataset.id);
+      });
+    });
+  }
+
+  // --- Cargos & Permissões ---
+  function renderCargosAdmin() {
+    const cargos = Storage.getCargos();
+    const container = document.getElementById('admin-cargos-list');
+
+    container.innerHTML = cargos.map(c => {
+      const permissoesLegiveis = c.permissoes.map(p => {
+        const map = {
+          criar_os: 'Criar OS',
+          editar_os: 'Editar OS',
+          assumir_servico: 'Assumir',
+          concluir_servico: 'Concluir',
+          ver_valores_cliente: 'Valores/Tel',
+          enviar_whatsapp: 'WhatsApp',
+          configuracoes: 'Acesso Config.'
+        };
+        return map[p] || p;
+      }).join(', ');
+
+      return `
+        <div class="admin-item">
+          <div class="admin-item-info">
+            <div class="admin-item-name">${c.nome}</div>
+            <div class="admin-item-meta" style="white-space:normal;line-height:1.4;">Permissões: <span style="color:var(--text-secondary)">${permissoesLegiveis || 'Nenhuma'}</span></div>
+          </div>
+          <div class="admin-item-actions">
+            <button class="btn btn-secondary btn-xs btn-edit-cargo" data-id="${c.id}">Editar</button>
+            ${c.id !== 'role_admin' ? `<button class="btn btn-danger btn-xs btn-delete-cargo" data-id="${c.id}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+            </button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    container.querySelectorAll('.btn-delete-cargo').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (confirm('Excluir este cargo? Usuários que o utilizam perderão as permissões.')) {
+          Storage.deleteCargo(btn.dataset.id);
+          showToast('Cargo excluído', 'info');
+          renderCargosAdmin();
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-edit-cargo').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openModalEditarCargo(btn.dataset.id);
+      });
+    });
+  }
+
+  // --- Opções / Listas Configuráveis ---
+  function renderOpcoesAdmin() {
+    const opcoes = Storage.getOpcoes();
+    const container = document.getElementById('admin-opcoes-list');
+
+    if (opcoes.length === 0) {
+      container.innerHTML = `<div class="empty-state" style="padding:var(--space-md)"><div class="empty-state-text">Nenhuma lista criada.<br>Crie listas para Cores, Modelos, Tipo de Veículo, etc.</div></div>`;
+      return;
+    }
+
+    container.innerHTML = opcoes.map(opcao => `
+      <div class="collapsible-section ${opcao.itens.length > 5 ? 'collapsed' : ''}">
+        <div class="collapsible-header" onclick="this.parentElement.classList.toggle('collapsed')">
+          <div>
+            <span class="collapsible-title">${opcao.nome}</span>
+            <span class="collapsible-meta">Campo: ${opcao.campo} · ${opcao.itens.length} itens</span>
+          </div>
+          <div class="collapsible-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-blue btn-xs btn-edit-opcao" data-id="${opcao.id}" title="Editar nome da lista" style="margin-right:4px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button class="btn btn-danger btn-xs btn-delete-opcao" data-id="${opcao.id}" title="Excluir lista">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+            </button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="collapsible-body">
+          <div class="opcao-items">
+            ${opcao.itens.map(item => `
+              <div class="opcao-item" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                <span style="font-size:var(--font-sm); font-weight:500; color:var(--text-primary);">${item}</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <button class="btn-edit-opcao-item" data-opcao-id="${opcao.id}" data-item="${item}" title="Editar item" style="background:rgba(255,255,255,0.06); border:none; color:var(--text-primary); cursor:pointer; padding:6px 8px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  </button>
+                  <button class="btn-remove-opcao-item" data-opcao-id="${opcao.id}" data-item="${item}" title="Excluir item" style="background:rgba(239,68,68,0.15); border:none; color:var(--danger); cursor:pointer; padding:6px 8px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                </div>
+              </div>`).join('')}
+          </div>
+          <div class="opcao-add-row">
+            <input type="text" class="form-input opcao-new-item-input" placeholder="Novo item..." data-opcao-id="${opcao.id}" style="min-height:40px;padding:8px 12px;flex:1;">
+            <button class="btn btn-primary btn-xs btn-add-opcao-item" data-opcao-id="${opcao.id}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>`).join('');
+
+    // Bind edit list title
+    container.querySelectorAll('.btn-edit-opcao').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const op = Storage.getOpcaoById(btn.dataset.id);
+        if (!op) return;
+        const novoNome = prompt('Editar nome da lista:', op.nome);
+        if (novoNome && novoNome.trim() && novoNome.trim() !== op.nome) {
+          Storage.updateOpcao(op.id, { nome: novoNome.trim() });
+          showToast('Lista renomeada!', 'success');
+          renderOpcoesAdmin();
+        }
+      });
+    });
+
+    // Bind delete list
+    container.querySelectorAll('.btn-delete-opcao').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (confirm('Excluir esta lista?')) {
+          Storage.deleteOpcao(btn.dataset.id);
+          showToast('Lista excluída', 'info');
+          renderOpcoesAdmin();
+        }
+      });
+    });
+
+    // Bind edit item
+    container.querySelectorAll('.btn-edit-opcao-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const itemAntigo = btn.dataset.item;
+        const novoItem = prompt('Editar item:', itemAntigo);
+        if (novoItem && novoItem.trim() && novoItem.trim() !== itemAntigo) {
+          Storage.updateItemOpcao(btn.dataset.opcaoId, itemAntigo, novoItem.trim());
+          showToast('Item atualizado com sucesso!', 'success');
+          renderOpcoesAdmin();
+        }
+      });
+    });
+
+    // Bind remove item
+    container.querySelectorAll('.btn-remove-opcao-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        Storage.removeItemOpcao(btn.dataset.opcaoId, btn.dataset.item);
+        renderOpcoesAdmin();
+      });
+    });
+
+    // Bind add item
+    container.querySelectorAll('.btn-add-opcao-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = container.querySelector(`.opcao-new-item-input[data-opcao-id="${btn.dataset.opcaoId}"]`);
+        const val = input.value.trim();
+        if (val) {
+          Storage.addItemOpcao(btn.dataset.opcaoId, val);
+          input.value = '';
+          renderOpcoesAdmin();
+        }
+      });
+    });
+
+    // Enter to add
+    container.querySelectorAll('.opcao-new-item-input').forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = input.value.trim();
+          if (val) {
+            Storage.addItemOpcao(input.dataset.opcaoId, val);
+            input.value = '';
+            renderOpcoesAdmin();
+          }
+        }
+      });
+    });
+  }
+
+  // --- Campos Personalizados ---
+  function renderCamposAdmin() {
+    const campos = Storage.getCampos();
+    const container = document.getElementById('admin-campos-list');
+
+    if (campos.length === 0) {
+      container.innerHTML = `<div class="empty-state" style="padding:var(--space-md)"><div class="empty-state-text">Nenhum campo personalizado criado</div></div>`;
+      return;
+    }
+
+    // Group by section
+    const sections = {};
+    campos.forEach(c => {
+      const sec = c.secao || 'Sem Seção';
+      if (!sections[sec]) sections[sec] = [];
+      sections[sec].push(c);
+    });
+
+    container.innerHTML = Object.entries(sections).map(([secName, secCampos]) => `
+      <div class="collapsible-section">
+        <div class="collapsible-header" onclick="this.parentElement.classList.toggle('collapsed')">
+          <span>${secName} <small style="color:var(--text-tertiary)">(${secCampos.length})</small></span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="collapsible-body">
+          ${secCampos.map(c => `
+            <div class="admin-item">
+              <div class="admin-item-info">
+                <div class="admin-item-name">${c.nome}</div>
+                <div class="admin-item-meta">${c.tipo === 'sim_nao' ? 'Sim/Não' : c.tipo === 'sim_nao_quantidade' ? 'Sim/Não + Qtd' : 'Texto'} · ${c.ativo ? '✅ Ativo' : '❌ Inativo'}</div>
+              </div>
+              <div class="admin-item-actions">
+                <button class="btn btn-blue btn-xs btn-edit-campo" data-id="${c.id}" title="Editar nome do campo">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </button>
+                <button class="btn btn-secondary btn-xs btn-toggle-campo" data-id="${c.id}">${c.ativo ? 'Desativar' : 'Ativar'}</button>
+                <button class="btn btn-danger btn-xs btn-delete-campo" data-id="${c.id}">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                </button>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+
+    container.querySelectorAll('.btn-edit-campo').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const campos = Storage.getCampos();
+        const c = campos.find(x => x.id === btn.dataset.id);
+        if (!c) return;
+        const novoNome = prompt('Editar nome do campo:', c.nome);
+        if (novoNome && novoNome.trim() && novoNome.trim() !== c.nome) {
+          Storage.updateCampo(c.id, { nome: novoNome.trim() });
+          showToast('Campo atualizado!', 'success');
+          renderCamposAdmin();
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-toggle-campo').forEach(btn => {
+      btn.addEventListener('click', () => { Storage.toggleCampo(btn.dataset.id); renderCamposAdmin(); });
+    });
+    container.querySelectorAll('.btn-delete-campo').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (confirm('Excluir este campo?')) { Storage.deleteCampo(btn.dataset.id); showToast('Campo excluído', 'info'); renderCamposAdmin(); }
+      });
+    });
+  }
+
+  // --- WhatsApp Template Customization & Autocomplete ---
+  const WHATSAPP_VARS = [
+    { token: '@{nome_cliente}', label: 'nome_cliente', desc: 'Nome do Cliente' },
+    { token: '@{veiculo}', label: 'veiculo', desc: 'Modelo e Cor do Veículo' },
+    { token: '@{lista_servicos}', label: 'lista_servicos', desc: 'Lista dos Serviços' },
+    { token: '@{valor_total}', label: 'valor_total', desc: 'Valor Total' },
+    { token: '@{forma_pagamento}', label: 'forma_pagamento', desc: 'Forma de Pagamento' },
+    { token: '@{status_pagamento}', label: 'status_pagamento', desc: 'Status do Pagamento' },
+    { token: '@{data}', label: 'data', desc: 'Data do Atendimento' },
+    { token: '@{hora}', label: 'hora', desc: 'Hora do Atendimento' }
+  ];
+
+  function renderTemplateWhatsAppAdmin() {
+    const textarea = document.getElementById('admin-template-whatsapp');
+    if (!textarea) return;
+    textarea.value = Storage.getTemplateWhatsApp();
+  }
+
+  function insertVarAtCursor(textarea, varToken) {
+    const startPos = textarea.selectionStart;
+    const endPos = textarea.selectionEnd;
+    const textBefore = textarea.value.substring(0, startPos);
+    const textAfter = textarea.value.substring(endPos, textarea.value.length);
+
+    let insertStart = startPos;
+    if (textBefore.endsWith('@')) {
+      insertStart = startPos - 1;
+    } else {
+      const match = textBefore.match(/@[\w]*$/);
+      if (match) {
+        insertStart = startPos - match[0].length;
+      }
+    }
+
+    const cleanBefore = textarea.value.substring(0, insertStart);
+    textarea.value = cleanBefore + varToken + textAfter;
+    
+    const newCursorPos = insertStart + varToken.length;
+    textarea.focus();
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+  }
+
+  function initWhatsAppTemplateEditor() {
+    const textarea = document.getElementById('admin-template-whatsapp');
+    const dropdown = document.getElementById('whatsapp-autocomplete-dropdown');
+    const btnSave = document.getElementById('btn-save-template-wa');
+    const btnReset = document.getElementById('btn-reset-template-wa');
+    const chipsContainer = document.getElementById('whatsapp-vars-chips');
+
+    if (!textarea) return;
+
+    if (chipsContainer) {
+      chipsContainer.querySelectorAll('.chip-var').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const vToken = btn.dataset.var;
+          insertVarAtCursor(textarea, vToken);
+        };
+      });
+    }
+
+    if (btnSave) {
+      btnSave.onclick = () => {
+        Storage.saveTemplateWhatsApp(textarea.value);
+        showToast('Modelo de mensagem do WhatsApp salvo com sucesso!', 'success');
+      };
+    }
+
+    if (btnReset) {
+      btnReset.onclick = () => {
+        if (confirm('Deseja restaurar a mensagem padrão do WhatsApp?')) {
+          const defaultTxt = Storage.DEFAULT_TEMPLATE_WHATSAPP;
+          Storage.saveTemplateWhatsApp(defaultTxt);
+          textarea.value = defaultTxt;
+          showToast('Mensagem restaurada para o padrão!', 'info');
+        }
+      };
+    }
+
+    function hideDropdown() {
+      if (dropdown) dropdown.style.display = 'none';
+    }
+
+    function showAutocomplete(filterText) {
+      if (!dropdown) return;
+      
+      const filtered = WHATSAPP_VARS.filter(v => 
+        v.label.toLowerCase().includes(filterText.toLowerCase()) || 
+        v.token.toLowerCase().includes(filterText.toLowerCase())
+      );
+
+      if (filtered.length === 0) {
+        hideDropdown();
+        return;
+      }
+
+      dropdown.innerHTML = filtered.map((v, i) => `
+        <div class="wa-autocomplete-item" data-var="${v.token}" style="padding:10px 14px; cursor:pointer; font-size:var(--font-sm); border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; ${i === 0 ? 'background:rgba(139,92,246,0.15);' : ''}">
+          <span style="font-weight:700; color:var(--accent); font-family:monospace;">@{${v.label}}</span>
+          <span style="font-size:var(--font-xs); color:var(--text-tertiary);">${v.desc}</span>
+        </div>
+      `).join('');
+
+      dropdown.style.display = 'block';
+
+      dropdown.querySelectorAll('.wa-autocomplete-item').forEach(item => {
+        item.onmousedown = (e) => {
+          e.preventDefault();
+          const vToken = item.dataset.var;
+          insertVarAtCursor(textarea, vToken);
+          hideDropdown();
+        };
+      });
+    }
+
+    textarea.addEventListener('keyup', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'Escape'].includes(e.key)) {
+        if (e.key === 'Escape') hideDropdown();
+        return;
+      }
+
+      const cursorPos = textarea.selectionStart;
+      const textUpToCursor = textarea.value.substring(0, cursorPos);
+      const match = textUpToCursor.match(/@([\w]*)$/);
+
+      if (match) {
+        const query = match[1];
+        showAutocomplete(query);
+      } else {
+        hideDropdown();
+      }
+    });
+
+    textarea.addEventListener('blur', () => {
+      setTimeout(hideDropdown, 200);
+    });
+  }
+
+  // ---------- MODALS ----------
+
+  function openModalNovoUsuario() {
+    const cargos = Storage.getCargos();
+    const optionsHtml = cargos.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+    openModal('Novo Usuário', `
+      <form id="form-novo-usuario">
+        <div class="form-group"><label class="form-label required">Nome Completo</label><input type="text" class="form-input" id="new-user-nome" required placeholder="Ex: João Silva"></div>
+        <div class="form-group"><label class="form-label required">Usuário (login)</label><input type="text" class="form-input" id="new-user-usuario" required placeholder="Ex: joao"></div>
+        <div class="form-group"><label class="form-label required">Senha</label><input type="password" class="form-input" id="new-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4"></div>
+        <div class="form-group">
+          <label class="form-label required">Tipo de Acesso (Cargo)</label>
+          <select class="form-select" id="new-user-role" required>
+            <option value="">Selecione o cargo...</option>
+            ${optionsHtml}
+          </select>
+        </div>
+      </form>`, () => {
+      const form = document.getElementById('form-novo-usuario');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+      const nome = document.getElementById('new-user-nome').value.trim();
+      const usuario = document.getElementById('new-user-usuario').value.trim().toLowerCase();
+      const senha = document.getElementById('new-user-senha').value;
+      const role = document.getElementById('new-user-role').value;
+      if (Storage.getUsuarios().find(u => u.usuario === usuario)) { showToast('Usuário já existe!', 'error'); return false; }
+      Storage.saveUsuario({ nome, usuario, senha: Utils.hashSenha(senha), role });
+      showToast(`Usuário ${nome} criado!`, 'success');
+      renderUsuarios();
+      return true;
+    });
+  }
+
+  function openModalEditarUsuario(userId) {
+    const user = Storage.getUsuarioById(userId);
+    if (!user) return;
+    const cargos = Storage.getCargos();
+    const optionsHtml = cargos.map(c => `<option value="${c.id}" ${user.role === c.id ? 'selected' : ''}>${c.nome}</option>`).join('');
+    const isLoginDisabled = user.usuario === 'admin' ? 'disabled' : '';
+
+    openModal(`Editar Usuário: ${user.nome}`, `
+      <form id="form-editar-usuario">
+        <div class="form-group">
+          <label class="form-label required">Nome Completo</label>
+          <input type="text" class="form-input" id="edit-user-nome" required placeholder="Ex: João Silva" value="${user.nome}">
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Usuário (login)</label>
+          <input type="text" class="form-input" id="edit-user-usuario" required placeholder="Ex: joao" value="${user.usuario}" ${isLoginDisabled}>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha (deixe em branco para manter)</label>
+          <input type="password" class="form-input" id="edit-user-senha" placeholder="Mínimo 4 caracteres" minlength="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Tipo de Acesso (Cargo)</label>
+          <select class="form-select" id="edit-user-role" required ${isLoginDisabled}>
+            ${optionsHtml}
+          </select>
+        </div>
+      </form>
+    `, () => {
+      const form = document.getElementById('form-editar-usuario');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+
+      const nome = document.getElementById('edit-user-nome').value.trim();
+      const usuario = document.getElementById('edit-user-usuario').value.trim().toLowerCase();
+      const role = document.getElementById('edit-user-role').value;
+
+      if (usuario !== user.usuario && user.usuario !== 'admin') {
+        if (Storage.getUsuarios().find(u => u.usuario === usuario)) {
+          showToast('Este nome de usuário já está em uso!', 'error');
+          return false;
+        }
+      }
+
+      const updates = { nome };
+      if (user.usuario !== 'admin') {
+        updates.usuario = usuario;
+        updates.role = role;
+      }
+
+      const novaSenha = document.getElementById('edit-user-senha').value;
+      if (novaSenha) {
+        updates.senha = Utils.hashSenha(novaSenha);
+      }
+
+      Storage.updateUsuario(userId, updates);
+      showToast(`Usuário ${nome} atualizado!`, 'success');
+      renderUsuarios();
+      
+      if (currentUser && currentUser.id === userId) {
+        const updatedUser = Storage.getUsuarioById(userId);
+        Storage.setUsuarioLogado(updatedUser);
+        currentUser = updatedUser;
+        updateHeaderUser();
+      }
+
+      return true;
+    });
+  }
+
+  function openModalDelegarServico(osId) {
+    const usuarios = Storage.getUsuarios();
+    const cargos = Storage.getCargos();
+
+    // Filtra usuários que são mecânicos ou que possuem permissão de assumir/concluir serviços
+    const tecnicos = usuarios.filter(u => {
+      if (u.usuario === 'admin') return true;
+      const cargo = cargos.find(c => c.id === u.role);
+      return cargo && (cargo.permissoes.includes('assumir_servico') || cargo.permissoes.includes('concluir_servico'));
+    });
+
+    if (tecnicos.length === 0) {
+      showToast('Nenhum funcionário cadastrado com permissão de serviço!', 'error');
+      return;
+    }
+
+    const optionsHtml = tecnicos.map(t => {
+      const cargo = cargos.find(c => c.id === t.role);
+      const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(t.role);
+      return `<option value="${t.nome}">${t.nome} - ${cargoNome}</option>`;
+    }).join('');
+
+    openModal('Delegar Serviço', `
+      <form id="form-delegar-servico">
+        <p style="font-size:var(--font-sm);color:var(--text-secondary);margin-bottom:var(--space-md);">Selecione o funcionário responsável pela execução deste serviço. A OS passará automaticamente para o status <strong>Em Andamento</strong>.</p>
+        <div class="form-group">
+          <label class="form-label required">Funcionário Responsável</label>
+          <select class="form-select" id="delegar-mecanico-select" required>
+            <option value="">Selecione...</option>
+            ${optionsHtml}
+          </select>
+        </div>
+      </form>
+    `, () => {
+      const form = document.getElementById('form-delegar-servico');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+
+      const mecanicoNome = document.getElementById('delegar-mecanico-select').value;
+      Storage.updateOrdem(osId, {
+        status: 'em_andamento',
+        mecanico: mecanicoNome,
+        horaInicio: new Date().toISOString()
+      });
+      Storage.addHistorico(osId, `Serviço delegado para ${mecanicoNome}`, currentUser.nome);
+      showToast(`Serviço delegado para ${mecanicoNome}!`, 'success');
+      if (currentPage === 'detalhe-os') {
+        openOSDetail(osId);
+      } else {
+        renderCurrentList();
+      }
+      return true;
+    });
+  }
+
+  function openModalNovoCargo() {
+    openModalCargoForm('Novo Cargo', null, (nome, permissoesSelected) => {
+      Storage.saveCargo({
+        nome,
+        permissoes: permissoesSelected
+      });
+      showToast('Cargo criado com sucesso!', 'success');
+      renderCargosAdmin();
+    });
+  }
+
+  function openModalEditarCargo(id) {
+    const cargo = Storage.getCargoById(id);
+    if (!cargo) return;
+    openModalCargoForm(`Editar Cargo: ${cargo.nome}`, cargo, (nome, permissoesSelected) => {
+      Storage.updateCargo(id, {
+        nome,
+        permissoes: permissoesSelected
+      });
+      showToast('Cargo atualizado!', 'success');
+      renderCargosAdmin();
+    });
+  }
+
+  function openModalCargoForm(title, cargoData, onSave) {
+    const todasPermissoes = [
+      { id: 'criar_os', nome: 'Criar novas Ordens de Serviço' },
+      { id: 'editar_os', nome: 'Editar Ordens de Serviço (antes do início)' },
+      { id: 'assumir_servico', nome: 'Assumir serviços aguardando execução' },
+      { id: 'concluir_servico', nome: 'Concluir serviços em andamento' },
+      { id: 'delegar_servico', nome: 'Delegar serviços para outros funcionários' },
+      { id: 'ver_valores_cliente', nome: 'Ver preços dos serviços e telefone do cliente' },
+      { id: 'enviar_whatsapp', nome: 'Enviar link de WhatsApp ao cliente' },
+      { id: 'configuracoes', nome: 'Acesso total às Configurações (Admin)' }
+    ];
+
+    const isChecked = (permId) => {
+      if (!cargoData) return false;
+      return cargoData.permissoes.includes(permId);
+    };
+
+    const inputsHtml = todasPermissoes.map(p => `
+      <div class="form-toggle" style="margin-bottom:var(--space-xs);" onclick="this.querySelector('input').click()">
+        <span class="form-toggle-label" style="font-size:var(--font-sm);">${p.nome}</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" class="cargo-perm-checkbox" value="${p.id}" ${isChecked(p.id) ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    `).join('');
+
+    const bodyHtml = `
+      <form id="form-cargo-modal">
+        <div class="form-group">
+          <label class="form-label required">Nome do Cargo</label>
+          <input type="text" class="form-input" id="cargo-modal-nome" required placeholder="Ex: Auxiliar Técnico, Gerente" value="${cargoData ? cargoData.nome : ''}">
+        </div>
+        <label class="form-label">Permissões de Acesso</label>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${inputsHtml}
+        </div>
+      </form>
+    `;
+
+    openModal(title, bodyHtml, () => {
+      const form = document.getElementById('form-cargo-modal');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+      
+      const nome = document.getElementById('cargo-modal-nome').value.trim();
+      const permissoesSelected = [];
+      document.querySelectorAll('.cargo-perm-checkbox:checked').forEach(cb => {
+        permissoesSelected.push(cb.value);
+      });
+
+      onSave(nome, permissoesSelected);
+      return true;
+    });
+  }
+
+  function openModalNovoCampo() {
+    openModal('Novo Campo Personalizado', `
+      <form id="form-novo-campo">
+        <div class="form-group"><label class="form-label required">Seção / Grupo</label><input type="text" class="form-input" id="new-campo-secao" required placeholder="Ex: Checklist, Veículo, Extras"></div>
+        <div class="form-group"><label class="form-label required">Nome do Campo</label><input type="text" class="form-input" id="new-campo-nome" required placeholder="Ex: Cliente deixou carregador?"></div>
+        <div class="form-group"><label class="form-label required">Tipo</label><select class="form-select" id="new-campo-tipo" required><option value="sim_nao">Sim / Não</option><option value="sim_nao_quantidade">Sim / Não + Quantidade</option><option value="texto">Texto Livre</option></select></div>
+      </form>`, () => {
+      const form = document.getElementById('form-novo-campo');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+      Storage.saveCampo({
+        nome: document.getElementById('new-campo-nome').value.trim(),
+        tipo: document.getElementById('new-campo-tipo').value,
+        secao: document.getElementById('new-campo-secao').value.trim()
+      });
+      showToast('Campo criado!', 'success');
+      renderCamposAdmin();
+      return true;
+    });
+  }
+
+  function openModalNovaOpcao() {
+    openModal('Nova Lista de Opções', `
+      <form id="form-nova-opcao">
+        <div class="form-group"><label class="form-label required">Nome da Lista</label><input type="text" class="form-input" id="new-opcao-nome" required placeholder="Ex: Cores, Modelos"></div>
+        <div class="form-group"><label class="form-label required">Campo do Formulário</label>
+          <select class="form-select" id="new-opcao-campo" required>
+            <option value="">Selecione...</option>
+            <option value="modelo">Modelo</option>
+            <option value="cor">Cor</option>
+          </select>
+          <div class="form-hint">Define qual campo do formulário da OS usará esta lista</div>
+        </div>
+      </form>`, () => {
+      const form = document.getElementById('form-nova-opcao');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+      const campo = document.getElementById('new-opcao-campo').value;
+      if (Storage.getOpcaoByCampo(campo)) { showToast('Já existe uma lista para este campo!', 'error'); return false; }
+      Storage.saveOpcao({
+        nome: document.getElementById('new-opcao-nome').value.trim(),
+        campo,
+        itens: []
+      });
+      showToast('Lista criada! Agora adicione os itens.', 'success');
+      renderOpcoesAdmin();
+      return true;
+    });
+  }
+
+  function openModal(title, bodyHtml, onConfirm) {
+    const overlay = document.getElementById('modal-overlay');
+    const sheet = document.getElementById('bottom-sheet');
+    document.getElementById('bottom-sheet-title').textContent = title;
+    document.getElementById('bottom-sheet-body').innerHTML = bodyHtml;
+    overlay.classList.add('active');
+    sheet.classList.add('active');
+
+    document.getElementById('bottom-sheet-confirm').onclick = () => {
+      if (onConfirm) {
+        const result = onConfirm();
+        if (result !== false) closeModal();
+      } else {
+        closeModal();
+      }
+    };
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+    document.getElementById('bottom-sheet').classList.remove('active');
+  }
+
+  // ---------- TOAST ----------
+
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = {
+      success: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>',
+      info: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+      warning: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+    };
+    toast.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><span class="toast-message">${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.classList.add('removing'); setTimeout(() => toast.remove(), 300); }, 3000);
+  }
+
+  return {
+    init,
+    updateValorTotal,
+    openModalNovoUsuario,
+    openModalNovoCargo,
+    openModalNovoCampo,
+    openModalNovaOpcao
+  };
+})();
+
+document.addEventListener('DOMContentLoaded', App.init);

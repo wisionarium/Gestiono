@@ -1,0 +1,607 @@
+// ============================================
+// STORAGE.JS — Camada de Dados (localStorage)
+// ============================================
+
+const Storage = (() => {
+
+  const KEYS = {
+    ORDENS: 'os_ordens',
+    USUARIOS: 'os_usuarios',
+    CAMPOS: 'os_campos_personalizados',
+    OPCOES: 'os_opcoes_listas',
+    CARGOS: 'os_cargos',
+    SESSAO: 'os_sessao',
+    TEMPLATE_WHATSAPP: 'os_template_whatsapp',
+    INITIALIZED: 'os_initialized'
+  };
+
+  const DEFAULT_TEMPLATE_WHATSAPP = `Olá, @{nome_cliente}! Tudo bem?
+
+Informamos que o seu veículo está pronto para retirada!
+
+Serviços realizados:
+@{lista_servicos}
+
+Valor total: @{valor_total}
+Pagamento: @{forma_pagamento} (@{status_pagamento})
+
+Data: @{data}
+Hora: @{hora}
+
+Veículo: @{veiculo}
+
+Agradecemos a preferência e ficamos à disposição!`;
+
+  /**
+   * Inicializa o storage com dados padrão
+   */
+  function initialize() {
+    if (localStorage.getItem(KEYS.INITIALIZED)) return;
+
+    // Criar os cargos padrões iniciais do sistema
+    const cargosIniciais = [
+      {
+        id: 'role_admin',
+        nome: 'Admin Master',
+        permissoes: ['criar_os', 'editar_os', 'assumir_servico', 'concluir_servico', 'ver_valores_cliente', 'enviar_whatsapp', 'configuracoes', 'delegar_servico'],
+        criadoEm: new Date().toISOString()
+      },
+      {
+        id: 'role_atendente',
+        nome: 'Atendente',
+        permissoes: ['criar_os', 'editar_os', 'ver_valores_cliente', 'enviar_whatsapp', 'delegar_servico'],
+        criadoEm: new Date().toISOString()
+      },
+      {
+        id: 'role_mecanico',
+        nome: 'Mecânico',
+        permissoes: ['assumir_servico', 'concluir_servico'],
+        criadoEm: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem(KEYS.CARGOS, JSON.stringify(cargosIniciais));
+
+    // Criar admin padrão
+    const adminUser = {
+      id: Utils.gerarId(),
+      nome: 'Administrador',
+      usuario: 'admin',
+      senha: Utils.hashSenha('admin123'),
+      role: 'role_admin', // Vinculado ao cargo Admin Master
+      criadoEm: new Date().toISOString()
+    };
+
+    localStorage.setItem(KEYS.USUARIOS, JSON.stringify([adminUser]));
+    localStorage.setItem(KEYS.ORDENS, JSON.stringify([]));
+
+    // Pré-cadastrar campos personalizados de exemplo (Checklist básico na seção Outros)
+    const camposIniciais = [
+      { id: 'campo_' + Utils.gerarId(), nome: 'Deixou chave?', tipo: 'sim_nao_quantidade', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() },
+      { id: 'campo_' + Utils.gerarId(), nome: 'Deixou carregador?', tipo: 'sim_nao', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() },
+      { id: 'campo_' + Utils.gerarId(), nome: 'Deixou Cartão NFC', tipo: 'sim_nao', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() }
+    ];
+    localStorage.setItem(KEYS.CAMPOS, JSON.stringify(camposIniciais));
+
+    // Pré-cadastrar listas de Modelos e Cores
+    const opcoesIniciais = [
+      {
+        id: 'opcao_' + Utils.gerarId(),
+        nome: 'Modelos de Veículos',
+        campo: 'modelo',
+        itens: ['Scooter Jet', 'Scooter Savage', 'Bicicleta Caloi E-Vibe', 'Triciclo Cargo L1'],
+        ativo: true,
+        criadoEm: new Date().toISOString()
+      },
+      {
+        id: 'opcao_' + Utils.gerarId(),
+        nome: 'Cores',
+        campo: 'cor',
+        itens: ['Preto', 'Branco', 'Vermelha', 'Azul', 'Cinza'],
+        ativo: true,
+        criadoEm: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem(KEYS.OPCOES, JSON.stringify(opcoesIniciais));
+    localStorage.setItem(KEYS.INITIALIZED, 'true');
+    
+    // Tenta sincronizar do Supabase no arranque se configurado
+    sincronizarTudoComSupabase().then(() => syncFromSupabase());
+  }
+
+  // ---------- SUPABASE CLOUD SYNC ----------
+
+  async function syncFromSupabase() {
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
+    const client = SupabaseConfig.getClient();
+    if (!client) return;
+
+    try {
+      // 1. Ordens
+      const { data: ordens } = await client.from('ordens_servico').select('*');
+      if (ordens && ordens.length > 0) {
+        const formatted = ordens.map(o => ({
+          id: o.id,
+          clienteNome: o.cliente_nome,
+          clienteTelefone: o.cliente_telefone,
+          modeloVeiculo: o.modelo_veiculo,
+          corVeiculo: o.cor_veiculo,
+          servicos: o.servicos || [],
+          valorTotal: Number(o.valor_total || 0),
+          formaPagamento: o.forma_pagamento || [],
+          statusPagamento: o.status_pagamento,
+          status: o.status,
+          prioridade: o.prioridade,
+          observacoes: o.observacoes,
+          dataServico: o.data_servico,
+          temDataEntrega: o.tem_data_entrega,
+          dataEntrega: o.data_entrega,
+          horaEntrega: o.hora_entrega,
+          temFotos: o.tem_fotos,
+          fotos: o.fotos || [],
+          camposPersonalizados: o.campos_personalizados || {},
+          atendente: o.atendente,
+          mecanico: o.mecanico,
+          editadoPor: o.editado_por,
+          editadoEm: o.editado_em,
+          horaInicio: o.hora_inicio,
+          horaFim: o.hora_fim,
+          tempoTotal: o.tempo_total,
+          historico: o.historico || [],
+          criadoEm: o.criado_em
+        }));
+        localStorage.setItem(KEYS.ORDENS, JSON.stringify(formatted));
+      }
+
+      // 2. Usuarios
+      const { data: usuarios } = await client.from('usuarios').select('*');
+      if (usuarios && usuarios.length > 0) {
+        localStorage.setItem(KEYS.USUARIOS, JSON.stringify(usuarios));
+      }
+
+      // 3. Cargos
+      const { data: cargos } = await client.from('cargos').select('*');
+      if (cargos && cargos.length > 0) {
+        localStorage.setItem(KEYS.CARGOS, JSON.stringify(cargos));
+      }
+
+      // 4. Opcoes
+      const { data: opcoes } = await client.from('opcoes_listas').select('*');
+      if (opcoes && opcoes.length > 0) {
+        localStorage.setItem(KEYS.OPCOES, JSON.stringify(opcoes));
+      }
+
+      // 5. Campos
+      const { data: campos } = await client.from('campos_personalizados').select('*');
+      if (campos && campos.length > 0) {
+        localStorage.setItem(KEYS.CAMPOS, JSON.stringify(campos));
+      }
+
+      // 6. Template WA
+      const { data: config } = await client.from('configuracoes').select('*').eq('chave', 'template_whatsapp').single();
+      if (config && config.valor) {
+        localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, config.valor);
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar com Supabase:', e);
+    }
+  }
+
+  async function syncToSupabase(key, dataItem) {
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
+    const client = SupabaseConfig.getClient();
+    if (!client || !dataItem) return;
+
+    try {
+      if (key === KEYS.ORDENS) {
+        const o = dataItem;
+        await client.from('ordens_servico').upsert({
+          id: o.id,
+          cliente_nome: o.clienteNome,
+          cliente_telefone: o.clienteTelefone,
+          modelo_veiculo: o.modeloVeiculo,
+          cor_veiculo: o.corVeiculo,
+          servicos: o.servicos || [],
+          valor_total: o.valorTotal,
+          forma_pagamento: o.formaPagamento || [],
+          status_pagamento: o.statusPagamento,
+          status: o.status,
+          prioridade: o.prioridade,
+          observacoes: o.observacoes,
+          data_servico: o.dataServico,
+          tem_data_entrega: o.temDataEntrega,
+          data_entrega: o.dataEntrega,
+          hora_entrega: o.horaEntrega,
+          tem_fotos: o.temFotos,
+          fotos: o.fotos || [],
+          campos_personalizados: o.camposPersonalizados || {},
+          atendente: o.atendente,
+          mecanico: o.mecanico,
+          editado_por: o.editadoPor,
+          editado_em: o.editadoEm,
+          hora_inicio: o.horaInicio,
+          hora_fim: o.horaFim,
+          tempo_total: o.tempoTotal,
+          historico: o.historico || [],
+          criado_em: o.criadoEm
+        });
+      } else if (key === KEYS.USUARIOS) {
+        await client.from('usuarios').upsert(dataItem);
+      } else if (key === KEYS.CARGOS) {
+        await client.from('cargos').upsert(dataItem);
+      } else if (key === KEYS.OPCOES) {
+        await client.from('opcoes_listas').upsert(dataItem);
+      } else if (key === KEYS.CAMPOS) {
+        await client.from('campos_personalizados').upsert(dataItem);
+      }
+    } catch (e) {
+      console.warn('Erro ao salvar no Supabase:', e);
+    }
+  }
+
+  async function sincronizarTudoComSupabase() {
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
+    const client = SupabaseConfig.getClient();
+    if (!client) return;
+
+    try {
+      const cargos = getData(KEYS.CARGOS);
+      for (const c of cargos) { await client.from('cargos').upsert(c); }
+
+      const usuarios = getData(KEYS.USUARIOS);
+      for (const u of usuarios) { await client.from('usuarios').upsert(u); }
+
+      const opcoes = getData(KEYS.OPCOES);
+      for (const op of opcoes) { await client.from('opcoes_listas').upsert(op); }
+
+      const campos = getData(KEYS.CAMPOS);
+      for (const cp of campos) { await client.from('campos_personalizados').upsert(cp); }
+
+      const ordens = getData(KEYS.ORDENS);
+      for (const o of ordens) { await syncToSupabase(KEYS.ORDENS, o); }
+    } catch (err) {
+      console.warn('Erro durante upload inicial para o Supabase:', err);
+    }
+  }
+
+  // ---------- HELPERS ----------
+
+  function getData(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function setData(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  // ---------- ORDENS DE SERVIÇO ----------
+
+  function getOrdens() {
+    return getData(KEYS.ORDENS);
+  }
+
+  function getOrdemById(id) {
+    return getOrdens().find(os => os.id === id) || null;
+  }
+
+  function saveOrdem(ordem) {
+    const ordens = getOrdens();
+    if (!ordem.id) {
+      ordem.id = Utils.gerarCodigoOS(ordens);
+    }
+    ordem.criadoEm = ordem.criadoEm || new Date().toISOString();
+    ordem.atualizadoEm = new Date().toISOString();
+    ordem.historico = ordem.historico || [];
+    ordem.historico.push({
+      acao: 'OS Criada',
+      usuario: ordem.atendente,
+      timestamp: new Date().toISOString()
+    });
+    ordens.push(ordem);
+    setData(KEYS.ORDENS, ordens);
+    syncToSupabase(KEYS.ORDENS, ordem);
+    return ordem;
+  }
+
+  function updateOrdem(id, updates) {
+    const ordens = getOrdens();
+    const idx = ordens.findIndex(os => os.id === id);
+    if (idx === -1) return null;
+    ordens[idx] = { ...ordens[idx], ...updates, atualizadoEm: new Date().toISOString() };
+    setData(KEYS.ORDENS, ordens);
+    syncToSupabase(KEYS.ORDENS, ordens[idx]);
+    return ordens[idx];
+  }
+
+  function addHistorico(id, acao, usuario) {
+    const ordens = getOrdens();
+    const idx = ordens.findIndex(os => os.id === id);
+    if (idx === -1) return;
+    if (!ordens[idx].historico) ordens[idx].historico = [];
+    ordens[idx].historico.push({ acao, usuario, timestamp: new Date().toISOString() });
+    ordens[idx].atualizadoEm = new Date().toISOString();
+    setData(KEYS.ORDENS, ordens);
+  }
+
+  function deleteOrdem(id) {
+    const ordens = getOrdens().filter(os => os.id !== id);
+    setData(KEYS.ORDENS, ordens);
+  }
+
+  function getOrdensByStatus(status) {
+    return getOrdens().filter(os => os.status === status);
+  }
+
+  // ---------- USUÁRIOS ----------
+
+  function getUsuarios() {
+    return getData(KEYS.USUARIOS);
+  }
+
+  function getUsuarioById(id) {
+    return getUsuarios().find(u => u.id === id) || null;
+  }
+
+  function saveUsuario(usuario) {
+    const usuarios = getUsuarios();
+    usuario.id = usuario.id || Utils.gerarId();
+    usuario.criadoEm = new Date().toISOString();
+    usuarios.push(usuario);
+    setData(KEYS.USUARIOS, usuarios);
+    return usuario;
+  }
+
+  function updateUsuario(id, updates) {
+    const usuarios = getUsuarios();
+    const idx = usuarios.findIndex(u => u.id === id);
+    if (idx === -1) return null;
+    usuarios[idx] = { ...usuarios[idx], ...updates };
+    setData(KEYS.USUARIOS, usuarios);
+    return usuarios[idx];
+  }
+
+  function deleteUsuario(id) {
+    const usuarios = getUsuarios().filter(u => u.id !== id);
+    setData(KEYS.USUARIOS, usuarios);
+  }
+
+  function autenticar(usuario, senha) {
+    const hash = Utils.hashSenha(senha);
+    const uClean = (usuario || '').trim().toLowerCase();
+    return getUsuarios().find(u => 
+      (u.usuario.toLowerCase() === uClean || (u.email && u.email.toLowerCase() === uClean)) &&
+      u.senha === hash
+    ) || null;
+  }
+
+  // ---------- SESSÃO ----------
+
+  function setUsuarioLogado(user) {
+    const sessionUser = { ...user };
+    delete sessionUser.senha;
+    localStorage.setItem(KEYS.SESSAO, JSON.stringify(sessionUser));
+  }
+
+  function getUsuarioLogado() {
+    try {
+      return JSON.parse(localStorage.getItem(KEYS.SESSAO));
+    } catch {
+      return null;
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem(KEYS.SESSAO);
+  }
+
+  // ---------- CAMPOS PERSONALIZADOS ----------
+
+  function getCampos() {
+    return getData(KEYS.CAMPOS);
+  }
+
+  function getCamposAtivos() {
+    return getCampos().filter(c => c.ativo);
+  }
+
+  function saveCampo(campo) {
+    const campos = getCampos();
+    campo.id = campo.id || 'campo_' + Utils.gerarId();
+    campo.ativo = true;
+    campo.criadoEm = new Date().toISOString();
+    campos.push(campo);
+    setData(KEYS.CAMPOS, campos);
+    return campo;
+  }
+
+  function updateCampo(id, updates) {
+    const campos = getCampos();
+    const idx = campos.findIndex(c => c.id === id);
+    if (idx === -1) return null;
+    campos[idx] = { ...campos[idx], ...updates };
+    setData(KEYS.CAMPOS, campos);
+    return campos[idx];
+  }
+
+  function deleteCampo(id) {
+    const campos = getCampos().filter(c => c.id !== id);
+    setData(KEYS.CAMPOS, campos);
+  }
+
+  function toggleCampo(id) {
+    const campos = getCampos();
+    const idx = campos.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    campos[idx].ativo = !campos[idx].ativo;
+    setData(KEYS.CAMPOS, campos);
+    return campos[idx];
+  }
+
+  // ---------- OPÇÕES / LISTAS CONFIGURÁVEIS ----------
+
+  function getOpcoes() {
+    return getData(KEYS.OPCOES);
+  }
+
+  function getOpcaoById(id) {
+    return getOpcoes().find(o => o.id === id) || null;
+  }
+
+  function getOpcaoByCampo(campo) {
+    return getOpcoes().find(o => o.campo === campo) || null;
+  }
+
+  function saveOpcao(opcao) {
+    const opcoes = getOpcoes();
+    opcao.id = opcao.id || 'opcao_' + Utils.gerarId();
+    opcao.itens = opcao.itens || [];
+    opcao.ativo = true;
+    opcao.criadoEm = new Date().toISOString();
+    opcoes.push(opcao);
+    setData(KEYS.OPCOES, opcoes);
+    return opcao;
+  }
+
+  function updateOpcao(id, updates) {
+    const opcoes = getOpcoes();
+    const idx = opcoes.findIndex(o => o.id === id);
+    if (idx === -1) return null;
+    opcoes[idx] = { ...opcoes[idx], ...updates };
+    setData(KEYS.OPCOES, opcoes);
+    return opcoes[idx];
+  }
+
+  function deleteOpcao(id) {
+    const opcoes = getOpcoes().filter(o => o.id !== id);
+    setData(KEYS.OPCOES, opcoes);
+  }
+
+  function addItemOpcao(opcaoId, item) {
+    const opcoes = getOpcoes();
+    const idx = opcoes.findIndex(o => o.id === opcaoId);
+    if (idx === -1) return;
+    if (!opcoes[idx].itens.includes(item)) {
+      opcoes[idx].itens.push(item);
+    }
+    setData(KEYS.OPCOES, opcoes);
+    return opcoes[idx];
+  }
+
+  function removeItemOpcao(opcaoId, item) {
+    const opcoes = getOpcoes();
+    const idx = opcoes.findIndex(o => o.id === opcaoId);
+    if (idx === -1) return;
+    opcoes[idx].itens = opcoes[idx].itens.filter(i => i !== item);
+    setData(KEYS.OPCOES, opcoes);
+    return opcoes[idx];
+  }
+
+  function updateItemOpcao(opcaoId, oldItem, newItem) {
+    const opcoes = getOpcoes();
+    const idx = opcoes.findIndex(o => o.id === opcaoId);
+    if (idx === -1) return;
+    const itemIdx = opcoes[idx].itens.indexOf(oldItem);
+    if (itemIdx !== -1 && newItem && newItem.trim()) {
+      opcoes[idx].itens[itemIdx] = newItem.trim();
+    }
+    setData(KEYS.OPCOES, opcoes);
+    return opcoes[idx];
+  }
+
+  // ---------- CARGOS / PERMISSÕES ----------
+
+  function getCargos() {
+    return getData(KEYS.CARGOS);
+  }
+
+  function getCargoById(id) {
+    return getCargos().find(c => c.id === id) || null;
+  }
+
+  function saveCargo(cargo) {
+    const cargos = getCargos();
+    cargo.id = cargo.id || 'role_' + Utils.gerarId();
+    cargo.permissoes = cargo.permissoes || [];
+    cargo.criadoEm = new Date().toISOString();
+    cargos.push(cargo);
+    setData(KEYS.CARGOS, cargos);
+    return cargo;
+  }
+
+  function updateCargo(id, updates) {
+    const cargos = getCargos();
+    const idx = cargos.findIndex(c => c.id === id);
+    if (idx === -1) return null;
+    cargos[idx] = { ...cargos[idx], ...updates };
+    setData(KEYS.CARGOS, cargos);
+    return cargos[idx];
+  }
+
+  function deleteCargo(id) {
+    // Não permitir deletar o cargo de admin padrão para segurança do sistema
+    if (id === 'role_admin') return;
+    const cargos = getCargos().filter(c => c.id !== id);
+    setData(KEYS.CARGOS, cargos);
+  }
+
+  function getTemplateWhatsApp() {
+    return localStorage.getItem(KEYS.TEMPLATE_WHATSAPP) || DEFAULT_TEMPLATE_WHATSAPP;
+  }
+
+  function saveTemplateWhatsApp(template) {
+    localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, template);
+  }
+
+  return {
+    initialize,
+    sincronizarTudoComSupabase,
+    DEFAULT_TEMPLATE_WHATSAPP,
+    getTemplateWhatsApp,
+    saveTemplateWhatsApp,
+    // Ordens
+    getOrdens,
+    getOrdemById,
+    saveOrdem,
+    updateOrdem,
+    addHistorico,
+    deleteOrdem,
+    getOrdensByStatus,
+    // Usuários
+    getUsuarios,
+    getUsuarioById,
+    saveUsuario,
+    updateUsuario,
+    deleteUsuario,
+    autenticar,
+    // Sessão
+    setUsuarioLogado,
+    getUsuarioLogado,
+    logout,
+    // Campos
+    getCampos,
+    getCamposAtivos,
+    saveCampo,
+    updateCampo,
+    deleteCampo,
+    toggleCampo,
+    // Opções
+    getOpcoes,
+    getOpcaoById,
+    getOpcaoByCampo,
+    saveOpcao,
+    updateOpcao,
+    deleteOpcao,
+    addItemOpcao,
+    removeItemOpcao,
+    updateItemOpcao,
+    // Cargos
+    getCargos,
+    getCargoById,
+    saveCargo,
+    updateCargo,
+    deleteCargo
+  };
+})();
