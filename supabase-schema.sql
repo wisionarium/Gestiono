@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT DE CRIAÇÃO DE TABELAS — SUPABASE (OS MANAGER)
+-- SCRIPT DE CRIAÇÃO DE TABELAS — SUPABASE (BOA GESTÃO)
 -- Cole este código no SQL Editor do seu Supabase e clique em "Run"
 -- ============================================
 

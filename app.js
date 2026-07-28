@@ -353,7 +353,7 @@ const App = (() => {
       'admin': 'Configurações',
       'os-detail': 'Detalhes da OS'
     };
-    document.getElementById('header-title').textContent = titles[page] || 'OS Manager';
+    document.getElementById('header-title').textContent = titles[page] || 'Boa Gestão';
   }
 
   function updateHeaderUser() {
