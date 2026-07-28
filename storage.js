@@ -36,6 +36,31 @@ Agradecemos a preferência e ficamos à disposição!`;
    * Inicializa o storage com dados padrão
    */
   function initialize() {
+    // Migração para trocar o administrador master e limpar logins antigos
+    if (localStorage.getItem('os_admin_migrated_v2') !== 'true') {
+      const newAdminUser = {
+        id: Utils.gerarId(),
+        nome: 'Administrador Master',
+        usuario: 'suprabikemarketing@gmail.com',
+        senha: Utils.hashSenha('Suprabike123!'),
+        role: 'role_admin',
+        criadoEm: new Date().toISOString()
+      };
+      localStorage.setItem(KEYS.USUARIOS, JSON.stringify([newAdminUser]));
+      localStorage.setItem('os_admin_migrated_v2', 'true');
+      localStorage.removeItem(KEYS.SESSAO); // Desloga sessão antiga
+
+      // Se o Supabase estiver conectado, limpa a tabela remota e insere o novo master
+      if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.isConnected()) {
+        const client = SupabaseConfig.getClient();
+        if (client) {
+          client.from('usuarios').delete().neq('id', '').then(() => {
+            client.from('usuarios').upsert(newAdminUser);
+          });
+        }
+      }
+    }
+
     if (localStorage.getItem(KEYS.INITIALIZED)) return;
 
     // Criar os cargos padrões iniciais do sistema
@@ -64,9 +89,9 @@ Agradecemos a preferência e ficamos à disposição!`;
     // Criar admin padrão
     const adminUser = {
       id: Utils.gerarId(),
-      nome: 'Administrador',
-      usuario: 'admin',
-      senha: Utils.hashSenha('admin123'),
+      nome: 'Administrador Master',
+      usuario: 'suprabikemarketing@gmail.com',
+      senha: Utils.hashSenha('Suprabike123!'),
       role: 'role_admin', // Vinculado ao cargo Admin Master
       criadoEm: new Date().toISOString()
     };
