@@ -321,6 +321,12 @@ const App = (() => {
   }
 
   function navigateTo(page) {
+    if (page === 'nova-os' && !temPermissao('criar_os')) {
+      showToast('Acesso restrito!', 'error');
+      navigateTo('home');
+      return;
+    }
+
     currentPage = page;
     document.getElementById('btn-back').style.display = 'none';
 
@@ -340,7 +346,7 @@ const App = (() => {
     // Show/hide admin button
     const btnAdmin = document.getElementById('btn-admin');
     if (btnAdmin) {
-      btnAdmin.style.display = (currentUser && temPermissao('configuracoes') && page !== 'admin') ? 'flex' : 'none';
+      btnAdmin.style.display = (currentUser && page !== 'admin') ? 'flex' : 'none';
     }
 
     // Render page
@@ -373,6 +379,11 @@ const App = (() => {
     const welcomeTitle = document.getElementById('home-welcome-title');
     if (welcomeTitle) {
       welcomeTitle.textContent = `Olá, ${currentUser.nome.split(' ')[0]}!`;
+    }
+
+    const btnHomeNovoOrcamento = document.getElementById('home-btn-novo-orcamento');
+    if (btnHomeNovoOrcamento) {
+      btnHomeNovoOrcamento.style.display = temPermissao('criar_os') ? 'block' : 'none';
     }
 
     const ordens = Storage.getOrdens();
@@ -475,10 +486,10 @@ const App = (() => {
     if (novaOsNav) {
       novaOsNav.style.display = temPermissao('criar_os') ? 'flex' : 'none';
     }
-    // Admin button in header: baseado na permissão configuracoes
+    // Admin button in header
     const btnAdmin = document.getElementById('btn-admin');
     if (btnAdmin) {
-      btnAdmin.style.display = temPermissao('configuracoes') ? 'flex' : 'none';
+      btnAdmin.style.display = currentUser ? 'flex' : 'none';
     }
   }
 
@@ -754,8 +765,8 @@ const App = (() => {
       const mec = Storage.getUsuarios().find(u => u.nome.trim().toLowerCase() === os.mecanico.trim().toLowerCase());
       const foto = mec ? mec.fotoPerfil : null;
       if (foto) {
-        mecanicoHtml = `<span class="os-card-info-item" style="display:inline-flex; align-items:center; gap:4px;">
-          <img src="${foto}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.15);">
+        mecanicoHtml = `<span class="os-card-info-item" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+          <img src="${foto}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; border:1.5px solid var(--accent); box-shadow:0 0 6px rgba(139,92,246,0.3);">
           ${os.mecanico}
         </span>`;
       } else {
@@ -1406,10 +1417,16 @@ const App = (() => {
   // ---------- ADMIN ----------
 
   function renderAdmin() {
-    if (!temPermissao('configuracoes')) {
-      showToast('Acesso negado', 'error');
-      navigateTo('servicos');
-      return;
+    const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
+    const adminPageEl = document.getElementById('page-admin');
+    if (adminPageEl) {
+      if (isAdminMaster) {
+        adminPageEl.classList.add('is-admin-master');
+        adminPageEl.classList.remove('is-read-only');
+      } else {
+        adminPageEl.classList.remove('is-admin-master');
+        adminPageEl.classList.add('is-read-only');
+      }
     }
 
     // Show back button
@@ -1731,6 +1748,17 @@ const App = (() => {
     const textarea = document.getElementById('admin-template-whatsapp');
     if (!textarea) return;
     textarea.value = Storage.getTemplateWhatsApp();
+
+    const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
+    if (!isAdminMaster) {
+      textarea.setAttribute('readonly', 'true');
+      textarea.style.opacity = '0.7';
+      textarea.style.background = 'rgba(255,255,255,0.03)';
+    } else {
+      textarea.removeAttribute('readonly');
+      textarea.style.opacity = '1';
+      textarea.style.background = '';
+    }
   }
 
   function insertVarAtCursor(textarea, varToken) {

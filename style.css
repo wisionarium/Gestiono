@@ -2231,3 +2231,14 @@ html {
   font-size: var(--font-sm);
   flex-shrink: 0;
 }
+
+/* Configurações apenas leitura para funcionários comuns */
+#page-admin.is-read-only .btn-primary,
+#page-admin.is-read-only .admin-item-actions,
+#page-admin.is-read-only .admin-card-header .btn,
+#page-admin.is-read-only button[onclick^="App.openModal"],
+#page-admin.is-read-only #whatsapp-template-save,
+#page-admin.is-read-only .whatsapp-editor-buttons,
+#page-admin.is-read-only #whatsapp-vars-chips {
+  display: none !important;
+}
