@@ -7,8 +7,14 @@
   <meta name="theme-color" content="#0a0a0f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
   <title>Boa Gestão — Gestão de Ordens de Serviço</title>
+  <script>
+    (function() {
+      var savedTheme = localStorage.getItem('os_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,9 +26,7 @@
     <!-- ========== LOGIN SCREEN ========== -->
     <div class="login-screen" id="login-screen">
       <div class="login-logo">
-        <div class="login-logo-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-        </div>
+        <img src="logo.svg" alt="Boa Gestão" class="login-logo-img">
         <h1>Boa Gestão</h1>
         <p>Gestão de Ordens de Serviço</p>
       </div>
@@ -55,7 +59,8 @@
           <button class="header-btn" id="btn-back" style="display:none">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
           </button>
-          <div>
+          <div class="header-brand" style="display:flex; align-items:center; gap:8px;">
+            <img src="logo.svg" alt="Logo" class="header-logo-img">
             <div class="header-title" id="header-title">Serviços</div>
           </div>
         </div>
@@ -377,7 +382,37 @@
         <div class="page" id="page-admin">
           <div class="page-header">
             <div class="page-title">⚙️ Configurações</div>
-            <div class="page-subtitle">Gerencie o sistema</div>
+            <div class="page-subtitle">Gerencie o sistema e personalizações</div>
+          </div>
+
+          <!-- Aparência & Tema -->
+          <div class="admin-card" id="card-admin-tema">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Aparência & Tema</div>
+                <div class="admin-card-desc">Escolha entre o modo claro e escuro</div>
+              </div>
+            </div>
+            <div style="margin-top:var(--space-md);">
+              <div class="theme-selector-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-md);">
+                <button type="button" class="theme-card-option" id="theme-option-dark" onclick="App.setTema('dark')">
+                  <div class="theme-card-icon">🌙</div>
+                  <div class="theme-card-info">
+                    <span class="theme-card-title">Tema Escuro</span>
+                    <span class="theme-card-sub">Visual escuro moderno</span>
+                  </div>
+                  <div class="theme-card-check">✓</div>
+                </button>
+                <button type="button" class="theme-card-option" id="theme-option-light" onclick="App.setTema('light')">
+                  <div class="theme-card-icon">☀️</div>
+                  <div class="theme-card-title-wrapper">
+                    <span class="theme-card-title">Tema Claro</span>
+                    <span class="theme-card-sub">Visual limpo e claro</span>
+                  </div>
+                  <div class="theme-card-check">✓</div>
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Usuários -->

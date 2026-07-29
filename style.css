@@ -95,6 +95,54 @@
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ---------- LIGHT THEME OVERRIDES ---------- */
+[data-theme="light"] {
+  --bg-primary: #f4f6f9;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e2e8f0;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f1f5f9;
+  --bg-surface-active: #e2e8f0;
+
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(203, 213, 225, 0.8);
+  --glass-blur: 20px;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-inverse: #ffffff;
+
+  --status-aguardando: #d97706;
+  --status-aguardando-bg: rgba(217, 119, 6, 0.1);
+  --status-aguardando-border: rgba(217, 119, 6, 0.25);
+
+  --status-andamento: #2563eb;
+  --status-andamento-bg: rgba(37, 99, 235, 0.1);
+  --status-andamento-border: rgba(37, 99, 235, 0.25);
+
+  --status-concluido: #059669;
+  --status-concluido-bg: rgba(5, 150, 105, 0.1);
+  --status-concluido-border: rgba(5, 150, 105, 0.25);
+
+  --accent: #146be6;
+  --accent-hover: #024bbd;
+  --accent-bg: rgba(20, 107, 230, 0.08);
+  --accent-border: rgba(20, 107, 230, 0.25);
+
+  --urgente: #ef4444;
+  --urgente-bg: rgba(239, 68, 68, 0.1);
+  --urgente-border: rgba(239, 68, 68, 0.25);
+
+  --pago: #059669;
+  --pendente: #d97706;
+
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.12);
+  --shadow-glow-accent: 0 4px 20px rgba(20, 107, 230, 0.2);
+}
+
 /* ---------- Reset & Base ---------- */
 *,
 *::before,
@@ -164,22 +212,26 @@ ul, ol { list-style: none; }
   text-align: center;
 }
 
-.login-logo-icon {
-  width: 72px;
-  height: 72px;
-  background: linear-gradient(135deg, var(--accent), #3b82f6);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.login-logo-img {
+  width: 88px;
+  height: 88px;
   margin: 0 auto var(--space-md);
-  box-shadow: var(--shadow-glow-accent);
+  display: block;
+  filter: drop-shadow(0 8px 24px rgba(20, 107, 230, 0.45));
+  transition: transform var(--transition-normal);
 }
 
-.login-logo-icon svg {
-  width: 36px;
-  height: 36px;
-  color: white;
+.login-logo-img:hover {
+  transform: scale(1.04);
+}
+
+.header-logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(20, 107, 230, 0.3));
 }
 
 .login-logo h1 {
@@ -2272,4 +2324,148 @@ html {
 #btn-logout:active {
   background: rgba(239, 68, 68, 0.1) !important;
   color: #ef4444 !important;
+}
+
+/* ---------- THEME SELECTOR CARD STYLES ---------- */
+.theme-card-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: var(--bg-surface);
+  border: 2px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  text-align: center;
+  gap: 6px;
+  min-height: 105px;
+}
+
+.theme-card-option:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--text-tertiary);
+}
+
+.theme-card-option.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.theme-card-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.theme-card-info,
+.theme-card-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.theme-card-title {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.theme-card-sub {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+.theme-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: all var(--transition-fast);
+}
+
+.theme-card-option.active .theme-card-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ---------- COMPONENT LIGHT MODE OVERRIDES ---------- */
+[data-theme="light"] body::before {
+  background: 
+    radial-gradient(ellipse at 20% 0%, rgba(20, 107, 230, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+}
+
+[data-theme="light"] .app-header,
+[data-theme="light"] .bottom-nav {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(203, 213, 225, 0.8);
+}
+
+[data-theme="light"] .login-card,
+[data-theme="light"] .admin-card,
+[data-theme="light"] .os-card,
+[data-theme="light"] .dashboard-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-select,
+[data-theme="light"] .form-textarea,
+[data-theme="light"] .form-toggle,
+[data-theme="light"] .toggle-quantity-wrapper {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .form-input:focus,
+[data-theme="light"] .form-select:focus,
+[data-theme="light"] .form-textarea:focus {
+  background: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(20, 107, 230, 0.15);
+}
+
+[data-theme="light"] .bottom-sheet {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .bottom-sheet-header {
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .bottom-sheet-handle {
+  background: #cbd5e1;
+}
+
+[data-theme="light"] .form-select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+[data-theme="light"] .search-bar input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .kanban-tab {
+  background: #e2e8f0;
+  color: #475569;
 }

@@ -24,6 +24,7 @@ const App = (() => {
 
   function init() {
     Storage.initialize();
+    applyTheme();
     if (typeof Storage.sincronizarTudoComSupabase === 'function') {
       Storage.sincronizarTudoComSupabase();
     }
@@ -1447,7 +1448,32 @@ const App = (() => {
 
   // ---------- ADMIN ----------
 
+  // --- Tema Claro / Escuro ---
+  function setTema(tema) {
+    Storage.saveTema(tema);
+    applyTheme(tema);
+    showToast(`Tema ${tema === 'light' ? 'Claro ☀️' : 'Escuro 🌙'} ativado!`, 'success');
+  }
+
+  function applyTheme(tema) {
+    const activeTheme = tema || Storage.getTema();
+    document.documentElement.setAttribute('data-theme', activeTheme);
+
+    const cardDark = document.getElementById('theme-option-dark');
+    const cardLight = document.getElementById('theme-option-light');
+    if (cardDark && cardLight) {
+      if (activeTheme === 'light') {
+        cardLight.classList.add('active');
+        cardDark.classList.remove('active');
+      } else {
+        cardDark.classList.add('active');
+        cardLight.classList.remove('active');
+      }
+    }
+  }
+
   function renderAdmin() {
+    applyTheme();
     const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const adminPageEl = document.getElementById('page-admin');
     if (adminPageEl) {
@@ -2304,6 +2330,8 @@ const App = (() => {
 
   return {
     init,
+    setTema,
+    applyTheme,
     updateValorTotal,
     openModalNovoUsuario,
     openModalNovoCargo,

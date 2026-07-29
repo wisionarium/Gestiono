@@ -12,6 +12,7 @@ const Storage = (() => {
     CARGOS: 'os_cargos',
     SESSAO: 'os_sessao',
     TEMPLATE_WHATSAPP: 'os_template_whatsapp',
+    TEMA: 'os_theme',
     INITIALIZED: 'os_initialized'
   };
 
@@ -684,12 +685,22 @@ Agradecemos a preferência e ficamos à disposição!`;
     localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, template);
   }
 
+  function getTema() {
+    return localStorage.getItem(KEYS.TEMA) || 'dark';
+  }
+
+  function saveTema(tema) {
+    localStorage.setItem(KEYS.TEMA, tema);
+  }
+
   return {
     initialize,
     sincronizarTudoComSupabase,
     DEFAULT_TEMPLATE_WHATSAPP,
     getTemplateWhatsApp,
     saveTemplateWhatsApp,
+    getTema,
+    saveTema,
     // Ordens
     getOrdens,
     getOrdemById,
