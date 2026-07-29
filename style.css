@@ -2264,3 +2264,12 @@ html {
 #page-admin.is-read-only-whatsapp #card-admin-whatsapp button[onclick^="App.openModal"] {
   display: none !important;
 }
+
+/* Custom styling for the header logout button */
+#btn-logout {
+  color: var(--danger) !important;
+}
+#btn-logout:active {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+}

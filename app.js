@@ -53,7 +53,20 @@ const App = (() => {
 
     const btnLogoutAdmin = document.getElementById('btn-logout-admin');
     if (btnLogoutAdmin) {
-      btnLogoutAdmin.addEventListener('click', handleLogout);
+      btnLogoutAdmin.addEventListener('click', () => {
+        if (confirm('Deseja realmente sair da sua conta?')) {
+          handleLogout();
+        }
+      });
+    }
+
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        if (confirm('Deseja realmente sair da sua conta?')) {
+          handleLogout();
+        }
+      });
     }
 
     const btnAdmin = document.getElementById('btn-admin');
@@ -348,11 +361,8 @@ const App = (() => {
     // Update header
     updateHeaderTitle(page);
 
-    // Show/hide admin button
-    const btnAdmin = document.getElementById('btn-admin');
-    if (btnAdmin) {
-      btnAdmin.style.display = (currentUser && page !== 'admin') ? 'flex' : 'none';
-    }
+    // Show/hide admin / logout buttons in header
+    updateHeaderButtons();
 
     // Render page
     switch (page) {
@@ -485,17 +495,33 @@ const App = (() => {
     }
   }
 
+  function updateHeaderButtons() {
+    const btnAdmin = document.getElementById('btn-admin');
+    const btnLogout = document.getElementById('btn-logout');
+    
+    if (currentUser) {
+      const hasConfigPerm = temPermissao('configuracoes');
+      const isConfigPage = (currentPage === 'admin');
+      
+      if (btnAdmin) {
+        btnAdmin.style.display = (hasConfigPerm && !isConfigPage) ? 'flex' : 'none';
+      }
+      if (btnLogout) {
+        btnLogout.style.display = (!hasConfigPerm) ? 'flex' : 'none';
+      }
+    } else {
+      if (btnAdmin) btnAdmin.style.display = 'none';
+      if (btnLogout) btnLogout.style.display = 'none';
+    }
+  }
+
   function updateNavVisibility() {
     // Nova OS tab: baseada na permissão criar_os
     const novaOsNav = document.querySelector('.nav-item[data-page="nova-os"]');
     if (novaOsNav) {
       novaOsNav.style.display = temPermissao('criar_os') ? 'flex' : 'none';
     }
-    // Admin button in header
-    const btnAdmin = document.getElementById('btn-admin');
-    if (btnAdmin) {
-      btnAdmin.style.display = currentUser ? 'flex' : 'none';
-    }
+    updateHeaderButtons();
   }
 
   function renderCurrentList() {
