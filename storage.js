@@ -266,77 +266,82 @@ Agradecemos a preferência e ficamos à disposição!`;
     try {
       if (key === KEYS.ORDENS) {
         const o = dataItem;
-        await client.from('ordens_servico').upsert({
+        const payload = {
           id: o.id,
-          cliente_nome: o.clienteNome,
-          cliente_telefone: o.clienteTelefone,
-          modelo_veiculo: o.modeloVeiculo,
-          cor_veiculo: o.corVeiculo,
+          cliente_nome: o.clienteNome || 'Cliente',
+          cliente_telefone: o.clienteTelefone || '',
+          modelo_veiculo: o.modeloVeiculo || '',
+          cor_veiculo: o.corVeiculo || '',
           servicos: o.servicos || [],
-          valor_total: o.valorTotal,
+          valor_total: o.valorTotal || 0,
           valor_entrada: o.valorEntrada || 0,
           valor_restante: o.valorRestante || 0,
           forma_pagamento: o.formaPagamento || [],
-          status_pagamento: o.statusPagamento,
-          status: o.status,
-          prioridade: o.prioridade,
-          observacoes: o.observacoes,
-          data_servico: o.dataServico,
-          tem_data_entrega: o.temDataEntrega,
-          data_entrega: o.dataEntrega,
-          hora_entrega: o.horaEntrega,
-          tem_fotos: o.temFotos,
+          status_pagamento: o.statusPagamento || 'pendente',
+          status: o.status || 'aguardando',
+          prioridade: o.prioridade || 'normal',
+          observacoes: o.observacoes || '',
+          data_servico: o.dataServico || new Date().toISOString().split('T')[0],
+          tem_data_entrega: !!o.temDataEntrega,
+          data_entrega: o.dataEntrega || null,
+          hora_entrega: o.horaEntrega || null,
+          tem_fotos: !!o.temFotos,
           fotos: o.fotos || [],
           campos_personalizados: o.camposPersonalizados || {},
-          atendente: o.atendente,
-          mecanico: o.mecanico,
-          editado_por: o.editadoPor,
-          editado_em: o.editadoEm,
-          hora_inicio: o.horaInicio,
-          hora_fim: o.horaFim,
-          tempo_total: o.tempoTotal,
-          historico: o.historico || [],
-          criado_em: o.criadoEm
-        });
+          atendente: o.atendente || '',
+          mecanico: o.mecanico || null,
+          editado_por: o.editadoPor || null,
+          editado_em: o.editadoEm || null,
+          hora_inicio: o.horaInicio || null,
+          hora_fim: o.horaFim || null,
+          tempo_total: o.tempoTotal || null,
+          historico: o.historico || []
+        };
+        if (o.criadoEm) payload.criado_em = o.criadoEm;
+        await client.from('ordens_servico').upsert(payload);
       } else if (key === KEYS.USUARIOS) {
         const u = dataItem;
-        await client.from('usuarios').upsert({
+        const payload = {
           id: u.id,
           nome: u.nome,
           usuario: u.usuario,
           senha: u.senha,
-          role: u.role,
-          foto_perfil: u.fotoPerfil || null,
-          criado_em: u.criadoEm
-        });
+          role: u.role
+        };
+        if (u.fotoPerfil) payload.foto_perfil = u.fotoPerfil;
+        if (u.criadoEm) payload.criado_em = u.criadoEm;
+        await client.from('usuarios').upsert(payload);
       } else if (key === KEYS.CARGOS) {
         const c = dataItem;
-        await client.from('cargos').upsert({
+        const payload = {
           id: c.id,
           nome: c.nome,
-          permissoes: c.permissoes || [],
-          criado_em: c.criadoEm
-        });
+          permissoes: c.permissoes || []
+        };
+        if (c.criadoEm) payload.criado_em = c.criadoEm;
+        await client.from('cargos').upsert(payload);
       } else if (key === KEYS.OPCOES) {
         const op = dataItem;
-        await client.from('opcoes_listas').upsert({
+        const payload = {
           id: op.id,
           nome: op.nome,
           campo: op.campo,
           itens: op.itens || [],
-          ativo: op.ativo ?? true,
-          criado_em: op.criadoEm
-        });
+          ativo: op.ativo ?? true
+        };
+        if (op.criadoEm) payload.criado_em = op.criadoEm;
+        await client.from('opcoes_listas').upsert(payload);
       } else if (key === KEYS.CAMPOS) {
         const cp = dataItem;
-        await client.from('campos_personalizados').upsert({
+        const payload = {
           id: cp.id,
           nome: cp.nome,
           tipo: cp.tipo,
           secao: cp.secao,
-          ativo: cp.ativo ?? true,
-          criado_em: cp.criadoEm
-        });
+          ativo: cp.ativo ?? true
+        };
+        if (cp.criadoEm) payload.criado_em = cp.criadoEm;
+        await client.from('campos_personalizados').upsert(payload);
       }
     } catch (e) {
       console.warn('Erro ao salvar no Supabase:', e);
