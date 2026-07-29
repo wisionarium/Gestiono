@@ -92,24 +92,30 @@
             <div class="page-subtitle" style="font-size:var(--font-sm); color:var(--text-secondary);">Dashboard operacional da oficina</div>
           </div>
 
-          <!-- Main Action Button: NOVO ORÇAMENTO -->
+          <!-- Main Action Button: NOVO ORÇAMENTO (Side-by-side icon & text, no glow) -->
           <div style="width:100%; margin-bottom:var(--space-xl);">
             <button class="btn-novo-orcamento-large" id="home-btn-novo-orcamento">
               <div class="novo-orcamento-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <path d="M9 12.5h3.5a1.5 1.5 0 0 0 0-3H9v6h3"/>
-                  <line x1="11" y1="8.5" x2="11" y2="9.5"/>
-                  <line x1="11" y1="15.5" x2="11" y2="16.5"/>
-                  <path d="M17 11.5l-3 3"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 40 40" fill="none">
+                  <path d="M8 5C8 3.89543 8.89543 3 10 3H26L34 11V35C34 36.1046 33.1046 37 32 37H10C8.89543 37 8 36.1046 8 35V5Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                  <path d="M26 3V11H34" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                  <path d="M14 9.5C14 8.7 14.7 8 15.5 8H17C17.8 8 18.5 8.7 18.5 9.5C18.5 10.3 17.8 11 17 11H15.5C14.7 11 14 11.7 14 12.5C14 13.3 14.7 14 15.5 14H17C17.8 14 18.5 13.3 18.5 12.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <line x1="16.25" y1="7" x2="16.25" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="13" y1="18" x2="27" y2="18" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                  <line x1="13" y1="22" x2="25" y2="22" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                  <line x1="13" y1="26" x2="21" y2="26" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                  <g transform="rotate(-40 28 28)">
+                    <rect x="22" y="25" width="14" height="6" rx="1" fill="#1b74ff" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M22 25 L17 28 L22 31 Z" fill="white" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+                    <line x1="26" y1="25" x2="26" y2="31" stroke="white" stroke-width="1.5"/>
+                  </g>
                 </svg>
               </div>
               <span>NOVO ORÇAMENTO</span>
             </button>
           </div>
 
-          <!-- ESTATÍSTICA DA SEMANA Card -->
+          <!-- ESTATÍSTICA DA SEMANA Card (with white border container and white borders around blocks) -->
           <div class="home-stats-card">
             <div class="home-stats-header">
               <span>ESTATÍSTICA DA SEMANA</span>
@@ -117,19 +123,19 @@
             <div class="home-stats-divider"></div>
             
             <div class="home-stats-grid">
-              <!-- A FAZER (Solid Orange) -->
+              <!-- A FAZER (Solid Orange + White Border) -->
               <button type="button" class="home-stat-block block-afazer" id="home-stat-afazer" title="Ver serviços a fazer">
                 <div class="home-stat-number" id="home-semana-aguardando">0</div>
                 <div class="home-stat-label">A FAZER</div>
               </button>
 
-              <!-- EM ANDAMENTO (Solid Amber/Yellow) -->
+              <!-- EM ANDAMENTO (Solid Amber/Yellow + White Border) -->
               <button type="button" class="home-stat-block block-andamento" id="home-stat-andamento" title="Ver serviços em andamento">
                 <div class="home-stat-number" id="home-semana-andamento">0</div>
                 <div class="home-stat-label">EM ANDAMENTO</div>
               </button>
 
-              <!-- CONCLUÍDOS (Solid Green) -->
+              <!-- CONCLUÍDOS (Solid Green + White Border) -->
               <button type="button" class="home-stat-block block-concluidos" id="home-stat-concluidos" title="Ver serviços concluídos">
                 <div class="home-stat-number" id="home-semana-concluido">0</div>
                 <div class="home-stat-label">CONCLUÍDOS</div>
