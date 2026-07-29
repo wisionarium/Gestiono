@@ -779,7 +779,9 @@ const App = (() => {
     Storage.updateOrdem(id, { status: 'em_andamento', mecanico: currentUser.nome, horaInicio: new Date().toISOString() });
     Storage.addHistorico(id, `Serviço assumido por ${currentUser.nome}`, currentUser.nome);
     showToast('Serviço assumido!', 'success');
-    renderCurrentList();
+    renderListaOS('aguardando');
+    renderListaOS('em_andamento');
+    navigateTo('andamento');
   }
 
   function concluirServico(id) {
@@ -790,7 +792,9 @@ const App = (() => {
     Storage.updateOrdem(id, { status: 'concluido', horaFim, tempoTotal });
     Storage.addHistorico(id, `Serviço concluído por ${currentUser.nome} (${tempoTotal})`, currentUser.nome);
     showToast(`Serviço concluído! Tempo: ${tempoTotal}`, 'success');
-    renderCurrentList();
+    renderListaOS('em_andamento');
+    renderListaOS('concluido');
+    navigateTo('concluidos');
   }
 
   // ---------- NOVA OS ----------
@@ -2012,11 +2016,9 @@ const App = (() => {
       });
       Storage.addHistorico(osId, `Serviço delegado para ${mecanicoNome}`, currentUser.nome);
       showToast(`Serviço delegado para ${mecanicoNome}!`, 'success');
-      if (currentPage === 'detalhe-os') {
-        openOSDetail(osId);
-      } else {
-        renderCurrentList();
-      }
+      renderListaOS('aguardando');
+      renderListaOS('em_andamento');
+      navigateTo('andamento');
       return true;
     });
   }
