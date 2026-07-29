@@ -2469,3 +2469,186 @@ html {
   background: #e2e8f0;
   color: #475569;
 }
+
+/* ---------- HOME PAGE (EXACT LAYOUT FROM IMG 1) ---------- */
+
+.btn-novo-orcamento-large {
+  width: 100%;
+  height: 64px;
+  background: linear-gradient(135deg, #1d72fe, #0052d4);
+  border: none;
+  border-radius: 18px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 82, 212, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-novo-orcamento-large:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 12px rgba(0, 82, 212, 0.25);
+}
+
+.novo-orcamento-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ESTATÍSTICA DA SEMANA CARD CONTAINER */
+.home-stats-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 18px 16px;
+  margin-bottom: var(--space-xl);
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+}
+
+.home-stats-header {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.home-stats-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 10px 0 16px;
+  width: 100%;
+}
+
+.home-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.home-stat-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 6px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 96px;
+}
+
+.home-stat-block:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+.block-afazer {
+  background: #f97316 !important; /* Solid vibrant orange */
+}
+
+.block-andamento {
+  background: #ffb703 !important; /* Solid vibrant yellow/amber */
+}
+
+.block-concluidos {
+  background: #00c853 !important; /* Solid vibrant emerald green */
+}
+
+.home-stat-number {
+  font-size: 1.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  font-family: 'Inter', sans-serif;
+}
+
+.home-stat-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-top: 6px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.home-resumo-section-title {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: var(--space-md);
+}
+
+.home-resumo-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  padding: 18px;
+  border-radius: 16px;
+  margin-bottom: var(--space-md);
+  text-align: center;
+  width: 100%;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.home-resumo-card:active {
+  transform: scale(0.98);
+  background: var(--bg-surface-hover);
+}
+
+.home-resumo-title {
+  font-size: var(--font-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.home-resumo-sub {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.home-resumo-val {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-top: 6px;
+  font-family: 'Inter', sans-serif;
+}
+
+.home-resumo-val.val-purple {
+  color: #a855f7;
+}
+
+.home-resumo-val.val-green {
+  color: #10b981;
+}
+
+/* Light mode adjustments for stat blocks */
+[data-theme="light"] .block-afazer { background: #f97316 !important; }
+[data-theme="light"] .block-andamento { background: #ffb703 !important; }
+[data-theme="light"] .block-concluidos { background: #00c853 !important; }
+[data-theme="light"] .home-stats-card,
+[data-theme="light"] .home-resumo-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+[data-theme="light"] .home-stats-divider {
+  background: #e2e8f0;
+}

@@ -86,56 +86,72 @@
 
         <!-- ===== HOME PAGE ===== -->
         <div class="page active" id="page-home">
-          <div class="page-header">
-            <div class="page-title" id="home-welcome-title">Olá, Bem-vindo!</div>
-            <div class="page-subtitle">Dashboard operacional da oficina</div>
+          <!-- Welcome Section (Centered) -->
+          <div class="home-welcome-section" style="text-align:center; margin-top:var(--space-xs); margin-bottom:var(--space-xl);">
+            <div class="page-title" id="home-welcome-title" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Olá, Administrador!</div>
+            <div class="page-subtitle" style="font-size:var(--font-sm); color:var(--text-secondary);">Dashboard operacional da oficina</div>
           </div>
 
-          <!-- Ação Principal: Novo Orçamento -->
-          <div style="width:100%; margin-bottom:var(--space-md);">
-            <button class="btn btn-primary btn-lg" id="home-btn-novo-orcamento" style="width:100%; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:var(--space-sm); padding:var(--space-md) var(--space-lg); border-radius:var(--radius-md); font-weight:700; height:54px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
-              <span>Novo Orçamento</span>
+          <!-- Main Action Button: NOVO ORÇAMENTO -->
+          <div style="width:100%; margin-bottom:var(--space-xl);">
+            <button class="btn-novo-orcamento-large" id="home-btn-novo-orcamento">
+              <div class="novo-orcamento-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <path d="M9 12.5h3.5a1.5 1.5 0 0 0 0-3H9v6h3"/>
+                  <line x1="11" y1="8.5" x2="11" y2="9.5"/>
+                  <line x1="11" y1="15.5" x2="11" y2="16.5"/>
+                  <path d="M17 11.5l-3 3"/>
+                </svg>
+              </div>
+              <span>NOVO ORÇAMENTO</span>
             </button>
           </div>
 
-          <!-- Bloco Atraente de Estatísticas da Semana -->
-          <div class="dashboard-card" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-bottom:var(--space-lg); width:100%;">
-            <div style="display:flex; justify-content:flex-start; align-items:center; margin-bottom:var(--space-md); border-bottom:1px dashed rgba(255,255,255,0.08); padding-bottom:var(--space-xs); width:100%;">
-              <span style="font-size:var(--font-xs); font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px;">Estatísticas da Semana</span>
+          <!-- ESTATÍSTICA DA SEMANA Card -->
+          <div class="home-stats-card">
+            <div class="home-stats-header">
+              <span>ESTATÍSTICA DA SEMANA</span>
             </div>
+            <div class="home-stats-divider"></div>
             
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:var(--space-xs); text-align:center; width:100%;">
-              <div id="home-stat-afazer" style="background:rgba(234, 179, 8, 0.08); border:1px solid rgba(234, 179, 8, 0.2); padding:var(--space-sm); border-radius:var(--radius-sm); cursor:pointer; transition:transform 0.15s ease;" title="Ver serviços a fazer">
-                <div id="home-semana-aguardando" style="font-size:var(--font-xl); font-weight:800; color:var(--status-aguardando-text);">0</div>
-                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; margin-top:2px;">A Fazer</div>
-              </div>
-              <div id="home-stat-andamento" style="background:rgba(59, 130, 246, 0.08); border:1px solid rgba(59, 130, 246, 0.2); padding:var(--space-sm); border-radius:var(--radius-sm); cursor:pointer; transition:transform 0.15s ease;" title="Ver serviços em andamento">
-                <div id="home-semana-andamento" style="font-size:var(--font-xl); font-weight:800; color:var(--status-andamento-text);">0</div>
-                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; margin-top:2px;">Em Andamento</div>
-              </div>
-              <div id="home-stat-concluidos" style="background:rgba(34, 197, 94, 0.08); border:1px solid rgba(34, 197, 94, 0.2); padding:var(--space-sm); border-radius:var(--radius-sm); cursor:pointer; transition:transform 0.15s ease;" title="Ver serviços concluídos">
-                <div id="home-semana-concluido" style="font-size:var(--font-xl); font-weight:800; color:var(--status-concluido-text);">0</div>
-                <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; margin-top:2px;">Concluídos</div>
-              </div>
+            <div class="home-stats-grid">
+              <!-- A FAZER (Solid Orange) -->
+              <button type="button" class="home-stat-block block-afazer" id="home-stat-afazer" title="Ver serviços a fazer">
+                <div class="home-stat-number" id="home-semana-aguardando">0</div>
+                <div class="home-stat-label">A FAZER</div>
+              </button>
+
+              <!-- EM ANDAMENTO (Solid Amber/Yellow) -->
+              <button type="button" class="home-stat-block block-andamento" id="home-stat-andamento" title="Ver serviços em andamento">
+                <div class="home-stat-number" id="home-semana-andamento">0</div>
+                <div class="home-stat-label">EM ANDAMENTO</div>
+              </button>
+
+              <!-- CONCLUÍDOS (Solid Green) -->
+              <button type="button" class="home-stat-block block-concluidos" id="home-stat-concluidos" title="Ver serviços concluídos">
+                <div class="home-stat-number" id="home-semana-concluido">0</div>
+                <div class="home-stat-label">CONCLUÍDOS</div>
+              </button>
             </div>
           </div>
 
-          <!-- Cards de Resumo Geral -->
-          <div class="section-divider">Resumo Geral</div>
+          <!-- RESUMO GERAL Section -->
+          <div class="home-resumo-section-title">RESUMO GERAL</div>
           
           <!-- Serviços Pendentes -->
-          <div class="dashboard-card" id="home-card-pendentes" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-bottom:var(--space-md); cursor:pointer; width:100%;">
-            <div style="font-size:var(--font-sm); color:var(--text-secondary); font-weight:600;">Serviços Pendentes</div>
-            <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-top:2px;">Total de OS em aberto na oficina</div>
-            <div id="home-count-pendentes" style="font-size:var(--font-xl); font-weight:800; color:var(--accent); margin-top:var(--space-xs);">0</div>
+          <div class="dashboard-card home-resumo-card" id="home-card-pendentes" style="cursor:pointer;">
+            <div class="home-resumo-title">Serviços Pendentes</div>
+            <div class="home-resumo-sub">Total de OS em aberto na oficina</div>
+            <div class="home-resumo-val val-purple" id="home-count-pendentes">0</div>
           </div>
 
           <!-- Faturamento / Resumo Mensal -->
-          <div class="dashboard-card" id="home-card-mensal" style="background:var(--bg-surface); border:1px solid var(--glass-border); padding:var(--space-md); border-radius:var(--radius-md); margin-bottom:var(--space-md); cursor:pointer; width:100%;">
-            <div style="font-size:var(--font-sm); color:var(--text-secondary); font-weight:600;">Resumo Mensal</div>
-            <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-top:2px;">Faturamento estimado este mês</div>
-            <div id="home-faturamento-mensal" style="font-size:var(--font-lg); font-weight:800; color:var(--status-concluido-text); margin-top:var(--space-xs);">R$ 0,00</div>
+          <div class="dashboard-card home-resumo-card" id="home-card-mensal" style="cursor:pointer;">
+            <div class="home-resumo-title">Resumo Mensal</div>
+            <div class="home-resumo-sub">Faturamento estimado este mês</div>
+            <div class="home-resumo-val val-green" id="home-faturamento-mensal">R$ 0,00</div>
           </div>
         </div>
 
