@@ -747,6 +747,23 @@ const App = (() => {
       }
     }
 
+    let mecanicoHtml = '';
+    if (os.mecanico) {
+      const mec = Storage.getUsuarios().find(u => u.nome.trim().toLowerCase() === os.mecanico.trim().toLowerCase());
+      const foto = mec ? mec.fotoPerfil : null;
+      if (foto) {
+        mecanicoHtml = `<span class="os-card-info-item" style="display:inline-flex; align-items:center; gap:4px;">
+          <img src="${foto}" style="width:16px; height:16px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.15);">
+          ${os.mecanico}
+        </span>`;
+      } else {
+        mecanicoHtml = `<span class="os-card-info-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          ${os.mecanico}
+        </span>`;
+      }
+    }
+
     return `
       <div class="os-card" data-id="${os.id}" data-status="${os.status}">
         <div class="os-card-header">
@@ -767,10 +784,7 @@ const App = (() => {
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
             ${Utils.formatarData(os.dataServico)}
           </span>
-          ${os.mecanico ? `<span class="os-card-info-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            ${os.mecanico}
-          </span>` : ''}
+          ${mecanicoHtml}
         </div>
         ${entregaHtml}
         <div class="os-card-footer">
@@ -778,7 +792,10 @@ const App = (() => {
             <span class="os-card-valor">${valorMostrar}</span>
             <span class="os-card-pagamento">${pagamentoStr}</span>
           </div>
-          <div class="os-card-actions">${actionsHtml}</div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; text-align:right;">
+            <span style="font-size:9px; color:var(--text-tertiary); font-weight:600; text-transform:uppercase; letter-spacing:0.3px;">Criado por: ${os.criadoPor || os.atendente || 'Sistema'}</span>
+            <div class="os-card-actions">${actionsHtml}</div>
+          </div>
         </div>
       </div>`;
   }
