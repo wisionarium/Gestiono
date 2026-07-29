@@ -82,7 +82,7 @@ Agradecemos a preferência e ficamos à disposição!`;
       {
         id: 'role_admin',
         nome: 'Admin Master',
-        permissoes: ['criar_os', 'editar_os', 'assumir_servico', 'concluir_servico', 'ver_valores_cliente', 'enviar_whatsapp', 'configuracoes', 'delegar_servico'],
+        permissoes: ['criar_os', 'editar_os', 'assumir_servico', 'concluir_servico', 'ver_valores_cliente', 'enviar_whatsapp', 'configuracoes', 'delegar_servico', 'editar_campos_personalizados'],
         criadoEm: new Date().toISOString()
       },
       {

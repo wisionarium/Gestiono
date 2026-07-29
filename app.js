@@ -326,6 +326,11 @@ const App = (() => {
       navigateTo('home');
       return;
     }
+    if (page === 'admin' && !temPermissao('configuracoes')) {
+      showToast('Acesso restrito!', 'error');
+      navigateTo('home');
+      return;
+    }
 
     currentPage = page;
     document.getElementById('btn-back').style.display = 'none';
@@ -1420,12 +1425,16 @@ const App = (() => {
     const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const adminPageEl = document.getElementById('page-admin');
     if (adminPageEl) {
+      adminPageEl.classList.remove('is-admin-master', 'is-read-only-usuarios', 'is-read-only-cargos', 'is-read-only-campos', 'is-read-only-whatsapp');
       if (isAdminMaster) {
         adminPageEl.classList.add('is-admin-master');
-        adminPageEl.classList.remove('is-read-only');
       } else {
-        adminPageEl.classList.remove('is-admin-master');
-        adminPageEl.classList.add('is-read-only');
+        adminPageEl.classList.add('is-read-only-usuarios');
+        adminPageEl.classList.add('is-read-only-cargos');
+        adminPageEl.classList.add('is-read-only-whatsapp');
+        if (!temPermissao('editar_campos_personalizados')) {
+          adminPageEl.classList.add('is-read-only-campos');
+        }
       }
     }
 
@@ -1501,7 +1510,8 @@ const App = (() => {
           concluir_servico: 'Concluir',
           ver_valores_cliente: 'Valores/Tel',
           enviar_whatsapp: 'WhatsApp',
-          configuracoes: 'Acesso Config.'
+          configuracoes: 'Acesso Config.',
+          editar_campos_personalizados: 'Campos/Listas'
         };
         return map[p] || p;
       }).join(', ');
@@ -2131,7 +2141,8 @@ const App = (() => {
       { id: 'delegar_servico', nome: 'Delegar serviços para outros funcionários' },
       { id: 'ver_valores_cliente', nome: 'Ver preços dos serviços e telefone do cliente' },
       { id: 'enviar_whatsapp', nome: 'Enviar link de WhatsApp ao cliente' },
-      { id: 'configuracoes', nome: 'Acesso total às Configurações (Admin)' }
+      { id: 'configuracoes', nome: 'Acesso total às Configurações (Admin)' },
+      { id: 'editar_campos_personalizados', nome: 'Editar Listas de Opções & Campos Personalizados' }
     ];
 
     const isChecked = (permId) => {

@@ -2232,13 +2232,35 @@ html {
   flex-shrink: 0;
 }
 
-/* Configurações apenas leitura para funcionários comuns */
-#page-admin.is-read-only .btn-primary,
-#page-admin.is-read-only .admin-item-actions,
-#page-admin.is-read-only .admin-card-header .btn,
-#page-admin.is-read-only button[onclick^="App.openModal"],
-#page-admin.is-read-only #whatsapp-template-save,
-#page-admin.is-read-only .whatsapp-editor-buttons,
-#page-admin.is-read-only #whatsapp-vars-chips {
+/* Configurações apenas leitura com base em permissões */
+#page-admin.is-read-only-usuarios #card-admin-usuarios .btn-primary,
+#page-admin.is-read-only-usuarios #card-admin-usuarios .admin-item-actions,
+#page-admin.is-read-only-usuarios #card-admin-usuarios button[onclick^="App.openModal"] {
+  display: none !important;
+}
+
+#page-admin.is-read-only-cargos #card-admin-cargos .btn-primary,
+#page-admin.is-read-only-cargos #card-admin-cargos .admin-item-actions,
+#page-admin.is-read-only-cargos #card-admin-cargos button[onclick^="App.openModal"] {
+  display: none !important;
+}
+
+#page-admin.is-read-only-campos #card-admin-opcoes .btn-primary,
+#page-admin.is-read-only-campos #card-admin-opcoes .collapsible-actions,
+#page-admin.is-read-only-campos #card-admin-opcoes .btn-edit-opcao-item,
+#page-admin.is-read-only-campos #card-admin-opcoes .btn-remove-opcao-item,
+#page-admin.is-read-only-campos #card-admin-opcoes .opcao-add-row,
+#page-admin.is-read-only-campos #card-admin-opcoes button[onclick^="App.openModal"],
+#page-admin.is-read-only-campos #card-admin-campos .btn-primary,
+#page-admin.is-read-only-campos #card-admin-campos .admin-item-actions,
+#page-admin.is-read-only-campos #card-admin-campos button[onclick^="App.openModal"] {
+  display: none !important;
+}
+
+#page-admin.is-read-only-whatsapp #card-admin-whatsapp #btn-save-template-wa,
+#page-admin.is-read-only-whatsapp #card-admin-whatsapp #btn-reset-template-wa,
+#page-admin.is-read-only-whatsapp #card-admin-whatsapp .whatsapp-editor-buttons,
+#page-admin.is-read-only-whatsapp #card-admin-whatsapp #whatsapp-vars-chips,
+#page-admin.is-read-only-whatsapp #card-admin-whatsapp button[onclick^="App.openModal"] {
   display: none !important;
 }
