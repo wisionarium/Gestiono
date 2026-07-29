@@ -344,12 +344,23 @@ const App = (() => {
 
     // Render page
     switch (page) {
-      case 'home': renderDashboard(); break;
-      case 'nova-os': renderNovaOS(); break;
-      case 'servicos': renderListaOS('aguardando'); break;
-      case 'andamento': renderListaOS('em_andamento'); break;
-      case 'concluidos': renderListaOS('concluido'); break;
-      case 'admin': renderAdmin(); break;
+      case 'home':
+        renderDashboard();
+        updateNavBadges();
+        break;
+      case 'nova-os':
+        renderNovaOS();
+        updateNavBadges();
+        break;
+      case 'servicos':
+      case 'andamento':
+      case 'concluidos':
+        renderCurrentList();
+        break;
+      case 'admin':
+        renderAdmin();
+        updateNavBadges();
+        break;
     }
   }
 
@@ -471,11 +482,10 @@ const App = (() => {
   }
 
   function renderCurrentList() {
-    switch (currentPage) {
-      case 'servicos': renderListaOS('aguardando'); break;
-      case 'andamento': renderListaOS('em_andamento'); break;
-      case 'concluidos': renderListaOS('concluido'); break;
-    }
+    renderListaOS('aguardando');
+    renderListaOS('em_andamento');
+    renderListaOS('concluido');
+    updateNavBadges();
   }
 
   let historicoExpandedSections = {};
@@ -533,6 +543,8 @@ const App = (() => {
     const container = document.getElementById(containerId);
     const countEl = document.getElementById(countId);
     if (!container) return;
+
+    container.innerHTML = '';
 
     let ordens = Storage.getOrdensByStatus(status);
 
