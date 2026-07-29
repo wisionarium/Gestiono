@@ -38,6 +38,7 @@ const App = (() => {
     }
 
     bindGlobalEvents();
+    initPullToRefresh();
   }
 
   function bindGlobalEvents() {
@@ -1455,21 +1456,130 @@ const App = (() => {
     showToast(`Tema ${tema === 'light' ? 'Claro ☀️' : 'Escuro 🌙'} ativado!`, 'success');
   }
 
+  function toggleTemaSwitch() {
+    const toggleCheckbox = document.getElementById('theme-checkbox-toggle');
+    if (toggleCheckbox) {
+      toggleCheckbox.click();
+    }
+  }
+
   function applyTheme(tema) {
     const activeTheme = tema || Storage.getTema();
     document.documentElement.setAttribute('data-theme', activeTheme);
 
-    const cardDark = document.getElementById('theme-option-dark');
-    const cardLight = document.getElementById('theme-option-light');
-    if (cardDark && cardLight) {
-      if (activeTheme === 'light') {
-        cardLight.classList.add('active');
-        cardDark.classList.remove('active');
-      } else {
-        cardDark.classList.add('active');
-        cardLight.classList.remove('active');
-      }
+    const toggleCheckbox = document.getElementById('theme-checkbox-toggle');
+    const toggleLabel = document.getElementById('theme-switch-label');
+    if (toggleCheckbox) {
+      toggleCheckbox.checked = (activeTheme === 'dark');
     }
+    if (toggleLabel) {
+      toggleLabel.textContent = activeTheme === 'light' ? 'Tema Claro' : 'Tema Escuro';
+    }
+  }
+
+  // --- Pull to Refresh Gesture ---
+  function initPullToRefresh() {
+    const contentArea = document.querySelector('.content-area');
+    const indicator = document.getElementById('ptr-indicator');
+    const spinner = indicator ? indicator.querySelector('.ptr-spinner circle') : null;
+    const spinnerSvg = indicator ? indicator.querySelector('.ptr-spinner') : null;
+    
+    if (!contentArea || !indicator) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let isTracking = false;
+    const threshold = 90; // drag distance in px to trigger refresh
+
+    contentArea.addEventListener('touchstart', (e) => {
+      // Only track touch if we are at the top of the content area scroll
+      if (contentArea.scrollTop === 0) {
+        startY = e.touches[0].pageY;
+        isTracking = true;
+        
+        // Reset spinner state
+        if (spinnerSvg) {
+          spinnerSvg.style.animation = 'none';
+          spinnerSvg.style.transform = 'none';
+        }
+      }
+    }, { passive: true });
+
+    contentArea.addEventListener('touchmove', (e) => {
+      if (!isTracking) return;
+
+      currentY = e.touches[0].pageY;
+      const dy = currentY - startY;
+
+      if (dy > 0) {
+        // Dragging down at the top!
+        // Prevent default scrolling to handle refresh drag
+        if (e.cancelable) e.preventDefault();
+
+        // Calculate transition properties
+        const dragDist = Math.min(130, dy); // cap drag visual
+        const percent = Math.min(1, dragDist / threshold);
+        
+        // Move container down
+        indicator.style.transform = `translateX(-50%) translateY(${dragDist / 2.5}px) scale(${percent})`;
+        indicator.style.opacity = percent;
+        indicator.classList.add('active');
+
+        // Draw circle stroke
+        if (spinner) {
+          const dashoffset = 60 - (percent * 60);
+          spinner.style.strokeDashoffset = dashoffset;
+        }
+      }
+    }, { passive: false });
+
+    contentArea.addEventListener('touchend', async () => {
+      if (!isTracking) return;
+      isTracking = false;
+
+      const dy = currentY - startY;
+      if (dy >= threshold) {
+        // Trigger refresh!
+        indicator.style.transform = `translateX(-50%) translateY(40px) scale(1)`;
+        indicator.style.opacity = '1';
+        
+        if (spinnerSvg) {
+          spinnerSvg.style.animation = 'ptr-spin 0.8s linear infinite';
+        }
+
+        showToast('Atualizando dados...', 'info');
+
+        try {
+          if (typeof Storage.syncFromSupabase === 'function') {
+            await Storage.syncFromSupabase();
+          }
+          // Refresh current page view and data
+          renderCurrentList();
+          renderDashboard();
+          showToast('Dados atualizados com sucesso!', 'success');
+        } catch (err) {
+          console.error('Erro ao atualizar dados:', err);
+          showToast('Erro ao atualizar!', 'error');
+        } finally {
+          // Hide ptr indicator
+          indicator.style.transform = `translateX(-50%) translateY(0px) scale(0)`;
+          indicator.style.opacity = '0';
+          setTimeout(() => {
+            indicator.classList.remove('active');
+          }, 200);
+        }
+      } else {
+        // Cancel refresh
+        indicator.style.transform = `translateX(-50%) translateY(0px) scale(0)`;
+        indicator.style.opacity = '0';
+        setTimeout(() => {
+          indicator.classList.remove('active');
+        }, 200);
+      }
+      
+      startY = 0;
+      currentY = 0;
+    });
   }
 
   function renderAdmin() {
@@ -2332,6 +2442,7 @@ const App = (() => {
     init,
     setTema,
     applyTheme,
+    toggleTemaSwitch,
     updateValorTotal,
     openModalNovoUsuario,
     openModalNovoCargo,

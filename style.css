@@ -2673,3 +2673,37 @@ html {
 [data-theme="light"] .home-stats-header {
   color: #475569;
 }
+
+/* ---------- Pull to Refresh Indicator ---------- */
+.ptr-container {
+  display: flex;
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  z-index: 9999;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease;
+}
+
+.ptr-container.active {
+  opacity: 1;
+}
+
+.ptr-spinner {
+  transition: stroke-dashoffset 0.1s ease;
+}
+
+@keyframes ptr-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
