@@ -2707,3 +2707,78 @@ html {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* ---------- CUSTOM COMPACT THEME SWITCH (REFERÊNCIA IMAGEM 1 & 2) ---------- */
+.custom-theme-switch {
+  position: relative;
+  width: 68px;
+  height: 32px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.custom-theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-switch-slider {
+  position: absolute;
+  inset: 0;
+  background: #94a3b8; /* Grey for Light theme */
+  border-radius: 9999px;
+  transition: background-color 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.theme-icon-left,
+.theme-icon-right {
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.2s ease;
+}
+
+.theme-icon-left {
+  opacity: 0; /* Hide sun when thumb is on left */
+}
+
+.theme-icon-right {
+  opacity: 1; /* Show moon when thumb is on left */
+}
+
+.theme-switch-thumb {
+  position: absolute;
+  height: 26px;
+  width: 26px;
+  left: 3px;
+  bottom: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+/* Checked States (Dark Theme) */
+.custom-theme-switch input:checked + .theme-switch-slider {
+  background: #8b5cf6; /* Purple background for Dark theme */
+}
+
+.custom-theme-switch input:checked + .theme-switch-slider .theme-switch-thumb {
+  transform: translateX(36px); /* Move thumb to the right */
+}
+
+.custom-theme-switch input:checked + .theme-switch-slider .theme-icon-left {
+  opacity: 1; /* Show sun on the left */
+}
+
+.custom-theme-switch input:checked + .theme-switch-slider .theme-icon-right {
+  opacity: 0; /* Hide moon on the right */
+}

@@ -1473,7 +1473,7 @@ const App = (() => {
       toggleCheckbox.checked = (activeTheme === 'dark');
     }
     if (toggleLabel) {
-      toggleLabel.textContent = activeTheme === 'light' ? 'Tema Claro' : 'Tema Escuro';
+      toggleLabel.innerHTML = activeTheme === 'light' ? 'Tema Claro ☀️' : 'Tema Escuro 🌙';
     }
   }
 
