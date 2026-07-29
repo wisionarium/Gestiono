@@ -513,7 +513,10 @@ Agradecemos a preferência e ficamos à disposição!`;
 
   function getUsuarioLogado() {
     try {
-      return JSON.parse(localStorage.getItem(KEYS.SESSAO));
+      const sess = JSON.parse(localStorage.getItem(KEYS.SESSAO));
+      if (!sess || !sess.id) return null;
+      const user = getUsuarioById(sess.id);
+      return user || sess;
     } catch {
       return null;
     }

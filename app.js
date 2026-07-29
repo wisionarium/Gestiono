@@ -13,7 +13,8 @@ const App = (() => {
 
   function temPermissao(permissao) {
     if (!currentUser) return false;
-    if (currentUser.usuario === 'admin' || currentUser.role === 'admin' || currentUser.role === 'role_admin') return true;
+    const uClean = (currentUser.usuario || '').trim().toLowerCase();
+    if (uClean === 'suprabikemarketing@gmail.com' || uClean === 'admin' || currentUser.role === 'admin' || currentUser.role === 'role_admin') return true;
     const cargo = Storage.getCargoById(currentUser.role);
     if (!cargo) return false;
     return cargo.permissoes && cargo.permissoes.includes(permissao);
