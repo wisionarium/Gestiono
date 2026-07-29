@@ -399,7 +399,7 @@ const App = (() => {
 
     const btnHomeNovoOrcamento = document.getElementById('home-btn-novo-orcamento');
     if (btnHomeNovoOrcamento) {
-      btnHomeNovoOrcamento.style.display = temPermissao('criar_os') ? 'block' : 'none';
+      btnHomeNovoOrcamento.style.display = temPermissao('criar_os') ? 'flex' : 'none';
     }
 
     const ordens = Storage.getOrdens();

@@ -2479,10 +2479,10 @@ html {
   border: none;
   border-radius: 16px;
   color: #ffffff;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
   gap: 14px;
   font-size: 1.15rem;
   font-weight: 800;
