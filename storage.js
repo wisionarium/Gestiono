@@ -124,7 +124,7 @@ Agradecemos a preferência e ficamos à disposição!`;
     // Pré-cadastrar listas de Modelos e Cores
     const opcoesIniciais = [
       {
-        id: 'opcao_' + Utils.gerarId(),
+        id: 'opcao_modelo',
         nome: 'Modelos de Veículos',
         campo: 'modelo',
         itens: ['Scooter Jet', 'Scooter Savage', 'Bicicleta Caloi E-Vibe', 'Triciclo Cargo L1'],
@@ -132,7 +132,7 @@ Agradecemos a preferência e ficamos à disposição!`;
         criadoEm: new Date().toISOString()
       },
       {
-        id: 'opcao_' + Utils.gerarId(),
+        id: 'opcao_cor',
         nome: 'Cores',
         campo: 'cor',
         itens: ['Preto', 'Branco', 'Vermelha', 'Azul', 'Cinza'],
@@ -330,7 +330,7 @@ Agradecemos a preferência e ficamos à disposição!`;
           ativo: op.ativo ?? true
         };
         if (op.criadoEm) payload.criado_em = op.criadoEm;
-        await client.from('opcoes_listas').upsert(payload);
+        await client.from('opcoes_listas').upsert(payload, { onConflict: 'campo' });
       } else if (key === KEYS.CAMPOS) {
         const cp = dataItem;
         const payload = {
