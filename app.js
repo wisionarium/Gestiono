@@ -728,7 +728,7 @@ const App = (() => {
     if (os.temDataEntrega && os.dataEntrega) {
       const infoEntrega = Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega);
       if (infoEntrega) {
-        entregaHtml = `<div class="os-card-entrega-row" style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.06); font-size:var(--font-xs); font-weight:700; color:#ef4444; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+        entregaHtml = `<div class="os-card-entrega-row" style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.06); font-size:var(--font-xs); font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
           <span>DATA DE ENTREGA: ${infoEntrega.textoCompleto}</span>
         </div>`;
@@ -1242,7 +1242,7 @@ const App = (() => {
           <div class="os-ticket-row"><strong>Cliente:</strong> <span>${os.clienteNome}</span></div>
           <div class="os-ticket-row"><strong>Telefone:</strong> <span>${telMostrar}</span></div>
           <div class="os-ticket-row"><strong>Veículo:</strong> <span>${os.modeloVeiculo || '—'} (${os.corVeiculo || '—'})</span></div>
-          ${os.temDataEntrega && os.dataEntrega ? `<div class="os-ticket-row" style="color:#ef4444; font-weight:700;"><strong>Data de Entrega:</strong> <span>${Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega)?.textoCompleto || os.dataEntrega}</span></div>` : ''}
+          ${os.temDataEntrega && os.dataEntrega ? `<div class="os-ticket-row" style="color:#38bdf8; font-weight:700;"><strong>Data de Entrega:</strong> <span>${Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega)?.textoCompleto || os.dataEntrega}</span></div>` : ''}
         </div>
         
         <div class="os-ticket-divider"></div>
@@ -1357,10 +1357,16 @@ const App = (() => {
     const btnExcluir = document.getElementById('btn-detail-excluir');
     if (btnExcluir) btnExcluir.addEventListener('click', () => {
       if (confirm('Tem certeza que deseja excluir esta OS?')) {
+        const targetPage = {
+          'aguardando': 'servicos',
+          'em_andamento': 'andamento',
+          'concluido': 'concluidos'
+        }[os.status] || 'servicos';
+
         Storage.deleteOrdem(os.id);
         showToast('OS excluída', 'info');
         document.getElementById('btn-back').style.display = 'none';
-        navigateTo('servicos');
+        navigateTo(targetPage);
       }
     });
   }

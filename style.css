@@ -1994,7 +1994,7 @@ html {
   font-family: 'Inter', monospace;
   font-weight: 800;
   font-size: var(--font-md);
-  color: var(--text-primary);
+  color: var(--accent);
 }
 
 .os-ticket-section {
