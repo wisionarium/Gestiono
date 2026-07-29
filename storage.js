@@ -42,7 +42,7 @@ Agradecemos a preferência e ficamos à disposição!`;
         id: Utils.gerarId(),
         nome: 'Administrador Master',
         usuario: 'suprabikemarketing@gmail.com',
-        senha: Utils.hashSenha('Suprabike123!'),
+        senha: 'Suprabike123!',
         role: 'role_admin',
         criadoEm: new Date().toISOString()
       };
@@ -55,9 +55,11 @@ Agradecemos a preferência e ficamos à disposição!`;
         const client = SupabaseConfig.getClient();
         if (client) {
           client.from('usuarios').delete().neq('id', '').then(() => {
-            client.from('usuarios').upsert(newAdminUser);
+            syncToSupabase(KEYS.USUARIOS, newAdminUser);
           });
         }
+      }
+    }}
       }
     }
 
@@ -499,7 +501,7 @@ Agradecemos a preferência e ficamos à disposição!`;
     const uClean = (usuario || '').trim().toLowerCase();
     return getUsuarios().find(u => 
       (u.usuario.toLowerCase() === uClean || (u.email && u.email.toLowerCase() === uClean)) &&
-      u.senha === hash
+      (u.senha === hash || u.senha === senha)
     ) || null;
   }
 

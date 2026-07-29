@@ -1868,7 +1868,13 @@ const App = (() => {
         </div>
         <div class="form-group"><label class="form-label required">Nome Completo</label><input type="text" class="form-input" id="new-user-nome" required placeholder="Ex: João Silva"></div>
         <div class="form-group"><label class="form-label required">Usuário (login)</label><input type="text" class="form-input" id="new-user-usuario" required placeholder="Ex: joao"></div>
-        <div class="form-group"><label class="form-label required">Senha</label><input type="password" class="form-input" id="new-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4"></div>
+        <div class="form-group">
+          <label class="form-label required">Senha</label>
+          <div style="position: relative;">
+            <input type="text" class="form-input" id="new-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4" style="padding-right: 40px;">
+            <button type="button" onclick="const input = document.getElementById('new-user-senha'); input.type = input.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 14px;">👁️</button>
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-label required">Tipo de Acesso (Cargo)</label>
           <select class="form-select" id="new-user-role" required>
@@ -1884,7 +1890,7 @@ const App = (() => {
       const senha = document.getElementById('new-user-senha').value;
       const role = document.getElementById('new-user-role').value;
       if (Storage.getUsuarios().find(u => u.usuario === usuario)) { showToast('Usuário já existe!', 'error'); return false; }
-      Storage.saveUsuario({ nome, usuario, senha: Utils.hashSenha(senha), role, fotoPerfil: fotoPerfilTemp });
+      Storage.saveUsuario({ nome, usuario, senha, role, fotoPerfil: fotoPerfilTemp });
       showToast(`Usuário ${nome} criado!`, 'success');
       renderUsuarios();
       return true;
@@ -1938,8 +1944,11 @@ const App = (() => {
           <input type="text" class="form-input" id="edit-user-usuario" required placeholder="Ex: joao" value="${user.usuario}" ${isLoginDisabled}>
         </div>
         <div class="form-group">
-          <label class="form-label">Senha (deixe em branco para manter)</label>
-          <input type="password" class="form-input" id="edit-user-senha" placeholder="Mínimo 4 caracteres" minlength="4">
+          <label class="form-label required">Senha</label>
+          <div style="position: relative;">
+            <input type="text" class="form-input" id="edit-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4" value="${user.senha || ''}" style="padding-right: 40px;">
+            <button type="button" onclick="const input = document.getElementById('edit-user-senha'); input.type = input.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 14px;">👁️</button>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label required">Tipo de Acesso (Cargo)</label>
@@ -1971,7 +1980,7 @@ const App = (() => {
 
       const novaSenha = document.getElementById('edit-user-senha').value;
       if (novaSenha) {
-        updates.senha = Utils.hashSenha(novaSenha);
+        updates.senha = novaSenha;
       }
 
       Storage.updateUsuario(userId, updates);
