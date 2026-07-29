@@ -166,6 +166,10 @@ const App = (() => {
 
     if (btnAddFoto && inputFoto) {
       btnAddFoto.addEventListener('click', () => {
+        if (fotosAnexadas.length >= 5) {
+          showToast('Limite máximo de 5 fotos por orçamento!', 'warning');
+          return;
+        }
         inputFoto.click();
       });
 
@@ -173,8 +177,21 @@ const App = (() => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
-        showToast('Processando e comprimindo foto(s)...', 'info');
-        for (const file of files) {
+        const espacoDisponivel = 5 - fotosAnexadas.length;
+        if (espacoDisponivel <= 0) {
+          showToast('Limite máximo de 5 fotos atingido!', 'warning');
+          inputFoto.value = '';
+          return;
+        }
+
+        const filesParaProcessar = files.slice(0, espacoDisponivel);
+        if (files.length > espacoDisponivel) {
+          showToast(`Processando apenas ${espacoDisponivel} foto(s) para respeitar o limite máximo de 5.`, 'info');
+        } else {
+          showToast('Processando e comprimindo foto(s)...', 'info');
+        }
+
+        for (const file of filesParaProcessar) {
           try {
             const base64Comprimida = await Utils.comprimirFotoBase64(file, 900, 0.65);
             fotosAnexadas.push(base64Comprimida);
@@ -188,8 +205,74 @@ const App = (() => {
       });
     }
 
+    // Payment status & partial entry handler
+    const selectStatusPagamento = document.getElementById('os-status-pagamento');
+    const inputValorEntrada = document.getElementById('os-valor-entrada');
+    if (selectStatusPagamento) {
+      selectStatusPagamento.addEventListener('change', atualizarCalculoPagamentoParcial);
+    }
+    if (inputValorEntrada) {
+      inputValorEntrada.addEventListener('input', atualizarCalculoPagamentoParcial);
+    }
+
     // Initialize WhatsApp template editor controls
     initWhatsAppTemplateEditor();
+  }
+
+  function atualizarCalculoPagamentoParcial() {
+    const statusSelect = document.getElementById('os-status-pagamento');
+    const container = document.getElementById('container-pagamento-parcial');
+    const inputEntrada = document.getElementById('os-valor-entrada');
+    const displayRestante = document.getElementById('display-valor-restante');
+    if (!statusSelect || !container || !inputEntrada || !displayRestante) return;
+
+    if (statusSelect.value === 'parcial') {
+      container.style.display = 'block';
+      let total = 0;
+      document.querySelectorAll('.servico-valor').forEach(input => { total += parseFloat(input.value) || 0; });
+      const valorEntrada = parseFloat(inputEntrada.value) || 0;
+      const restante = Math.max(0, total - valorEntrada);
+      displayRestante.textContent = Utils.formatarMoeda(restante);
+    } else {
+      container.style.display = 'none';
+    }
+  }
+
+  function renderFotosGrid() {
+    const grid = document.getElementById('os-fotos-grid');
+    const contador = document.getElementById('os-fotos-contador');
+    const btnAddFoto = document.getElementById('btn-add-foto');
+    if (!grid) return;
+
+    if (contador) {
+      contador.textContent = `${fotosAnexadas.length}/5 foto${fotosAnexadas.length !== 1 ? 's' : ''} anexada${fotosAnexadas.length !== 1 ? 's' : ''}`;
+    }
+
+    if (btnAddFoto) {
+      if (fotosAnexadas.length >= 5) {
+        btnAddFoto.style.opacity = '0.5';
+        btnAddFoto.style.pointerEvents = 'none';
+      } else {
+        btnAddFoto.style.opacity = '1';
+        btnAddFoto.style.pointerEvents = 'auto';
+      }
+    }
+
+    grid.innerHTML = fotosAnexadas.map((src, index) => `
+      <div class="foto-thumb-wrapper">
+        <img src="${src}" class="foto-thumb-img" alt="Foto ${index + 1}">
+        <button type="button" class="foto-thumb-btn-remove" data-index="${index}">✕</button>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.foto-thumb-btn-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index);
+        fotosAnexadas.splice(idx, 1);
+        renderFotosGrid();
+      });
+    });
   }
 
   // ---------- AUTH ----------
@@ -362,6 +445,15 @@ const App = (() => {
     const cargo = Storage.getCargoById(currentUser.role);
     const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(currentUser.role);
     document.getElementById('header-user-role').textContent = cargoNome;
+
+    const avatarEl = document.getElementById('header-user-avatar');
+    if (avatarEl) {
+      if (currentUser.fotoPerfil) {
+        avatarEl.innerHTML = `<img src="${currentUser.fotoPerfil}" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1.5px solid var(--accent); margin-right:4px;">`;
+      } else {
+        avatarEl.innerHTML = `<span class="role-dot"></span>`;
+      }
+    }
   }
 
   function updateNavVisibility() {
@@ -729,6 +821,12 @@ const App = (() => {
     // Reset payment checkboxes
     document.querySelectorAll('.payment-check').forEach(cb => cb.checked = false);
 
+    // Reset partial payment fields
+    const inputEntradaReset = document.getElementById('os-valor-entrada');
+    if (inputEntradaReset) inputEntradaReset.value = '';
+    document.getElementById('os-status-pagamento').value = 'pendente';
+    atualizarCalculoPagamentoParcial();
+
     // Render custom fields
     renderCamposPersonalizados(campos);
 
@@ -740,7 +838,11 @@ const App = (() => {
       document.getElementById('os-telefone').value = osData.clienteTelefone;
       document.getElementById('os-modelo').value = osData.modeloVeiculo || '';
       document.getElementById('os-cor').value = osData.corVeiculo || '';
-      document.getElementById('os-status-pagamento').value = osData.statusPagamento;
+      document.getElementById('os-status-pagamento').value = osData.statusPagamento || 'pendente';
+      if (osData.statusPagamento === 'parcial' && inputEntradaReset) {
+        inputEntradaReset.value = osData.valorEntrada || '';
+      }
+      atualizarCalculoPagamentoParcial();
       document.getElementById('os-prioridade').value = osData.prioridade;
       document.getElementById('os-observacoes').value = osData.observacoes || '';
 
@@ -912,6 +1014,7 @@ const App = (() => {
     let total = 0;
     items.forEach(input => { total += parseFloat(input.value) || 0; });
     document.getElementById('valor-total').textContent = Utils.formatarMoeda(total);
+    atualizarCalculoPagamentoParcial();
   }
 
   function handleSalvarOS(e) {
@@ -941,6 +1044,21 @@ const App = (() => {
     }
 
     const valorTotal = servicos.reduce((sum, s) => sum + s.valor, 0);
+
+    // Partial payment logic
+    const statusPagamento = document.getElementById('os-status-pagamento').value;
+    let valorEntrada = 0;
+    let valorRestante = 0;
+    if (statusPagamento === 'parcial') {
+      valorEntrada = parseFloat(document.getElementById('os-valor-entrada').value) || 0;
+      valorRestante = Math.max(0, valorTotal - valorEntrada);
+    } else if (statusPagamento === 'pago') {
+      valorEntrada = valorTotal;
+      valorRestante = 0;
+    } else {
+      valorEntrada = 0;
+      valorRestante = valorTotal;
+    }
 
     // Collect custom fields
     const camposPersonalizados = {};
@@ -972,8 +1090,10 @@ const App = (() => {
       corVeiculo: document.getElementById('os-cor').value,
       servicos,
       valorTotal,
+      valorEntrada,
+      valorRestante,
       formaPagamento: formasPagamento,
-      statusPagamento: document.getElementById('os-status-pagamento').value,
+      statusPagamento,
       dataServico: editingOS ? editingOS.dataServico : new Date().toISOString().split('T')[0],
       temDataEntrega,
       dataEntrega,
@@ -1271,9 +1391,13 @@ const App = (() => {
     container.innerHTML = usuarios.map(u => {
       const cargo = cargos.find(c => c.id === u.role);
       const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(u.role);
+      const avatarHtml = u.fotoPerfil
+        ? `<img src="${u.fotoPerfil}" class="user-avatar-img" alt="${u.nome}">`
+        : `<div class="user-avatar-placeholder">${u.nome.charAt(0).toUpperCase()}</div>`;
       return `
-        <div class="admin-item">
-          <div class="admin-item-info">
+        <div class="admin-item" style="display:flex; align-items:center; gap:12px;">
+          ${avatarHtml}
+          <div class="admin-item-info" style="flex:1;">
             <div class="admin-item-name">${u.nome}</div>
             <div class="admin-item-meta">@${u.usuario} · <span class="role-badge" style="background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:var(--font-xs);">${cargoNome}</span></div>
           </div>
@@ -1691,9 +1815,15 @@ const App = (() => {
   function openModalNovoUsuario() {
     const cargos = Storage.getCargos();
     const optionsHtml = cargos.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    let fotoPerfilTemp = null;
 
     openModal('Novo Usuário', `
       <form id="form-novo-usuario">
+        <div class="form-group" style="text-align:center; margin-bottom:16px;">
+          <div id="new-user-avatar-preview" style="width:64px; height:64px; border-radius:50%; background:var(--accent-bg); color:var(--accent); display:flex; align-items:center; justify-content:center; margin:0 auto 8px; border:2px dashed var(--accent); font-weight:700; font-size:1.5rem; overflow:hidden;">📷</div>
+          <label for="new-user-foto" class="btn btn-secondary btn-xs" style="cursor:pointer; display:inline-block;">Selecionar Foto de Perfil</label>
+          <input type="file" id="new-user-foto" accept="image/*" style="display:none">
+        </div>
         <div class="form-group"><label class="form-label required">Nome Completo</label><input type="text" class="form-input" id="new-user-nome" required placeholder="Ex: João Silva"></div>
         <div class="form-group"><label class="form-label required">Usuário (login)</label><input type="text" class="form-input" id="new-user-usuario" required placeholder="Ex: joao"></div>
         <div class="form-group"><label class="form-label required">Senha</label><input type="password" class="form-input" id="new-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4"></div>
@@ -1712,11 +1842,30 @@ const App = (() => {
       const senha = document.getElementById('new-user-senha').value;
       const role = document.getElementById('new-user-role').value;
       if (Storage.getUsuarios().find(u => u.usuario === usuario)) { showToast('Usuário já existe!', 'error'); return false; }
-      Storage.saveUsuario({ nome, usuario, senha: Utils.hashSenha(senha), role });
+      Storage.saveUsuario({ nome, usuario, senha: Utils.hashSenha(senha), role, fotoPerfil: fotoPerfilTemp });
       showToast(`Usuário ${nome} criado!`, 'success');
       renderUsuarios();
       return true;
     });
+
+    setTimeout(() => {
+      const inputFoto = document.getElementById('new-user-foto');
+      const preview = document.getElementById('new-user-avatar-preview');
+      if (inputFoto) {
+        inputFoto.addEventListener('change', async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          try {
+            fotoPerfilTemp = await Utils.comprimirFotoBase64(file, 300, 0.7);
+            if (preview) {
+              preview.innerHTML = `<img src="${fotoPerfilTemp}" style="width:100%; height:100%; object-fit:cover;">`;
+            }
+          } catch (err) {
+            console.error('Erro ao carregar foto de perfil:', err);
+          }
+        });
+      }
+    }, 100);
   }
 
   function openModalEditarUsuario(userId) {
@@ -1725,9 +1874,19 @@ const App = (() => {
     const cargos = Storage.getCargos();
     const optionsHtml = cargos.map(c => `<option value="${c.id}" ${user.role === c.id ? 'selected' : ''}>${c.nome}</option>`).join('');
     const isLoginDisabled = user.usuario === 'admin' ? 'disabled' : '';
+    let fotoPerfilTemp = user.fotoPerfil || null;
+
+    const avatarInitialHtml = fotoPerfilTemp 
+      ? `<img src="${fotoPerfilTemp}" style="width:100%; height:100%; object-fit:cover;">` 
+      : user.nome.charAt(0).toUpperCase();
 
     openModal(`Editar Usuário: ${user.nome}`, `
       <form id="form-editar-usuario">
+        <div class="form-group" style="text-align:center; margin-bottom:16px;">
+          <div id="edit-user-avatar-preview" style="width:64px; height:64px; border-radius:50%; background:var(--accent-bg); color:var(--accent); display:flex; align-items:center; justify-content:center; margin:0 auto 8px; border:2px solid var(--accent); font-weight:700; font-size:1.5rem; overflow:hidden;">${avatarInitialHtml}</div>
+          <label for="edit-user-foto" class="btn btn-secondary btn-xs" style="cursor:pointer; display:inline-block;">Alterar Foto de Perfil</label>
+          <input type="file" id="edit-user-foto" accept="image/*" style="display:none">
+        </div>
         <div class="form-group">
           <label class="form-label required">Nome Completo</label>
           <input type="text" class="form-input" id="edit-user-nome" required placeholder="Ex: João Silva" value="${user.nome}">
@@ -1762,7 +1921,7 @@ const App = (() => {
         }
       }
 
-      const updates = { nome };
+      const updates = { nome, fotoPerfil: fotoPerfilTemp };
       if (user.usuario !== 'admin') {
         updates.usuario = usuario;
         updates.role = role;
@@ -1786,6 +1945,25 @@ const App = (() => {
 
       return true;
     });
+
+    setTimeout(() => {
+      const inputFoto = document.getElementById('edit-user-foto');
+      const preview = document.getElementById('edit-user-avatar-preview');
+      if (inputFoto) {
+        inputFoto.addEventListener('change', async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          try {
+            fotoPerfilTemp = await Utils.comprimirFotoBase64(file, 300, 0.7);
+            if (preview) {
+              preview.innerHTML = `<img src="${fotoPerfilTemp}" style="width:100%; height:100%; object-fit:cover;">`;
+            }
+          } catch (err) {
+            console.error('Erro ao carregar foto de perfil:', err);
+          }
+        });
+      }
+    }, 100);
   }
 
   function openModalDelegarServico(osId) {

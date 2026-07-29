@@ -78,8 +78,12 @@ const Utils = (() => {
     return map[forma] || forma;
   }
 
-  function traduzirStatusPagamento(status) {
-    const map = { 'pago': 'Pago', 'pendente': 'Pendente' };
+  function traduzirStatusPagamento(status, os) {
+    if (status === 'parcial' && os && os.valorEntrada) {
+      const falta = Math.max(0, (os.valorTotal || 0) - (os.valorEntrada || 0));
+      return `Entrada R$ ${os.valorEntrada.toFixed(2).replace('.', ',')} (Falta R$ ${falta.toFixed(2).replace('.', ',')})`;
+    }
+    const map = { 'pago': 'Pago Total', 'pendente': 'Pendente', 'parcial': 'Entrada Parcial' };
     return map[status] || status;
   }
 
@@ -93,7 +97,7 @@ const Utils = (() => {
     const nomeCliente = os.clienteNome ? os.clienteNome.trim() : 'Cliente';
     const veiculo = `${os.modeloVeiculo || 'Veículo'}${os.corVeiculo ? ` (${os.corVeiculo})` : ''}`;
     const pagamentoStr = traduzirPagamento(os.formaPagamento);
-    const statusPgto = traduzirStatusPagamento(os.statusPagamento);
+    const statusPgto = traduzirStatusPagamento(os.statusPagamento, os);
     const valorTotalStr = formatarMoeda(os.valorTotal);
     
     let listaServicosTxt = '';

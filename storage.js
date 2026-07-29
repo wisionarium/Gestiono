@@ -61,6 +61,20 @@ Agradecemos a preferência e ficamos à disposição!`;
       }
     }
 
+    // Migração para apagar todas as ordens de serviço/orçamentos existentes do banco de dados e local
+    if (localStorage.getItem('os_clean_orders_v2') !== 'true') {
+      localStorage.setItem(KEYS.ORDENS, JSON.stringify([]));
+      localStorage.setItem('os_clean_orders_v2', 'true');
+      if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.isConnected()) {
+        const client = SupabaseConfig.getClient();
+        if (client) {
+          client.from('ordens_servico').delete().neq('id', '').then(() => {
+            console.log('✅ Ordens de serviço antigas limpas do Supabase com sucesso.');
+          });
+        }
+      }
+    }
+
     if (localStorage.getItem(KEYS.INITIALIZED)) return;
 
     // Criar os cargos padrões iniciais do sistema
@@ -143,7 +157,7 @@ Agradecemos a preferência e ficamos à disposição!`;
     try {
       // 1. Ordens
       const { data: ordens } = await client.from('ordens_servico').select('*');
-      if (ordens && ordens.length > 0) {
+      if (ordens) {
         const formatted = ordens.map(o => ({
           id: o.id,
           clienteNome: o.cliente_nome,
@@ -152,6 +166,8 @@ Agradecemos a preferência e ficamos à disposição!`;
           corVeiculo: o.cor_veiculo,
           servicos: o.servicos || [],
           valorTotal: Number(o.valor_total || 0),
+          valorEntrada: Number(o.valor_entrada || 0),
+          valorRestante: Number(o.valor_restante || 0),
           formaPagamento: o.forma_pagamento || [],
           statusPagamento: o.status_pagamento,
           status: o.status,
@@ -180,7 +196,16 @@ Agradecemos a preferência e ficamos à disposição!`;
       // 2. Usuarios
       const { data: usuarios } = await client.from('usuarios').select('*');
       if (usuarios && usuarios.length > 0) {
-        localStorage.setItem(KEYS.USUARIOS, JSON.stringify(usuarios));
+        const formattedUsers = usuarios.map(u => ({
+          id: u.id,
+          nome: u.nome,
+          usuario: u.usuario,
+          senha: u.senha,
+          role: u.role,
+          fotoPerfil: u.foto_perfil || null,
+          criadoEm: u.criado_em
+        }));
+        localStorage.setItem(KEYS.USUARIOS, JSON.stringify(formattedUsers));
       }
 
       // 3. Cargos
@@ -227,6 +252,8 @@ Agradecemos a preferência e ficamos à disposição!`;
           cor_veiculo: o.corVeiculo,
           servicos: o.servicos || [],
           valor_total: o.valorTotal,
+          valor_entrada: o.valorEntrada || 0,
+          valor_restante: o.valorRestante || 0,
           forma_pagamento: o.formaPagamento || [],
           status_pagamento: o.statusPagamento,
           status: o.status,
@@ -250,7 +277,16 @@ Agradecemos a preferência e ficamos à disposição!`;
           criado_em: o.criadoEm
         });
       } else if (key === KEYS.USUARIOS) {
-        await client.from('usuarios').upsert(dataItem);
+        const u = dataItem;
+        await client.from('usuarios').upsert({
+          id: u.id,
+          nome: u.nome,
+          usuario: u.usuario,
+          senha: u.senha,
+          role: u.role,
+          foto_perfil: u.fotoPerfil || null,
+          criado_em: u.criadoEm
+        });
       } else if (key === KEYS.CARGOS) {
         await client.from('cargos').upsert(dataItem);
       } else if (key === KEYS.OPCOES) {
@@ -260,6 +296,18 @@ Agradecemos a preferência e ficamos à disposição!`;
       }
     } catch (e) {
       console.warn('Erro ao salvar no Supabase:', e);
+    }
+  }
+
+  async function deleteFromSupabase(table, id) {
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
+    const client = SupabaseConfig.getClient();
+    if (!client || !id) return;
+    try {
+      await client.from(table).delete().eq('id', id);
+      console.log(`✅ Registro ${id} deletado do Supabase (${table})`);
+    } catch (e) {
+      console.warn(`Erro ao deletar ${id} do Supabase (${table}):`, e);
     }
   }
 
@@ -354,6 +402,7 @@ Agradecemos a preferência e ficamos à disposição!`;
   function deleteOrdem(id) {
     const ordens = getOrdens().filter(os => os.id !== id);
     setData(KEYS.ORDENS, ordens);
+    deleteFromSupabase('ordens_servico', id);
   }
 
   function getOrdensByStatus(status) {
@@ -376,6 +425,7 @@ Agradecemos a preferência e ficamos à disposição!`;
     usuario.criadoEm = new Date().toISOString();
     usuarios.push(usuario);
     setData(KEYS.USUARIOS, usuarios);
+    syncToSupabase(KEYS.USUARIOS, usuario);
     return usuario;
   }
 
@@ -385,12 +435,14 @@ Agradecemos a preferência e ficamos à disposição!`;
     if (idx === -1) return null;
     usuarios[idx] = { ...usuarios[idx], ...updates };
     setData(KEYS.USUARIOS, usuarios);
+    syncToSupabase(KEYS.USUARIOS, usuarios[idx]);
     return usuarios[idx];
   }
 
   function deleteUsuario(id) {
     const usuarios = getUsuarios().filter(u => u.id !== id);
     setData(KEYS.USUARIOS, usuarios);
+    deleteFromSupabase('usuarios', id);
   }
 
   function autenticar(usuario, senha) {

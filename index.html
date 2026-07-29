@@ -60,7 +60,7 @@
         </div>
         <div class="header-right">
           <div class="header-user-badge">
-            <span class="role-dot"></span>
+            <div id="header-user-avatar" style="display:inline-flex; align-items:center;"></div>
             <span id="header-user-name">Admin</span>
             <span style="opacity:0.5;font-size:0.6rem" id="header-user-role"></span>
           </div>
@@ -184,12 +184,15 @@
               </div>
 
               <div id="container-fotos" style="display:none; margin-top:var(--space-md); padding-top:var(--space-md); border-top:1px dashed rgba(255,255,255,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span id="os-fotos-contador" style="font-size:var(--font-xs); font-weight:700; color:var(--accent);">0/5 fotos adicionadas</span>
+                </div>
                 <input type="file" id="os-input-foto" accept="image/*" capture="environment" multiple style="display:none;">
                 <button type="button" class="btn btn-secondary btn-block" id="btn-add-foto" style="display:flex; align-items:center; justify-content:center; gap:8px;">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                   📷 Tirar / Adicionar Fotos
                 </button>
-                <div id="os-fotos-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:var(--space-md);"></div>
+                <div id="os-fotos-grid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-top:var(--space-md);"></div>
               </div>
             </div>
 
@@ -227,8 +230,9 @@
               <div class="form-group">
                 <label class="form-label required" for="os-status-pagamento">Status Pagamento</label>
                 <select class="form-select" id="os-status-pagamento" required>
-                  <option value="pendente">⏳ Pendente</option>
-                  <option value="pago">✅ Pago</option>
+                  <option value="pendente">⏳ Pendente (R$ 0 pago)</option>
+                  <option value="parcial">💰 Entrada (Parcial)</option>
+                  <option value="pago">✅ Pago total</option>
                 </select>
               </div>
               <div class="form-group">
@@ -237,6 +241,20 @@
                   <option value="normal">Normal</option>
                   <option value="urgente">🔴 Urgente</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Bloco de Entrada / Pagamento Parcial -->
+            <div id="container-pagamento-parcial" style="display:none; background:rgba(139,92,246,0.06); border:1px solid rgba(139,92,246,0.2); padding:var(--space-md); border-radius:var(--radius-md); margin-top:var(--space-sm); margin-bottom:var(--space-md);">
+              <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-sm); align-items:center;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" for="os-valor-entrada" style="font-size:var(--font-xs); font-weight:700;">Valor de Entrada (R$)</label>
+                  <input type="number" step="0.01" min="0" class="form-input" id="os-valor-entrada" placeholder="Ex: 20.00">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <span style="font-size:var(--font-xs); color:var(--text-tertiary); display:block; margin-bottom:4px; font-weight:600;">Falta Pagar na Entrega:</span>
+                  <span id="display-valor-restante" style="font-size:var(--font-md); font-weight:800; color:var(--danger); font-family:'Inter', monospace;">R$ 0,00</span>
+                </div>
               </div>
             </div>
 

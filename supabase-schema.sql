@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.ordens_servico (
   cor_veiculo TEXT,
   servicos JSONB DEFAULT '[]'::jsonb,
   valor_total NUMERIC DEFAULT 0,
+  valor_entrada NUMERIC DEFAULT 0,
+  valor_restante NUMERIC DEFAULT 0,
   forma_pagamento JSONB DEFAULT '[]'::jsonb,
   status_pagamento TEXT DEFAULT 'pendente',
   status TEXT DEFAULT 'aguardando',
@@ -42,6 +44,7 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
   usuario TEXT UNIQUE NOT NULL,
   senha TEXT NOT NULL,
   role TEXT NOT NULL,
+  foto_perfil TEXT,
   criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
