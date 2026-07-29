@@ -211,19 +211,41 @@ Agradecemos a preferência e ficamos à disposição!`;
       // 3. Cargos
       const { data: cargos } = await client.from('cargos').select('*');
       if (cargos && cargos.length > 0) {
-        localStorage.setItem(KEYS.CARGOS, JSON.stringify(cargos));
+        const formattedCargos = cargos.map(c => ({
+          id: c.id,
+          nome: c.nome,
+          permissoes: c.permissoes || [],
+          criadoEm: c.criado_em
+        }));
+        localStorage.setItem(KEYS.CARGOS, JSON.stringify(formattedCargos));
       }
 
       // 4. Opcoes
       const { data: opcoes } = await client.from('opcoes_listas').select('*');
       if (opcoes && opcoes.length > 0) {
-        localStorage.setItem(KEYS.OPCOES, JSON.stringify(opcoes));
+        const formattedOpcoes = opcoes.map(o => ({
+          id: o.id,
+          nome: o.nome,
+          campo: o.campo,
+          itens: o.itens || [],
+          ativo: o.ativo ?? true,
+          criadoEm: o.criado_em
+        }));
+        localStorage.setItem(KEYS.OPCOES, JSON.stringify(formattedOpcoes));
       }
 
       // 5. Campos
       const { data: campos } = await client.from('campos_personalizados').select('*');
       if (campos && campos.length > 0) {
-        localStorage.setItem(KEYS.CAMPOS, JSON.stringify(campos));
+        const formattedCampos = campos.map(cp => ({
+          id: cp.id,
+          nome: cp.nome,
+          tipo: cp.tipo,
+          secao: cp.secao,
+          ativo: cp.ativo ?? true,
+          criadoEm: cp.criado_em
+        }));
+        localStorage.setItem(KEYS.CAMPOS, JSON.stringify(formattedCampos));
       }
 
       // 6. Template WA
@@ -288,11 +310,33 @@ Agradecemos a preferência e ficamos à disposição!`;
           criado_em: u.criadoEm
         });
       } else if (key === KEYS.CARGOS) {
-        await client.from('cargos').upsert(dataItem);
+        const c = dataItem;
+        await client.from('cargos').upsert({
+          id: c.id,
+          nome: c.nome,
+          permissoes: c.permissoes || [],
+          criado_em: c.criadoEm
+        });
       } else if (key === KEYS.OPCOES) {
-        await client.from('opcoes_listas').upsert(dataItem);
+        const op = dataItem;
+        await client.from('opcoes_listas').upsert({
+          id: op.id,
+          nome: op.nome,
+          campo: op.campo,
+          itens: op.itens || [],
+          ativo: op.ativo ?? true,
+          criado_em: op.criadoEm
+        });
       } else if (key === KEYS.CAMPOS) {
-        await client.from('campos_personalizados').upsert(dataItem);
+        const cp = dataItem;
+        await client.from('campos_personalizados').upsert({
+          id: cp.id,
+          nome: cp.nome,
+          tipo: cp.tipo,
+          secao: cp.secao,
+          ativo: cp.ativo ?? true,
+          criado_em: cp.criadoEm
+        });
       }
     } catch (e) {
       console.warn('Erro ao salvar no Supabase:', e);
@@ -318,16 +362,16 @@ Agradecemos a preferência e ficamos à disposição!`;
 
     try {
       const cargos = getData(KEYS.CARGOS);
-      for (const c of cargos) { await client.from('cargos').upsert(c); }
+      for (const c of cargos) { await syncToSupabase(KEYS.CARGOS, c); }
 
       const usuarios = getData(KEYS.USUARIOS);
-      for (const u of usuarios) { await client.from('usuarios').upsert(u); }
+      for (const u of usuarios) { await syncToSupabase(KEYS.USUARIOS, u); }
 
       const opcoes = getData(KEYS.OPCOES);
-      for (const op of opcoes) { await client.from('opcoes_listas').upsert(op); }
+      for (const op of opcoes) { await syncToSupabase(KEYS.OPCOES, op); }
 
       const campos = getData(KEYS.CAMPOS);
-      for (const cp of campos) { await client.from('campos_personalizados').upsert(cp); }
+      for (const cp of campos) { await syncToSupabase(KEYS.CAMPOS, cp); }
 
       const ordens = getData(KEYS.ORDENS);
       for (const o of ordens) { await syncToSupabase(KEYS.ORDENS, o); }

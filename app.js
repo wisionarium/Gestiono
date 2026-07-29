@@ -9,6 +9,7 @@ const App = (() => {
   let currentUser = null;
   let currentOSId = null;
   let editingOS = null;
+  let fotosAnexadas = [];
 
   function temPermissao(permissao) {
     if (!currentUser) return false;
