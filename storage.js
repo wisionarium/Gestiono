@@ -59,8 +59,6 @@ Agradecemos a preferência e ficamos à disposição!`;
           });
         }
       }
-    }}
-      }
     }
 
     // Migração para apagar todas as ordens de serviço/orçamentos existentes do banco de dados e local
