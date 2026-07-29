@@ -700,9 +700,10 @@ const App = (() => {
   }
 
   function renderOSCard(os) {
+    const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
     const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento' && 
-      (currentUser.usuario === 'admin' || os.mecanico === currentUser.nome);
+      (isAdminMaster || os.mecanico === currentUser.nome);
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
 
     let fotosBadgeHtml = '';
@@ -1211,12 +1212,13 @@ const App = (() => {
 
     // Actions
     let actionsHtml = '';
+    const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
     const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento' && 
-      (currentUser.usuario === 'admin' || os.mecanico === currentUser.nome);
-    const canEditar = temPermissao('editar_os') && os.status === 'aguardando';
-    const canExcluir = temPermissao('excluir_os');
-    const canWhatsApp = temPermissao('enviar_whatsapp');
+      (isAdminMaster || os.mecanico === currentUser.nome);
+    const canEditar = temPermissao('editar_os') && (os.status === 'aguardando' || isAdminMaster);
+    const canExcluir = temPermissao('excluir_os') || isAdminMaster;
+    const canWhatsApp = temPermissao('enviar_whatsapp') && os.status === 'concluido';
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
 
     if (canAssumir) {
