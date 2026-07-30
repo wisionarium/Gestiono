@@ -1515,7 +1515,6 @@ const App = (() => {
   function setTema(tema) {
     Storage.saveTema(tema);
     applyTheme(tema);
-    showToast(`Tema ${tema === 'light' ? 'Claro ☀️' : 'Escuro 🌙'} ativado!`, 'success');
   }
 
   function toggleTemaSwitch() {
