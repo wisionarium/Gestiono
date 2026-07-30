@@ -1772,22 +1772,9 @@ const App = (() => {
           </div>
           <div class="admin-item-actions">
             <button class="btn btn-secondary btn-xs btn-edit-user" data-id="${u.id}">Editar</button>
-            ${u.usuario !== 'admin' ? `<button class="btn btn-danger btn-xs btn-delete-user" data-id="${u.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-            </button>` : ''}
           </div>
         </div>`;
     }).join('');
-
-    container.querySelectorAll('.btn-delete-user').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (confirm('Excluir este usuário?')) {
-          Storage.deleteUsuario(btn.dataset.id);
-          showToast('Usuário excluído', 'info');
-          renderUsuarios();
-        }
-      });
-    });
 
     container.querySelectorAll('.btn-edit-user').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2295,6 +2282,13 @@ const App = (() => {
             ${optionsHtml}
           </select>
         </div>
+        ${user.usuario !== 'admin' && user.usuario !== 'suprabikemarketing@gmail.com' ? `
+        <div class="form-group" style="margin-top: 24px; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 16px;">
+          <button type="button" class="btn btn-danger btn-block" id="btn-delete-user-modal" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+            Excluir Usuário
+          </button>
+        </div>` : ''}
       </form>
     `, () => {
       const form = document.getElementById('form-editar-usuario');
@@ -2350,6 +2344,18 @@ const App = (() => {
             }
           } catch (err) {
             console.error('Erro ao carregar foto de perfil:', err);
+          }
+        });
+      }
+
+      const btnDelete = document.getElementById('btn-delete-user-modal');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', () => {
+          if (confirm(`Deseja realmente excluir o usuário ${user.nome}?`)) {
+            Storage.deleteUsuario(userId);
+            showToast('Usuário excluído', 'info');
+            closeModal();
+            renderUsuarios();
           }
         });
       }
