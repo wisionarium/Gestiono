@@ -116,9 +116,9 @@ Agradecemos a preferência e ficamos à disposição!`;
 
     // Pré-cadastrar campos personalizados de exemplo (Checklist básico na seção Outros)
     const camposIniciais = [
-      { id: 'campo_' + Utils.gerarId(), nome: 'Deixou chave?', tipo: 'sim_nao_quantidade', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() },
-      { id: 'campo_' + Utils.gerarId(), nome: 'Deixou carregador?', tipo: 'sim_nao', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() },
-      { id: 'campo_' + Utils.gerarId(), nome: 'Deixou Cartão NFC', tipo: 'sim_nao', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() }
+      { id: 'campo_deixou_chave', nome: 'Deixou chave?', tipo: 'sim_nao_quantidade', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() },
+      { id: 'campo_deixou_carregador', nome: 'Deixou carregador?', tipo: 'sim_nao', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() },
+      { id: 'campo_deixou_nfc', nome: 'Deixou Cartão NFC', tipo: 'sim_nao', secao: 'Outros', ativo: true, criadoEm: new Date().toISOString() }
     ];
     localStorage.setItem(KEYS.CAMPOS, JSON.stringify(camposIniciais));
 
@@ -530,7 +530,30 @@ Agradecemos a preferência e ficamos à disposição!`;
   // ---------- CAMPOS PERSONALIZADOS ----------
 
   function getCampos() {
-    return getData(KEYS.CAMPOS);
+    const list = getData(KEYS.CAMPOS);
+    const seen = new Set();
+    const unique = [];
+    let hasDuplicates = false;
+
+    list.forEach(c => {
+      const key = `${c.nome.trim().toLowerCase()}_${(c.secao || 'Outros').trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(c);
+      } else {
+        hasDuplicates = true;
+        // Clean up from database in background
+        if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.isConnected()) {
+          deleteFromSupabase('campos_personalizados', c.id);
+        }
+      }
+    });
+
+    if (hasDuplicates) {
+      setData(KEYS.CAMPOS, unique);
+    }
+
+    return unique;
   }
 
   function getCamposAtivos() {
