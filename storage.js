@@ -40,7 +40,7 @@ Agradecemos a preferência e ficamos à disposição!`;
     // Migração para trocar o administrador master e limpar logins antigos
     if (localStorage.getItem('os_admin_migrated_v2') !== 'true') {
       const newAdminUser = {
-        id: Utils.gerarId(),
+        id: 'admin_master_suprabike',
         nome: 'Administrador Master',
         usuario: 'suprabikemarketing@gmail.com',
         senha: 'Suprabike123!',
@@ -51,29 +51,16 @@ Agradecemos a preferência e ficamos à disposição!`;
       localStorage.setItem('os_admin_migrated_v2', 'true');
       localStorage.removeItem(KEYS.SESSAO); // Desloga sessão antiga
 
-      // Se o Supabase estiver conectado, limpa a tabela remota e insere o novo master
+      // Apenas garante que o admin master esteja no Supabase
       if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.isConnected()) {
-        const client = SupabaseConfig.getClient();
-        if (client) {
-          client.from('usuarios').delete().neq('id', '').then(() => {
-            syncToSupabase(KEYS.USUARIOS, newAdminUser);
-          });
-        }
+        syncToSupabase(KEYS.USUARIOS, newAdminUser);
       }
     }
 
-    // Migração para apagar todas as ordens de serviço/orçamentos existentes do banco de dados e local
+    // Migração para apagar todas as ordens de serviço/orçamentos existentes localmente na migração inicial
     if (localStorage.getItem('os_clean_orders_v2') !== 'true') {
       localStorage.setItem(KEYS.ORDENS, JSON.stringify([]));
       localStorage.setItem('os_clean_orders_v2', 'true');
-      if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.isConnected()) {
-        const client = SupabaseConfig.getClient();
-        if (client) {
-          client.from('ordens_servico').delete().neq('id', '').then(() => {
-            console.log('✅ Ordens de serviço antigas limpas do Supabase com sucesso.');
-          });
-        }
-      }
     }
 
     if (localStorage.getItem(KEYS.INITIALIZED)) return;
@@ -103,7 +90,7 @@ Agradecemos a preferência e ficamos à disposição!`;
 
     // Criar admin padrão
     const adminUser = {
-      id: Utils.gerarId(),
+      id: 'admin_master_suprabike',
       nome: 'Administrador Master',
       usuario: 'suprabikemarketing@gmail.com',
       senha: Utils.hashSenha('Suprabike123!'),
@@ -311,7 +298,7 @@ Agradecemos a preferência e ficamos à disposição!`;
         };
         if (u.fotoPerfil) payload.foto_perfil = u.fotoPerfil;
         if (u.criadoEm) payload.criado_em = u.criadoEm;
-        await client.from('usuarios').upsert(payload);
+        await client.from('usuarios').upsert(payload, { onConflict: 'usuario', ignoreDuplicates: false });
       } else if (key === KEYS.CARGOS) {
         const c = dataItem;
         const payload = {
@@ -367,6 +354,10 @@ Agradecemos a preferência e ficamos à disposição!`;
     if (!client) return;
 
     try {
+      // FIRST: Pull cloud data to get correct IDs and avoid 409 conflicts
+      await syncFromSupabase();
+
+      // THEN: Push local data that may not be in cloud yet
       const cargos = getData(KEYS.CARGOS);
       for (const c of cargos) { await syncToSupabase(KEYS.CARGOS, c); }
 
@@ -765,6 +756,9 @@ Agradecemos a preferência e ficamos à disposição!`;
     getCargoById,
     saveCargo,
     updateCargo,
-    deleteCargo
+    deleteCargo,
+    // Sync
+    syncFromSupabase,
+    sincronizarTudoComSupabase
   };
 })();

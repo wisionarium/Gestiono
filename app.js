@@ -25,9 +25,19 @@ const App = (() => {
   function init() {
     Storage.initialize();
     applyTheme();
-    if (typeof Storage.sincronizarTudoComSupabase === 'function') {
-      Storage.sincronizarTudoComSupabase();
+
+    // Always sync from Supabase on startup so all devices get fresh data
+    if (typeof Storage.syncFromSupabase === 'function') {
+      Storage.syncFromSupabase().then(() => {
+        // Re-read user after sync in case users were updated from cloud
+        currentUser = Storage.getUsuarioLogado();
+        if (currentUser) {
+          renderDashboard();
+          renderCurrentList();
+        }
+      }).catch(err => console.warn('Sync from Supabase failed:', err));
     }
+
     currentUser = Storage.getUsuarioLogado();
 
     if (currentUser) {
@@ -294,22 +304,62 @@ const App = (() => {
 
   // ---------- AUTH ----------
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     const usuario = document.getElementById('login-usuario').value.trim();
     const senha = document.getElementById('login-senha').value;
     const errorEl = document.getElementById('login-error');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    const user = Storage.autenticar(usuario, senha);
-    if (user) {
-      currentUser = user;
-      Storage.setUsuarioLogado(user);
-      errorEl.classList.remove('show');
-      showMainLayout();
-      navigateTo('home');
-    } else {
-      errorEl.textContent = 'Usuário ou senha incorretos';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Entrando...';
+    }
+
+    try {
+      // Tenta autenticar localmente primeiro
+      let user = Storage.autenticar(usuario, senha);
+
+      // Se falhar e Supabase estiver conectado, tenta sincronizar e tentar novamente
+      if (!user && typeof Storage.syncFromSupabase === 'function') {
+        try {
+          await Storage.syncFromSupabase();
+          user = Storage.autenticar(usuario, senha);
+        } catch (err) {
+          console.warn('Erro ao sincronizar durante o login:', err);
+        }
+      }
+
+      if (user) {
+        currentUser = user;
+        Storage.setUsuarioLogado(user);
+        errorEl.classList.remove('show');
+        showMainLayout();
+        navigateTo('home');
+        
+        // Sincroniza o restante dos dados em segundo plano após o login bem-sucedido
+        if (typeof Storage.syncFromSupabase === 'function') {
+          Storage.syncFromSupabase().then(() => {
+            renderDashboard();
+            renderCurrentList();
+          });
+        }
+      } else {
+        errorEl.textContent = 'Usuário ou senha incorretos';
+        errorEl.classList.add('show');
+      }
+    } catch (err) {
+      console.error(err);
+      errorEl.textContent = 'Ocorreu um erro ao fazer login';
       errorEl.classList.add('show');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+          Entrar
+        `;
+      }
     }
   }
 
@@ -1510,6 +1560,7 @@ const App = (() => {
       if (isAtScrollTop()) {
         startY = e.touches[0].pageY;
         startX = e.touches[0].pageX;
+        currentY = startY;
         isTracking = true;
         
         // Reset spinner state
@@ -1593,8 +1644,6 @@ const App = (() => {
           spinnerSvg.style.animation = 'ptr-spin 0.8s linear infinite';
         }
 
-        showToast('Atualizando dados...', 'info');
-
         try {
           if (typeof Storage.syncFromSupabase === 'function') {
             await Storage.syncFromSupabase();
@@ -1602,10 +1651,8 @@ const App = (() => {
           // Refresh current page view and data
           renderCurrentList();
           renderDashboard();
-          showToast('Dados atualizados com sucesso!', 'success');
         } catch (err) {
           console.error('Erro ao atualizar dados:', err);
-          showToast('Erro ao atualizar!', 'error');
         } finally {
           // Hide ptr indicator
           indicator.style.transform = `translateX(-50%) translateY(0px) scale(0)`;
