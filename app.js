@@ -391,7 +391,7 @@ const App = (() => {
       navigateTo('home');
       return;
     }
-    if (page === 'admin' && !temPermissao('configuracoes')) {
+    if ((page === 'admin' || page.startsWith('admin-')) && !temPermissao('configuracoes')) {
       showToast('Acesso restrito!', 'error');
       navigateTo('home');
       return;
@@ -433,6 +433,14 @@ const App = (() => {
         break;
       case 'admin':
         renderAdmin();
+        updateNavBadges();
+        break;
+      case 'admin-usuarios':
+      case 'admin-cargos':
+      case 'admin-campos':
+      case 'admin-opcoes':
+      case 'admin-whatsapp':
+        renderAdminSubpage(page.replace('admin-', ''));
         updateNavBadges();
         break;
     }
@@ -518,6 +526,10 @@ const App = (() => {
   }
 
   function updateHeaderTitle(page) {
+    if (page === 'admin' || page.startsWith('admin-')) {
+      document.getElementById('header-title').textContent = 'Configurações';
+      return;
+    }
     const titles = {
       'home': 'Início',
       'nova-os': 'Novo Orçamento',
@@ -553,7 +565,7 @@ const App = (() => {
     
     if (currentUser) {
       const hasConfigPerm = temPermissao('configuracoes');
-      const isConfigPage = (currentPage === 'admin');
+      const isConfigPage = (currentPage === 'admin' || currentPage.startsWith('admin-'));
       
       if (btnAdmin) {
         btnAdmin.style.display = (hasConfigPerm && !isConfigPage) ? 'flex' : 'none';
@@ -1676,36 +1688,69 @@ const App = (() => {
     });
   }
 
-  function renderAdmin() {
-    applyTheme();
+  function applyAdminPagePermissions(pageEl) {
+    if (!pageEl) return;
     const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
-    const adminPageEl = document.getElementById('page-admin');
-    if (adminPageEl) {
-      adminPageEl.classList.remove('is-admin-master', 'is-read-only-usuarios', 'is-read-only-cargos', 'is-read-only-campos', 'is-read-only-whatsapp');
-      if (isAdminMaster) {
-        adminPageEl.classList.add('is-admin-master');
-      } else {
-        adminPageEl.classList.add('is-read-only-usuarios');
-        adminPageEl.classList.add('is-read-only-cargos');
-        adminPageEl.classList.add('is-read-only-whatsapp');
-        if (!temPermissao('editar_campos_personalizados')) {
-          adminPageEl.classList.add('is-read-only-campos');
-        }
+    pageEl.classList.remove('is-admin-master', 'is-read-only-usuarios', 'is-read-only-cargos', 'is-read-only-campos', 'is-read-only-whatsapp');
+    if (isAdminMaster) {
+      pageEl.classList.add('is-admin-master');
+    } else {
+      pageEl.classList.add('is-read-only-usuarios');
+      pageEl.classList.add('is-read-only-cargos');
+      pageEl.classList.add('is-read-only-whatsapp');
+      if (!temPermissao('editar_campos_personalizados')) {
+        pageEl.classList.add('is-read-only-campos');
       }
     }
+  }
 
-    // Show back button
-    document.getElementById('btn-back').style.display = 'flex';
-    document.getElementById('btn-back').onclick = () => {
-      document.getElementById('btn-back').style.display = 'none';
-      navigateTo('servicos');
-    };
+  function renderAdmin() {
+    applyTheme();
+    const adminPageEl = document.getElementById('page-admin');
+    applyAdminPagePermissions(adminPageEl);
 
-    renderUsuarios();
-    renderCargosAdmin();
-    renderOpcoesAdmin();
-    renderCamposAdmin();
-    renderTemplateWhatsAppAdmin();
+    // Show back button to exit Configurações menu to servicos
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) {
+      btnBack.style.display = 'flex';
+      btnBack.onclick = () => {
+        btnBack.style.display = 'none';
+        navigateTo('servicos');
+      };
+    }
+  }
+
+  function renderAdminSubpage(category) {
+    applyTheme();
+    const subpageEl = document.getElementById(`page-admin-${category}`);
+    applyAdminPagePermissions(subpageEl);
+
+    // Show back button to return to Configurações main menu
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) {
+      btnBack.style.display = 'flex';
+      btnBack.onclick = () => {
+        navigateTo('admin');
+      };
+    }
+
+    switch (category) {
+      case 'usuarios':
+        renderUsuarios();
+        break;
+      case 'cargos':
+        renderCargosAdmin();
+        break;
+      case 'campos':
+        renderCamposAdmin();
+        break;
+      case 'opcoes':
+        renderOpcoesAdmin();
+        break;
+      case 'whatsapp':
+        renderTemplateWhatsAppAdmin();
+        break;
+    }
   }
 
   // --- Usuários ---

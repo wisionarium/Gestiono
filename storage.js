@@ -700,7 +700,7 @@ Agradecemos a preferência e ficamos à disposição!`;
   }
 
   function getTema() {
-    return localStorage.getItem(KEYS.TEMA) || 'dark';
+    return localStorage.getItem(KEYS.TEMA) || 'light';
   }
 
   function saveTema(tema) {

@@ -11,7 +11,7 @@
   <title>Boa Gestão — Gestão de Ordens de Serviço</title>
   <script>
     (function() {
-      var savedTheme = localStorage.getItem('os_theme') || 'dark';
+      var savedTheme = localStorage.getItem('os_theme') || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
@@ -408,18 +408,19 @@
         </div>
 
         <!-- ===== ADMIN PAGE ===== -->
+        <!-- ===== ADMIN PAGE (CONFIGURAÇÕES MAIN MENU) ===== -->
         <div class="page" id="page-admin">
-          <div class="page-header">
-            <div class="page-title">⚙️ Configurações</div>
-            <div class="page-subtitle">Gerencie o sistema e personalizações</div>
-          </div>
-
-          <!-- Aparência & Tema -->
-          <div class="admin-card" id="card-admin-tema">
-            <div class="form-toggle" onclick="App.toggleTemaSwitch()" style="padding: 12px 16px;">
-              <div style="display:flex; flex-direction:column; gap:2px;">
-                <span class="form-toggle-label" id="theme-switch-label" style="font-weight:700; font-size:var(--font-base); display:flex; align-items:center; gap:6px;">Tema Escuro 🌙</span>
-                <span style="font-size:var(--font-xs); color:var(--text-tertiary);" id="theme-switch-desc">Escolha entre o modo claro e escuro</span>
+          <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-md);">
+            <div>
+              <div class="page-title">⚙️ Configurações</div>
+              <div class="page-subtitle">Gerencie o sistema e personalizações</div>
+            </div>
+            
+            <!-- Aparência & Tema (Compacto) -->
+            <div class="theme-compact-card" onclick="App.toggleTemaSwitch()" style="display:flex; align-items:center; gap:var(--space-sm); background:var(--bg-surface); border:1px solid var(--glass-border); padding:8px 12px; border-radius:var(--radius-md); cursor:pointer;">
+              <div style="display:flex; flex-direction:column; text-align:left; gap:2px; margin-right:4px;">
+                <span style="font-size:var(--font-xs); font-weight:700; color:var(--text-primary); line-height:1.1;">Tema</span>
+                <span id="theme-switch-label" style="font-size:10px; color:var(--text-secondary); line-height:1.1;">modo claro</span>
               </div>
               <label class="custom-theme-switch" onclick="event.stopPropagation()">
                 <input type="checkbox" id="theme-checkbox-toggle" onchange="App.setTema(this.checked ? 'dark' : 'light')">
@@ -432,12 +433,108 @@
             </div>
           </div>
 
-          <!-- Usuários -->
+          <div class="settings-list">
+            <!-- Usuários -->
+            <div class="settings-menu-item" onclick="App.navigateTo('admin-usuarios')">
+              <div class="settings-menu-item-left">
+                <div class="settings-menu-item-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="settings-menu-item-info">
+                  <div class="settings-menu-item-title">Usuários</div>
+                  <div class="settings-menu-item-desc">Gerencie quem acessa o sistema</div>
+                </div>
+              </div>
+              <div class="settings-menu-item-right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+
+            <!-- Cargos & Permissões -->
+            <div class="settings-menu-item" onclick="App.navigateTo('admin-cargos')">
+              <div class="settings-menu-item-left">
+                <div class="settings-menu-item-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                </div>
+                <div class="settings-menu-item-info">
+                  <div class="settings-menu-item-title">Cargos & Permissões</div>
+                  <div class="settings-menu-item-desc">Defina o que cada cargo pode fazer</div>
+                </div>
+              </div>
+              <div class="settings-menu-item-right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+
+            <!-- Campos Personalizados -->
+            <div class="settings-menu-item" onclick="App.navigateTo('admin-campos')">
+              <div class="settings-menu-item-left">
+                <div class="settings-menu-item-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="6" y1="16" x2="18" y2="16"/></svg>
+                </div>
+                <div class="settings-menu-item-info">
+                  <div class="settings-menu-item-title">Campos Personalizados</div>
+                  <div class="settings-menu-item-desc">Campos extras para o formulário da OS</div>
+                </div>
+              </div>
+              <div class="settings-menu-item-right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+
+            <!-- Listas de Opções -->
+            <div class="settings-menu-item" onclick="App.navigateTo('admin-opcoes')">
+              <div class="settings-menu-item-left">
+                <div class="settings-menu-item-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </div>
+                <div class="settings-menu-item-info">
+                  <div class="settings-menu-item-title">Listas de Opções</div>
+                  <div class="settings-menu-item-desc">Cores, Modelos, etc.</div>
+                </div>
+              </div>
+              <div class="settings-menu-item-right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+
+            <!-- Mensagem do WhatsApp -->
+            <div class="settings-menu-item" onclick="App.navigateTo('admin-whatsapp')">
+              <div class="settings-menu-item-left">
+                <div class="settings-menu-item-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="settings-menu-item-info">
+                  <div class="settings-menu-item-title">Mensagem do WhatsApp</div>
+                  <div class="settings-menu-item-desc">Personalize o texto enviado ao cliente no WhatsApp</div>
+                </div>
+              </div>
+              <div class="settings-menu-item-right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ações da Conta -->
+          <div style="margin-top: var(--space-xl); padding: 0 var(--space-sm);">
+            <button class="btn btn-danger btn-block" id="btn-logout-admin">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+              Sair da Conta
+            </button>
+          </div>
+        </div>
+
+        <!-- ===== PAGE: USUÁRIOS CONFIGS ===== -->
+        <div class="page" id="page-admin-usuarios">
+          <div class="page-header-sub">
+            <div class="page-title-sub">👥 Usuários</div>
+            <div class="page-subtitle-sub">Gerencie quem acessa o sistema</div>
+          </div>
           <div class="admin-card" id="card-admin-usuarios">
             <div class="admin-card-header">
               <div>
-                <div class="admin-card-title">Usuários</div>
-                <div class="admin-card-desc">Gerencie quem acessa o sistema</div>
+                <div class="admin-card-title">Lista de Usuários</div>
+                <div class="admin-card-desc">Funcionários cadastrados no sistema</div>
               </div>
               <button class="btn btn-primary btn-sm" onclick="App.openModalNovoUsuario()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
@@ -446,13 +543,19 @@
             </div>
             <div id="admin-usuarios-list"></div>
           </div>
+        </div>
 
-          <!-- Cargos e Permissões -->
+        <!-- ===== PAGE: CARGOS CONFIGS ===== -->
+        <div class="page" id="page-admin-cargos">
+          <div class="page-header-sub">
+            <div class="page-title-sub">🔑 Cargos & Permissões</div>
+            <div class="page-subtitle-sub">Defina o que cada cargo pode fazer</div>
+          </div>
           <div class="admin-card" id="card-admin-cargos">
             <div class="admin-card-header">
               <div>
-                <div class="admin-card-title">Cargos & Permissões</div>
-                <div class="admin-card-desc">Defina o que cada cargo pode fazer</div>
+                <div class="admin-card-title">Cargos Cadastrados</div>
+                <div class="admin-card-desc">Permissões de acesso por categoria profissional</div>
               </div>
               <button class="btn btn-primary btn-sm" onclick="App.openModalNovoCargo()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
@@ -461,28 +564,19 @@
             </div>
             <div id="admin-cargos-list"></div>
           </div>
+        </div>
 
-          <!-- Listas de Opções -->
-          <div class="admin-card" id="card-admin-opcoes">
-            <div class="admin-card-header">
-              <div>
-                <div class="admin-card-title">Listas de Opções</div>
-                <div class="admin-card-desc">Cores, Modelos, etc.</div>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="App.openModalNovaOpcao()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                Nova Lista
-              </button>
-            </div>
-            <div id="admin-opcoes-list"></div>
+        <!-- ===== PAGE: CAMPOS PERSONALIZADOS ===== -->
+        <div class="page" id="page-admin-campos">
+          <div class="page-header-sub">
+            <div class="page-title-sub">📋 Campos Personalizados</div>
+            <div class="page-subtitle-sub">Campos extras para o formulário da OS</div>
           </div>
-
-          <!-- Campos Personalizados -->
           <div class="admin-card" id="card-admin-campos">
             <div class="admin-card-header">
               <div>
                 <div class="admin-card-title">Campos Personalizados</div>
-                <div class="admin-card-desc">Campos extras para o formulário da OS</div>
+                <div class="admin-card-desc">Gerencie o checklist e informações adicionais</div>
               </div>
               <button class="btn btn-primary btn-sm" onclick="App.openModalNovoCampo()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
@@ -491,13 +585,41 @@
             </div>
             <div id="admin-campos-list"></div>
           </div>
+        </div>
 
-          <!-- Modelo de Mensagem WhatsApp Personalizado -->
+        <!-- ===== PAGE: LISTAS DE OPÇÕES ===== -->
+        <div class="page" id="page-admin-opcoes">
+          <div class="page-header-sub">
+            <div class="page-title-sub">🗂️ Listas de Opções</div>
+            <div class="page-subtitle-sub">Modelos, Cores, etc.</div>
+          </div>
+          <div class="admin-card" id="card-admin-opcoes">
+            <div class="admin-card-header">
+              <div>
+                <div class="admin-card-title">Listas de Opções Autocomplete</div>
+                <div class="admin-card-desc">Gerencie os valores sugeridos no formulário</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="App.openModalNovaOpcao()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Nova Lista
+              </button>
+            </div>
+            <div id="admin-opcoes-list"></div>
+          </div>
+        </div>
+
+        <!-- ===== PAGE: WHATSAPP MESSAGE ===== -->
+        <div class="page" id="page-admin-whatsapp">
+          <div class="page-header-sub" style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:var(--space-md);">
+            <div class="page-title-sub" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Mensagem do WhatsApp</div>
+            <div class="page-subtitle-sub" style="font-size:var(--font-sm); color:var(--text-secondary); margin-bottom:var(--space-md);">Personalize o texto enviado ao cliente no WhatsApp</div>
+            <div style="font-size:3rem; margin-bottom:var(--space-sm);">💬</div>
+          </div>
           <div class="admin-card" id="card-admin-whatsapp">
             <div class="admin-card-header">
               <div>
-                <div class="admin-card-title">Mensagem do WhatsApp</div>
-                <div class="admin-card-desc">Personalize o texto enviado ao cliente no WhatsApp</div>
+                <div class="admin-card-title">Modelo de Mensagem</div>
+                <div class="admin-card-desc">Configure o template padrão de envio</div>
               </div>
             </div>
             <div style="margin-top:var(--space-sm); position:relative;">
@@ -516,15 +638,15 @@
                 <button type="button" class="chip-var" data-var="@{data}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{data}</button>
                 <button type="button" class="chip-var" data-var="@{hora}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{hora}</button>
               </div>
-
+ 
               <div style="position:relative;">
                 <textarea class="form-textarea" id="admin-template-whatsapp" rows="9" style="font-family:monospace; font-size:var(--font-xs); line-height:1.4; width:100%; resize:vertical; padding:10px;"></textarea>
-
+ 
                 <!-- Dropdown do Autocomplete ao digitar @ -->
                 <div id="whatsapp-autocomplete-dropdown" style="display:none; position:absolute; left:10px; bottom:20px; z-index:300; background:var(--bg-tertiary); border:1px solid var(--accent); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); width:calc(100% - 20px); max-height:220px; overflow-y:auto;">
                 </div>
               </div>
-
+ 
               <div style="display:flex; gap:var(--space-sm); margin-top:var(--space-sm);">
                 <button type="button" class="btn btn-primary btn-block" id="btn-save-template-wa">Salvar Mensagem</button>
                 <button type="button" class="btn btn-secondary" id="btn-reset-template-wa" title="Restaurar padrão">Restaurar Padrão</button>
