@@ -2579,6 +2579,7 @@ const App = (() => {
 
   return {
     init,
+    navigateTo,
     setTema,
     applyTheme,
     toggleTemaSwitch,
