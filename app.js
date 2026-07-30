@@ -1487,14 +1487,29 @@ const App = (() => {
     if (!contentArea || !indicator) return;
 
     let startY = 0;
+    let startX = 0;
     let currentY = 0;
     let isTracking = false;
     const threshold = 90; // drag distance in px to trigger refresh
 
+    function isAtScrollTop() {
+      const scrollTop = contentArea.scrollTop;
+      const windowScrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      return scrollTop <= 0 && windowScrollTop <= 0;
+    }
+
     contentArea.addEventListener('touchstart', (e) => {
-      // Only track touch if we are at the top of the content area scroll
-      if (contentArea.scrollTop === 0) {
+      // Do not trigger if a modal or bottom-sheet is open/active
+      const hasActiveModal = document.querySelector('.modal.active, .modal.show, .bottom-sheet.active, .bottom-sheet.show');
+      if (hasActiveModal) {
+        isTracking = false;
+        return;
+      }
+
+      // Only track touch if we are at the absolute top of the content area and page scroll
+      if (isAtScrollTop()) {
         startY = e.touches[0].pageY;
+        startX = e.touches[0].pageX;
         isTracking = true;
         
         // Reset spinner state
@@ -1502,14 +1517,45 @@ const App = (() => {
           spinnerSvg.style.animation = 'none';
           spinnerSvg.style.transform = 'none';
         }
+      } else {
+        isTracking = false;
       }
     }, { passive: true });
 
     contentArea.addEventListener('touchmove', (e) => {
       if (!isTracking) return;
 
+      // If at any point during tracking, we scroll away from the top, cancel tracking
+      if (!isAtScrollTop()) {
+        isTracking = false;
+        indicator.style.transform = `translateX(-50%) translateY(0px) scale(0)`;
+        indicator.style.opacity = '0';
+        indicator.classList.remove('active');
+        return;
+      }
+
       currentY = e.touches[0].pageY;
+      const currentX = e.touches[0].pageX;
       const dy = currentY - startY;
+      const dx = currentX - startX;
+
+      // Cancel tracking if horizontal swipe is dominant (e.g. swiping a card or changing tabs)
+      if (Math.abs(dx) > Math.abs(dy)) {
+        isTracking = false;
+        indicator.style.transform = `translateX(-50%) translateY(0px) scale(0)`;
+        indicator.style.opacity = '0';
+        indicator.classList.remove('active');
+        return;
+      }
+
+      // If dragging UP (scrolling down the content), cancel tracking
+      if (dy < 0) {
+        isTracking = false;
+        indicator.style.transform = `translateX(-50%) translateY(0px) scale(0)`;
+        indicator.style.opacity = '0';
+        indicator.classList.remove('active');
+        return;
+      }
 
       if (dy > 0) {
         // Dragging down at the top!
@@ -1538,7 +1584,7 @@ const App = (() => {
       isTracking = false;
 
       const dy = currentY - startY;
-      if (dy >= threshold) {
+      if (dy >= threshold && isAtScrollTop()) {
         // Trigger refresh!
         indicator.style.transform = `translateX(-50%) translateY(40px) scale(1)`;
         indicator.style.opacity = '1';
@@ -1578,6 +1624,7 @@ const App = (() => {
       }
       
       startY = 0;
+      startX = 0;
       currentY = 0;
     });
   }
