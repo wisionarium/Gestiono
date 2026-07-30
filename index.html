@@ -226,11 +226,18 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                   <span id="os-fotos-contador" style="font-size:var(--font-xs); font-weight:700; color:var(--accent);">0/5 fotos adicionadas</span>
                 </div>
-                <input type="file" id="os-input-foto" accept="image/*" capture="environment" multiple style="display:none;">
-                <button type="button" class="btn btn-secondary btn-block" id="btn-add-foto" style="display:flex; align-items:center; justify-content:center; gap:8px;">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-                  📷 Tirar / Adicionar Fotos
-                </button>
+                <input type="file" id="os-input-foto-camera" accept="image/*" capture="environment" multiple style="display:none;">
+                <input type="file" id="os-input-foto-galeria" accept="image/*" multiple style="display:none;">
+                <div style="display:flex; gap:8px;">
+                  <button type="button" class="btn btn-secondary" id="btn-add-foto-camera" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                    📷 Usar Câmera
+                  </button>
+                  <button type="button" class="btn btn-secondary" id="btn-add-foto-galeria" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    🖼️ Escolher da Galeria
+                  </button>
+                </div>
                 <div id="os-fotos-grid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-top:var(--space-md);"></div>
               </div>
             </div>
@@ -611,49 +618,23 @@
         <!-- ===== PAGE: WHATSAPP MESSAGE ===== -->
         <div class="page" id="page-admin-whatsapp">
           <div class="page-header-sub" style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:var(--space-md);">
-            <div class="page-title-sub" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Mensagem do WhatsApp</div>
-            <div class="page-subtitle-sub" style="font-size:var(--font-sm); color:var(--text-secondary); margin-bottom:var(--space-md);">Personalize o texto enviado ao cliente no WhatsApp</div>
+            <div class="page-title-sub" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Mensagens do WhatsApp</div>
+            <div class="page-subtitle-sub" style="font-size:var(--font-sm); color:var(--text-secondary); margin-bottom:var(--space-md);">Crie e gerencie modelos de mensagens para enviar aos clientes</div>
             <div style="font-size:3rem; margin-bottom:var(--space-sm);">💬</div>
           </div>
           <div class="admin-card" id="card-admin-whatsapp">
             <div class="admin-card-header">
               <div>
-                <div class="admin-card-title">Modelo de Mensagem</div>
-                <div class="admin-card-desc">Configure o template padrão de envio</div>
+                <div class="admin-card-title">Modelos Prontos</div>
+                <div class="admin-card-desc">Crie mensagens com variáveis para envio rápido</div>
               </div>
+              <button class="btn btn-primary btn-sm" id="btn-nova-mensagem-wa">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Nova Mensagem
+              </button>
             </div>
-            <div style="margin-top:var(--space-sm); position:relative;">
-              <label class="form-label" style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:4px; display:block;">
-                Clique no atalho ou digite <strong>@</strong> no texto para inserir variáveis
-              </label>
-              
-              <!-- Chips rápidos de atalho -->
-              <div id="whatsapp-vars-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                <button type="button" class="chip-var" data-var="@{nome_cliente}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{nome_cliente}</button>
-                <button type="button" class="chip-var" data-var="@{veiculo}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{veiculo}</button>
-                <button type="button" class="chip-var" data-var="@{lista_servicos}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{lista_servicos}</button>
-                <button type="button" class="chip-var" data-var="@{valor_total}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{valor_total}</button>
-                <button type="button" class="chip-var" data-var="@{forma_pagamento}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{forma_pagamento}</button>
-                <button type="button" class="chip-var" data-var="@{status_pagamento}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{status_pagamento}</button>
-                <button type="button" class="chip-var" data-var="@{data}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{data}</button>
-                <button type="button" class="chip-var" data-var="@{hora}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ @{hora}</button>
-              </div>
- 
-              <div style="position:relative;">
-                <textarea class="form-textarea" id="admin-template-whatsapp" rows="9" style="font-family:monospace; font-size:var(--font-xs); line-height:1.4; width:100%; resize:vertical; padding:10px;"></textarea>
- 
-                <!-- Dropdown do Autocomplete ao digitar @ -->
-                <div id="whatsapp-autocomplete-dropdown" style="display:none; position:absolute; left:10px; bottom:20px; z-index:300; background:var(--bg-tertiary); border:1px solid var(--accent); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); width:calc(100% - 20px); max-height:220px; overflow-y:auto;">
-                </div>
-              </div>
- 
-              <div style="display:flex; gap:var(--space-sm); margin-top:var(--space-sm);">
-                <button type="button" class="btn btn-primary btn-block" id="btn-save-template-wa">Salvar Mensagem</button>
-                <button type="button" class="btn btn-secondary" id="btn-reset-template-wa" title="Restaurar padrão">Restaurar Padrão</button>
-              </div>
-            </div>
+            <div id="admin-whatsapp-templates-list" style="margin-top:var(--space-md);"></div>
           </div>
-
 
           <!-- Ações da Conta -->
           <div style="margin-top: var(--space-xl); padding: 0 var(--space-sm);">

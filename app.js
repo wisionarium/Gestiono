@@ -173,11 +173,13 @@ const App = (() => {
     const btnStatConcluidos = document.getElementById('home-stat-concluidos');
     if (btnStatConcluidos) btnStatConcluidos.addEventListener('click', () => navigateTo('concluidos'));
 
-    // Photo attachments handlers
+    // Photo attachments handlers (Camera & Gallery)
     const checkFotos = document.getElementById('os-check-fotos');
     const containerFotos = document.getElementById('container-fotos');
-    const btnAddFoto = document.getElementById('btn-add-foto');
-    const inputFoto = document.getElementById('os-input-foto');
+    const btnAddCamera = document.getElementById('btn-add-foto-camera');
+    const inputCamera = document.getElementById('os-input-foto-camera');
+    const btnAddGaleria = document.getElementById('btn-add-foto-galeria');
+    const inputGaleria = document.getElementById('os-input-foto-galeria');
 
     if (checkFotos) {
       checkFotos.addEventListener('change', (e) => {
@@ -191,45 +193,55 @@ const App = (() => {
       });
     }
 
-    if (btnAddFoto && inputFoto) {
-      btnAddFoto.addEventListener('click', () => {
+    async function processarFotosUpload(files, inputElement) {
+      if (!files.length) return;
+      const espacoDisponivel = 5 - fotosAnexadas.length;
+      if (espacoDisponivel <= 0) {
+        showToast('Limite máximo de 5 fotos atingido!', 'warning');
+        if (inputElement) inputElement.value = '';
+        return;
+      }
+
+      const filesParaProcessar = files.slice(0, espacoDisponivel);
+      if (files.length > espacoDisponivel) {
+        showToast(`Processando apenas ${espacoDisponivel} foto(s) para respeitar o limite máximo de 5.`, 'info');
+      } else {
+        showToast('Processando e comprimindo foto(s)...', 'info');
+      }
+
+      for (const file of filesParaProcessar) {
+        try {
+          const base64Comprimida = await Utils.comprimirFotoBase64(file, 900, 0.65);
+          fotosAnexadas.push(base64Comprimida);
+        } catch (err) {
+          console.error('Erro ao comprimir foto:', err);
+        }
+      }
+      if (inputElement) inputElement.value = '';
+      renderFotosGrid();
+      showToast('Foto(s) anexada(s) com sucesso!', 'success');
+    }
+
+    if (btnAddCamera && inputCamera) {
+      btnAddCamera.addEventListener('click', () => {
         if (fotosAnexadas.length >= 5) {
           showToast('Limite máximo de 5 fotos por orçamento!', 'warning');
           return;
         }
-        inputFoto.click();
+        inputCamera.click();
       });
+      inputCamera.addEventListener('change', (e) => processarFotosUpload(Array.from(e.target.files), inputCamera));
+    }
 
-      inputFoto.addEventListener('change', async (e) => {
-        const files = Array.from(e.target.files);
-        if (!files.length) return;
-
-        const espacoDisponivel = 5 - fotosAnexadas.length;
-        if (espacoDisponivel <= 0) {
-          showToast('Limite máximo de 5 fotos atingido!', 'warning');
-          inputFoto.value = '';
+    if (btnAddGaleria && inputGaleria) {
+      btnAddGaleria.addEventListener('click', () => {
+        if (fotosAnexadas.length >= 5) {
+          showToast('Limite máximo de 5 fotos por orçamento!', 'warning');
           return;
         }
-
-        const filesParaProcessar = files.slice(0, espacoDisponivel);
-        if (files.length > espacoDisponivel) {
-          showToast(`Processando apenas ${espacoDisponivel} foto(s) para respeitar o limite máximo de 5.`, 'info');
-        } else {
-          showToast('Processando e comprimindo foto(s)...', 'info');
-        }
-
-        for (const file of filesParaProcessar) {
-          try {
-            const base64Comprimida = await Utils.comprimirFotoBase64(file, 900, 0.65);
-            fotosAnexadas.push(base64Comprimida);
-          } catch (err) {
-            console.error('Erro ao comprimir foto:', err);
-          }
-        }
-        inputFoto.value = '';
-        renderFotosGrid();
-        showToast('Foto(s) anexada(s) com sucesso!', 'success');
+        inputGaleria.click();
       });
+      inputGaleria.addEventListener('change', (e) => processarFotosUpload(Array.from(e.target.files), inputGaleria));
     }
 
     // Payment status & partial entry handler
@@ -1487,9 +1499,7 @@ const App = (() => {
 
     const btnWhatsApp = document.getElementById('btn-detail-whatsapp');
     if (btnWhatsApp) btnWhatsApp.addEventListener('click', () => {
-      const msg = Utils.gerarMensagemWhatsApp(os);
-      const link = Utils.gerarLinkWhatsApp(os.clienteTelefone, msg);
-      window.open(link, '_blank');
+      openModalEnviarWhatsApp(os);
     });
 
     const btnExcluir = document.getElementById('btn-detail-excluir');
@@ -1763,12 +1773,21 @@ const App = (() => {
       const avatarHtml = u.fotoPerfil
         ? `<img src="${u.fotoPerfil}" class="user-avatar-img" alt="${u.nome}">`
         : `<div class="user-avatar-placeholder">${u.nome.charAt(0).toUpperCase()}</div>`;
+      
+      const internoBadge = u.isInterno ? `<span style="background:rgba(245,158,11,0.15);color:var(--amber);padding:2px 6px;border-radius:4px;font-size:var(--font-xs);font-weight:600;margin-left:4px;border:1px solid rgba(245,158,11,0.3);">🏷️ Interno</span>` : '';
+      const delegacaoBadge = u.exibirNaDelegacao === false ? `<span style="background:rgba(239,68,68,0.15);color:var(--danger);padding:2px 6px;border-radius:4px;font-size:var(--font-xs);font-weight:600;margin-left:4px;border:1px solid rgba(239,68,68,0.3);">🙈 Oculto na Delegação</span>` : '';
+      const userDisplay = u.isInterno ? 'Sem Login (Interno)' : `@${u.usuario}`;
+
       return `
         <div class="admin-item" style="display:flex; align-items:center; gap:12px;">
           ${avatarHtml}
           <div class="admin-item-info" style="flex:1;">
-            <div class="admin-item-name">${u.nome}</div>
-            <div class="admin-item-meta">@${u.usuario} · <span class="role-badge" style="background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:var(--font-xs);">${cargoNome}</span></div>
+            <div class="admin-item-name" style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+              <span>${u.nome}</span>
+              ${internoBadge}
+              ${delegacaoBadge}
+            </div>
+            <div class="admin-item-meta">${userDisplay} · <span class="role-badge" style="background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:var(--font-xs);">${cargoNome}</span></div>
           </div>
           <div class="admin-item-actions">
             <button class="btn btn-secondary btn-xs btn-edit-user" data-id="${u.id}">Editar</button>
@@ -2029,7 +2048,7 @@ const App = (() => {
     });
   }
 
-  // --- WhatsApp Template Customization & Autocomplete ---
+  // --- WhatsApp Templates & Multiple Messages Management ---
   const WHATSAPP_VARS = [
     { token: '@{nome_cliente}', label: 'nome_cliente', desc: 'Nome do Cliente' },
     { token: '@{veiculo}', label: 'veiculo', desc: 'Modelo e Cor do Veículo' },
@@ -2042,20 +2061,73 @@ const App = (() => {
   ];
 
   function renderTemplateWhatsAppAdmin() {
-    const textarea = document.getElementById('admin-template-whatsapp');
-    if (!textarea) return;
-    textarea.value = Storage.getTemplateWhatsApp();
+    const container = document.getElementById('admin-whatsapp-templates-list');
+    const btnNovo = document.getElementById('btn-nova-mensagem-wa');
+    if (!container) return;
 
-    const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
-    if (!isAdminMaster) {
-      textarea.setAttribute('readonly', 'true');
-      textarea.style.opacity = '0.7';
-      textarea.style.background = 'rgba(255,255,255,0.03)';
-    } else {
-      textarea.removeAttribute('readonly');
-      textarea.style.opacity = '1';
-      textarea.style.background = '';
+    const templates = Storage.getTemplatesWhatsApp();
+
+    if (btnNovo) {
+      btnNovo.onclick = () => openModalEditarTemplateWhatsApp(null);
     }
+
+    if (templates.length === 0) {
+      container.innerHTML = `<div class="empty-state" style="padding:var(--space-md)"><div class="empty-state-text">Nenhum modelo cadastrado.</div></div>`;
+      return;
+    }
+
+    container.innerHTML = templates.map(t => {
+      const preview = (t.mensagem || '').replace(/\n/g, ' ').substring(0, 100) + ((t.mensagem || '').length > 100 ? '...' : '');
+      const padraoBadge = t.padrao 
+        ? `<span style="background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:var(--radius-full); font-size:11px; font-weight:700;">⭐ Padrão</span>`
+        : '';
+
+      return `
+        <div class="admin-item" style="display:flex; flex-direction:column; gap:8px; padding:12px; margin-bottom:10px; background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:var(--radius-md);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:700; font-size:var(--font-sm); color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+              <span>💬 ${t.titulo}</span>
+              ${padraoBadge}
+            </div>
+            <div style="display:flex; gap:6px;">
+              ${!t.padrao ? `<button class="btn btn-secondary btn-xs btn-set-default-wa" data-id="${t.id}" title="Tornar Padrão">Tornar Padrão</button>` : ''}
+              <button class="btn btn-blue btn-xs btn-edit-wa" data-id="${t.id}">Editar</button>
+              ${templates.length > 1 ? `<button class="btn btn-danger btn-xs btn-delete-wa" data-id="${t.id}">Excluir</button>` : ''}
+            </div>
+          </div>
+          <div style="font-size:12px; color:var(--text-secondary); line-height:1.4; white-space:pre-wrap; background:rgba(0,0,0,0.15); padding:8px; border-radius:var(--radius-sm); font-family:sans-serif; max-height:80px; overflow-y:auto;">${preview}</div>
+        </div>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.btn-edit-wa').forEach(btn => {
+      btn.onclick = () => {
+        const t = Storage.getTemplateWhatsAppById(btn.dataset.id);
+        if (t) openModalEditarTemplateWhatsApp(t);
+      };
+    });
+
+    container.querySelectorAll('.btn-set-default-wa').forEach(btn => {
+      btn.onclick = () => {
+        const t = Storage.getTemplateWhatsAppById(btn.dataset.id);
+        if (t) {
+          Storage.saveTemplateWhatsApp({ ...t, padrao: true });
+          showToast(`"${t.titulo}" definido como mensagem padrão!`, 'success');
+          renderTemplateWhatsAppAdmin();
+        }
+      };
+    });
+
+    container.querySelectorAll('.btn-delete-wa').forEach(btn => {
+      btn.onclick = () => {
+        const t = Storage.getTemplateWhatsAppById(btn.dataset.id);
+        if (t && confirm(`Excluir a mensagem "${t.titulo}"?`)) {
+          Storage.deleteTemplateWhatsApp(t.id);
+          showToast('Mensagem excluída', 'info');
+          renderTemplateWhatsAppAdmin();
+        }
+      };
+    });
   }
 
   function insertVarAtCursor(textarea, varToken) {
@@ -2082,101 +2154,188 @@ const App = (() => {
     textarea.setSelectionRange(newCursorPos, newCursorPos);
   }
 
-  function initWhatsAppTemplateEditor() {
-    const textarea = document.getElementById('admin-template-whatsapp');
-    const dropdown = document.getElementById('whatsapp-autocomplete-dropdown');
-    const btnSave = document.getElementById('btn-save-template-wa');
-    const btnReset = document.getElementById('btn-reset-template-wa');
-    const chipsContainer = document.getElementById('whatsapp-vars-chips');
+  function openModalEditarTemplateWhatsApp(templateData) {
+    const isEdit = !!templateData;
+    const title = isEdit ? `Editar Mensagem: ${templateData.titulo}` : 'Nova Mensagem do WhatsApp';
 
-    if (!textarea) return;
-
-    if (chipsContainer) {
-      chipsContainer.querySelectorAll('.chip-var').forEach(btn => {
-        btn.onclick = (e) => {
-          e.preventDefault();
-          const vToken = btn.dataset.var;
-          insertVarAtCursor(textarea, vToken);
-        };
-      });
-    }
-
-    if (btnSave) {
-      btnSave.onclick = () => {
-        Storage.saveTemplateWhatsApp(textarea.value);
-        showToast('Modelo de mensagem do WhatsApp salvo com sucesso!', 'success');
-      };
-    }
-
-    if (btnReset) {
-      btnReset.onclick = () => {
-        if (confirm('Deseja restaurar a mensagem padrão do WhatsApp?')) {
-          const defaultTxt = Storage.DEFAULT_TEMPLATE_WHATSAPP;
-          Storage.saveTemplateWhatsApp(defaultTxt);
-          textarea.value = defaultTxt;
-          showToast('Mensagem restaurada para o padrão!', 'info');
-        }
-      };
-    }
-
-    function hideDropdown() {
-      if (dropdown) dropdown.style.display = 'none';
-    }
-
-    function showAutocomplete(filterText) {
-      if (!dropdown) return;
-      
-      const filtered = WHATSAPP_VARS.filter(v => 
-        v.label.toLowerCase().includes(filterText.toLowerCase()) || 
-        v.token.toLowerCase().includes(filterText.toLowerCase())
-      );
-
-      if (filtered.length === 0) {
-        hideDropdown();
-        return;
-      }
-
-      dropdown.innerHTML = filtered.map((v, i) => `
-        <div class="wa-autocomplete-item" data-var="${v.token}" style="padding:10px 14px; cursor:pointer; font-size:var(--font-sm); border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; ${i === 0 ? 'background:rgba(139,92,246,0.15);' : ''}">
-          <span style="font-weight:700; color:var(--accent); font-family:monospace;">@{${v.label}}</span>
-          <span style="font-size:var(--font-xs); color:var(--text-tertiary);">${v.desc}</span>
+    const bodyHtml = `
+      <form id="form-modal-wa-template">
+        <div class="form-group">
+          <label class="form-label required">Título do Modelo</label>
+          <input type="text" class="form-input" id="wa-tpl-titulo" required placeholder="Ex: Aviso de Retirada, Orçamento Pronto" value="${isEdit ? templateData.titulo : ''}">
         </div>
-      `).join('');
 
-      dropdown.style.display = 'block';
+        <div class="form-group">
+          <label class="form-label required">Texto da Mensagem</label>
+          <label class="form-label" style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:4px; display:block;">
+            Clique nos botões ou digite <strong>@</strong> para inserir variáveis
+          </label>
 
-      dropdown.querySelectorAll('.wa-autocomplete-item').forEach(item => {
-        item.onmousedown = (e) => {
-          e.preventDefault();
-          const vToken = item.dataset.var;
-          insertVarAtCursor(textarea, vToken);
-          hideDropdown();
-        };
+          <div id="wa-modal-vars-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+            ${WHATSAPP_VARS.map(v => `<button type="button" class="chip-var" data-var="${v.token}" style="padding:4px 8px; font-size:0.7rem; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius-full); color:var(--accent); cursor:pointer;">+ ${v.token}</button>`).join('')}
+          </div>
+
+          <div style="position:relative;">
+            <textarea class="form-textarea" id="wa-tpl-mensagem" rows="8" required style="font-family:monospace; font-size:var(--font-xs); line-height:1.4; width:100%; resize:vertical; padding:10px;">${isEdit ? templateData.mensagem : ''}</textarea>
+            <div id="wa-modal-autocomplete-dropdown" style="display:none; position:absolute; left:10px; bottom:20px; z-index:300; background:var(--bg-tertiary); border:1px solid var(--accent); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); width:calc(100% - 20px); max-height:220px; overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <div class="form-toggle" style="margin-top:12px; background:rgba(255,255,255,0.03); padding:10px 12px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+          <span class="form-toggle-label" style="font-size:var(--font-sm); font-weight:600;">Definir como mensagem padrão</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="wa-tpl-padrao" ${isEdit && templateData.padrao ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </form>
+    `;
+
+    openModal(title, bodyHtml, () => {
+      const form = document.getElementById('form-modal-wa-template');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+
+      const titulo = document.getElementById('wa-tpl-titulo').value.trim();
+      const mensagem = document.getElementById('wa-tpl-mensagem').value;
+      const padrao = document.getElementById('wa-tpl-padrao').checked;
+
+      Storage.saveTemplateWhatsApp({
+        id: isEdit ? templateData.id : null,
+        titulo,
+        mensagem,
+        padrao
       });
+
+      showToast(isEdit ? 'Modelo atualizado!' : 'Modelo de WhatsApp criado!', 'success');
+      renderTemplateWhatsAppAdmin();
+      return true;
+    });
+
+    setTimeout(() => {
+      const textarea = document.getElementById('wa-tpl-mensagem');
+      const dropdown = document.getElementById('wa-modal-autocomplete-dropdown');
+      const chipsContainer = document.getElementById('wa-modal-vars-chips');
+
+      if (!textarea) return;
+
+      if (chipsContainer) {
+        chipsContainer.querySelectorAll('.chip-var').forEach(btn => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            insertVarAtCursor(textarea, btn.dataset.var);
+          };
+        });
+      }
+
+      function hideDropdown() {
+        if (dropdown) dropdown.style.display = 'none';
+      }
+
+      function showAutocomplete(filterText) {
+        if (!dropdown) return;
+        const filtered = WHATSAPP_VARS.filter(v => 
+          v.label.toLowerCase().includes(filterText.toLowerCase()) || 
+          v.token.toLowerCase().includes(filterText.toLowerCase())
+        );
+
+        if (filtered.length === 0) { hideDropdown(); return; }
+
+        dropdown.innerHTML = filtered.map((v, i) => `
+          <div class="wa-autocomplete-item" data-var="${v.token}" style="padding:10px 14px; cursor:pointer; font-size:var(--font-sm); border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; ${i === 0 ? 'background:rgba(139,92,246,0.15);' : ''}">
+            <span style="font-weight:700; color:var(--accent); font-family:monospace;">@{${v.label}}</span>
+            <span style="font-size:var(--font-xs); color:var(--text-tertiary);">${v.desc}</span>
+          </div>
+        `).join('');
+
+        dropdown.style.display = 'block';
+
+        dropdown.querySelectorAll('.wa-autocomplete-item').forEach(item => {
+          item.onmousedown = (e) => {
+            e.preventDefault();
+            insertVarAtCursor(textarea, item.dataset.var);
+            hideDropdown();
+          };
+        });
+      }
+
+      textarea.addEventListener('keyup', (e) => {
+        if (['ArrowUp', 'ArrowDown', 'Escape'].includes(e.key)) {
+          if (e.key === 'Escape') hideDropdown();
+          return;
+        }
+        const cursorPos = textarea.selectionStart;
+        const textUpToCursor = textarea.value.substring(0, cursorPos);
+        const match = textUpToCursor.match(/@([\w]*)$/);
+        if (match) {
+          showAutocomplete(match[1]);
+        } else {
+          hideDropdown();
+        }
+      });
+
+      textarea.addEventListener('blur', () => { setTimeout(hideDropdown, 200); });
+    }, 100);
+  }
+
+  function openModalEnviarWhatsApp(os) {
+    const templates = Storage.getTemplatesWhatsApp();
+    if (!templates.length) {
+      showToast('Nenhum modelo de WhatsApp encontrado!', 'error');
+      return;
     }
 
-    textarea.addEventListener('keyup', (e) => {
-      if (['ArrowUp', 'ArrowDown', 'Escape'].includes(e.key)) {
-        if (e.key === 'Escape') hideDropdown();
-        return;
-      }
+    const defaultTpl = templates.find(t => t.padrao) || templates[0];
+    const optionsHtml = templates.map(t => `<option value="${t.id}" ${t.id === defaultTpl.id ? 'selected' : ''}>${t.titulo}${t.padrao ? ' (Padrão)' : ''}</option>`).join('');
 
-      const cursorPos = textarea.selectionStart;
-      const textUpToCursor = textarea.value.substring(0, cursorPos);
-      const match = textUpToCursor.match(/@([\w]*)$/);
+    const initialMsg = Utils.gerarMensagemWhatsApp(os, defaultTpl.mensagem);
 
-      if (match) {
-        const query = match[1];
-        showAutocomplete(query);
-      } else {
-        hideDropdown();
-      }
+    const bodyHtml = `
+      <form id="form-enviar-wa">
+        <p style="font-size:var(--font-xs); color:var(--text-secondary); margin-bottom:12px;">
+          Selecione o modelo de mensagem desejado para enviar ao cliente <strong>${os.clienteNome || 'Cliente'}</strong>.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label required">Modelo de Mensagem Pronta</label>
+          <select class="form-select" id="modal-wa-select-template" required>
+            ${optionsHtml}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Prévia do Texto (editável antes de enviar)</label>
+          <textarea class="form-textarea" id="modal-wa-text-preview" rows="9" style="font-family:sans-serif; font-size:var(--font-xs); line-height:1.4; width:100%; resize:vertical; padding:10px;">${initialMsg}</textarea>
+        </div>
+      </form>
+    `;
+
+    openModal('Enviar WhatsApp ao Cliente', bodyHtml, () => {
+      const textFinal = document.getElementById('modal-wa-text-preview').value;
+      const link = Utils.gerarLinkWhatsApp(os.clienteTelefone, textFinal);
+      window.open(link, '_blank');
+      return true;
     });
 
-    textarea.addEventListener('blur', () => {
-      setTimeout(hideDropdown, 200);
-    });
+    setTimeout(() => {
+      const selectTpl = document.getElementById('modal-wa-select-template');
+      const textPreview = document.getElementById('modal-wa-text-preview');
+
+      if (selectTpl && textPreview) {
+        selectTpl.addEventListener('change', (e) => {
+          const chosenTpl = templates.find(t => t.id === e.target.value);
+          if (chosenTpl) {
+            textPreview.value = Utils.gerarMensagemWhatsApp(os, chosenTpl.mensagem);
+          }
+        });
+      }
+    }, 100);
   }
+
+  function initWhatsAppTemplateEditor() {
+    renderTemplateWhatsAppAdmin();
+  }
+
+  // ---------- MODALS ----------
 
   // ---------- MODALS ----------
 
@@ -2185,22 +2344,55 @@ const App = (() => {
     const optionsHtml = cargos.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
     let fotoPerfilTemp = null;
 
-    openModal('Novo Usuário', `
+    openModal('Novo Funcionário / Usuário', `
       <form id="form-novo-usuario">
         <div class="form-group" style="text-align:center; margin-bottom:16px;">
           <div id="new-user-avatar-preview" style="width:64px; height:64px; border-radius:50%; background:var(--accent-bg); color:var(--accent); display:flex; align-items:center; justify-content:center; margin:0 auto 8px; border:2px dashed var(--accent); font-weight:700; font-size:1.5rem; overflow:hidden;">📷</div>
           <label for="new-user-foto" class="btn btn-secondary btn-xs" style="cursor:pointer; display:inline-block;">Selecionar Foto de Perfil</label>
           <input type="file" id="new-user-foto" accept="image/*" style="display:none">
         </div>
-        <div class="form-group"><label class="form-label required">Nome Completo</label><input type="text" class="form-input" id="new-user-nome" required placeholder="Ex: João Silva"></div>
-        <div class="form-group"><label class="form-label required">Usuário (login)</label><input type="text" class="form-input" id="new-user-usuario" required placeholder="Ex: joao"></div>
+
         <div class="form-group">
-          <label class="form-label required">Senha</label>
-          <div style="position: relative;">
-            <input type="text" class="form-input" id="new-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4" style="padding-right: 40px;">
-            <button type="button" onclick="const input = document.getElementById('new-user-senha'); input.type = input.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 14px;">👁️</button>
+          <label class="form-label required">Nome Completo</label>
+          <input type="text" class="form-input" id="new-user-nome" required placeholder="Ex: João Silva">
+        </div>
+
+        <div class="form-toggle" style="margin-bottom:12px; background:rgba(255,255,255,0.03); padding:10px 12px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span class="form-toggle-label" style="font-size:var(--font-sm); font-weight:600; display:block;">Funcionário Interno</span>
+            <span style="font-size:11px; color:var(--text-tertiary);">Não necessita de login e senha</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="new-user-is-interno">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="form-toggle" style="margin-bottom:16px; background:rgba(255,255,255,0.03); padding:10px 12px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span class="form-toggle-label" style="font-size:var(--font-sm); font-weight:600; display:block;">Aparecer na lista de delegar?</span>
+            <span style="font-size:11px; color:var(--text-tertiary);">Exibir ao atribuir serviços na oficina</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="new-user-exibir-delegacao" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="container-user-credentials">
+          <div class="form-group">
+            <label class="form-label required" id="label-user-usuario">Usuário (login)</label>
+            <input type="text" class="form-input" id="new-user-usuario" placeholder="Ex: joao">
+          </div>
+          <div class="form-group">
+            <label class="form-label required" id="label-user-senha">Senha</label>
+            <div style="position: relative;">
+              <input type="text" class="form-input" id="new-user-senha" placeholder="Mínimo 4 caracteres" minlength="4" style="padding-right: 40px;">
+              <button type="button" onclick="const input = document.getElementById('new-user-senha'); input.type = input.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 14px;">👁️</button>
+            </div>
           </div>
         </div>
+
         <div class="form-group">
           <label class="form-label required">Tipo de Acesso (Cargo)</label>
           <select class="form-select" id="new-user-role" required>
@@ -2210,19 +2402,62 @@ const App = (() => {
         </div>
       </form>`, () => {
       const form = document.getElementById('form-novo-usuario');
+      const isInterno = document.getElementById('new-user-is-interno').checked;
+      const exibirNaDelegacao = document.getElementById('new-user-exibir-delegacao').checked;
+
+      const inputUsuario = document.getElementById('new-user-usuario');
+      const inputSenha = document.getElementById('new-user-senha');
+
+      if (!isInterno) {
+        inputUsuario.setAttribute('required', 'true');
+        inputSenha.setAttribute('required', 'true');
+      } else {
+        inputUsuario.removeAttribute('required');
+        inputSenha.removeAttribute('required');
+      }
+
       if (!form.checkValidity()) { form.reportValidity(); return false; }
+      
       const nome = document.getElementById('new-user-nome').value.trim();
-      const usuario = document.getElementById('new-user-usuario').value.trim().toLowerCase();
-      const senha = document.getElementById('new-user-senha').value;
+      let usuario = inputUsuario.value.trim().toLowerCase();
+      const senha = inputSenha.value;
       const role = document.getElementById('new-user-role').value;
-      if (Storage.getUsuarios().find(u => u.usuario === usuario)) { showToast('Usuário já existe!', 'error'); return false; }
-      Storage.saveUsuario({ nome, usuario, senha, role, fotoPerfil: fotoPerfilTemp });
-      showToast(`Usuário ${nome} criado!`, 'success');
+
+      if (!isInterno && usuario) {
+        if (Storage.getUsuarios().find(u => u.usuario === usuario)) { 
+          showToast('Usuário já existe!', 'error'); 
+          return false; 
+        }
+      }
+
+      Storage.saveUsuario({ 
+        nome, 
+        usuario, 
+        senha, 
+        role, 
+        isInterno, 
+        exibirNaDelegacao, 
+        fotoPerfil: fotoPerfilTemp 
+      });
+
+      showToast(`Funcionário ${nome} cadastrado com sucesso!`, 'success');
       renderUsuarios();
       return true;
     });
 
     setTimeout(() => {
+      const checkInterno = document.getElementById('new-user-is-interno');
+      const containerCreds = document.getElementById('container-user-credentials');
+      if (checkInterno && containerCreds) {
+        checkInterno.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            containerCreds.style.display = 'none';
+          } else {
+            containerCreds.style.display = 'block';
+          }
+        });
+      }
+
       const inputFoto = document.getElementById('new-user-foto');
       const preview = document.getElementById('new-user-avatar-preview');
       if (inputFoto) {
@@ -2247,7 +2482,8 @@ const App = (() => {
     if (!user) return;
     const cargos = Storage.getCargos();
     const optionsHtml = cargos.map(c => `<option value="${c.id}" ${user.role === c.id ? 'selected' : ''}>${c.nome}</option>`).join('');
-    const isLoginDisabled = user.usuario === 'admin' ? 'disabled' : '';
+    const isMasterAdmin = user.usuario === 'admin' || user.usuario === 'suprabikemarketing@gmail.com';
+    const isLoginDisabled = isMasterAdmin ? 'disabled' : '';
     let fotoPerfilTemp = user.fotoPerfil || null;
 
     const avatarInitialHtml = fotoPerfilTemp 
@@ -2261,28 +2497,57 @@ const App = (() => {
           <label for="edit-user-foto" class="btn btn-secondary btn-xs" style="cursor:pointer; display:inline-block;">Alterar Foto de Perfil</label>
           <input type="file" id="edit-user-foto" accept="image/*" style="display:none">
         </div>
+
         <div class="form-group">
           <label class="form-label required">Nome Completo</label>
           <input type="text" class="form-input" id="edit-user-nome" required placeholder="Ex: João Silva" value="${user.nome}">
         </div>
-        <div class="form-group">
-          <label class="form-label required">Usuário (login)</label>
-          <input type="text" class="form-input" id="edit-user-usuario" required placeholder="Ex: joao" value="${user.usuario}" ${isLoginDisabled}>
+
+        ${!isMasterAdmin ? `
+        <div class="form-toggle" style="margin-bottom:12px; background:rgba(255,255,255,0.03); padding:10px 12px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span class="form-toggle-label" style="font-size:var(--font-sm); font-weight:600; display:block;">Funcionário Interno</span>
+            <span style="font-size:11px; color:var(--text-tertiary);">Não necessita de login e senha</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="edit-user-is-interno" ${user.isInterno ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>` : ''}
+
+        <div class="form-toggle" style="margin-bottom:16px; background:rgba(255,255,255,0.03); padding:10px 12px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span class="form-toggle-label" style="font-size:var(--font-sm); font-weight:600; display:block;">Aparecer na lista de delegar?</span>
+            <span style="font-size:11px; color:var(--text-tertiary);">Exibir ao atribuir serviços na oficina</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="edit-user-exibir-delegacao" ${user.exibirNaDelegacao !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-        <div class="form-group">
-          <label class="form-label required">Senha</label>
-          <div style="position: relative;">
-            <input type="text" class="form-input" id="edit-user-senha" required placeholder="Mínimo 4 caracteres" minlength="4" value="${user.senha || ''}" style="padding-right: 40px;">
-            <button type="button" onclick="const input = document.getElementById('edit-user-senha'); input.type = input.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 14px;">👁️</button>
+
+        <div id="container-edit-user-credentials" style="${user.isInterno ? 'display:none;' : ''}">
+          <div class="form-group">
+            <label class="form-label required">Usuário (login)</label>
+            <input type="text" class="form-input" id="edit-user-usuario" placeholder="Ex: joao" value="${user.usuario || ''}" ${isLoginDisabled}>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Senha</label>
+            <div style="position: relative;">
+              <input type="text" class="form-input" id="edit-user-senha" placeholder="Mínimo 4 caracteres" minlength="4" value="${user.senha || ''}" style="padding-right: 40px;">
+              <button type="button" onclick="const input = document.getElementById('edit-user-senha'); input.type = input.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 14px;">👁️</button>
+            </div>
           </div>
         </div>
+
         <div class="form-group">
           <label class="form-label required">Tipo de Acesso (Cargo)</label>
           <select class="form-select" id="edit-user-role" required ${isLoginDisabled}>
             ${optionsHtml}
           </select>
         </div>
-        ${user.usuario !== 'admin' && user.usuario !== 'suprabikemarketing@gmail.com' ? `
+
+        ${!isMasterAdmin ? `
         <div class="form-group" style="margin-top: 24px; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 16px;">
           <button type="button" class="btn btn-danger btn-block" id="btn-delete-user-modal" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
@@ -2292,27 +2557,50 @@ const App = (() => {
       </form>
     `, () => {
       const form = document.getElementById('form-editar-usuario');
+      const checkInterno = document.getElementById('edit-user-is-interno');
+      const isInterno = checkInterno ? checkInterno.checked : false;
+      const exibirNaDelegacao = document.getElementById('edit-user-exibir-delegacao').checked;
+
+      const inputUsuario = document.getElementById('edit-user-usuario');
+      const inputSenha = document.getElementById('edit-user-senha');
+
+      if (!isInterno && !isMasterAdmin) {
+        if (inputUsuario) inputUsuario.setAttribute('required', 'true');
+        if (inputSenha) inputSenha.setAttribute('required', 'true');
+      } else {
+        if (inputUsuario) inputUsuario.removeAttribute('required');
+        if (inputSenha) inputSenha.removeAttribute('required');
+      }
+
       if (!form.checkValidity()) { form.reportValidity(); return false; }
 
       const nome = document.getElementById('edit-user-nome').value.trim();
-      const usuario = document.getElementById('edit-user-usuario').value.trim().toLowerCase();
       const role = document.getElementById('edit-user-role').value;
+      const usuario = inputUsuario ? inputUsuario.value.trim().toLowerCase() : user.usuario;
 
-      if (usuario !== user.usuario && user.usuario !== 'admin') {
+      if (!isInterno && usuario !== user.usuario && !isMasterAdmin) {
         if (Storage.getUsuarios().find(u => u.usuario === usuario)) {
           showToast('Este nome de usuário já está em uso!', 'error');
           return false;
         }
       }
 
-      const updates = { nome, fotoPerfil: fotoPerfilTemp };
-      if (user.usuario !== 'admin') {
-        updates.usuario = usuario;
+      const updates = { 
+        nome, 
+        fotoPerfil: fotoPerfilTemp,
+        isInterno,
+        exibirNaDelegacao
+      };
+
+      if (!isMasterAdmin) {
+        if (!isInterno) {
+          updates.usuario = usuario;
+        }
         updates.role = role;
       }
 
-      const novaSenha = document.getElementById('edit-user-senha').value;
-      if (novaSenha) {
+      const novaSenha = inputSenha ? inputSenha.value : null;
+      if (novaSenha !== null && !isInterno) {
         updates.senha = novaSenha;
       }
 
@@ -2331,6 +2619,18 @@ const App = (() => {
     });
 
     setTimeout(() => {
+      const checkInterno = document.getElementById('edit-user-is-interno');
+      const containerCreds = document.getElementById('container-edit-user-credentials');
+      if (checkInterno && containerCreds) {
+        checkInterno.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            containerCreds.style.display = 'none';
+          } else {
+            containerCreds.style.display = 'block';
+          }
+        });
+      }
+
       const inputFoto = document.getElementById('edit-user-foto');
       const preview = document.getElementById('edit-user-avatar-preview');
       if (inputFoto) {
@@ -2366,22 +2666,24 @@ const App = (() => {
     const usuarios = Storage.getUsuarios();
     const cargos = Storage.getCargos();
 
-    // Filtra usuários que são mecânicos ou que possuem permissão de assumir/concluir serviços
+    // Filtra funcionários visíveis para delegação
     const tecnicos = usuarios.filter(u => {
+      if (u.exibirNaDelegacao === false) return false;
+      if (u.isInterno) return true;
       if (u.usuario === 'admin') return true;
       const cargo = cargos.find(c => c.id === u.role);
-      return cargo && (cargo.permissoes.includes('assumir_servico') || cargo.permissoes.includes('concluir_servico'));
+      return cargo && (cargo.permissoes.includes('assumir_servico') || cargo.permissoes.includes('concluir_servico') || cargo.permissoes.includes('delegar_servico'));
     });
 
     if (tecnicos.length === 0) {
-      showToast('Nenhum funcionário cadastrado com permissão de serviço!', 'error');
+      showToast('Nenhum funcionário disponível na lista de delegação!', 'error');
       return;
     }
 
     const optionsHtml = tecnicos.map(t => {
       const cargo = cargos.find(c => c.id === t.role);
-      const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(t.role);
-      return `<option value="${t.nome}">${t.nome} - ${cargoNome}</option>`;
+      const cargoNome = t.isInterno ? 'Interno' : (cargo ? cargo.nome : Utils.traduzirRole(t.role));
+      return `<option value="${t.nome}">${t.nome} (${cargoNome})</option>`;
     }).join('');
 
     openModal('Delegar Serviço', `
@@ -2398,6 +2700,21 @@ const App = (() => {
     `, () => {
       const form = document.getElementById('form-delegar-servico');
       if (!form.checkValidity()) { form.reportValidity(); return false; }
+
+      const mecanicoNome = document.getElementById('delegar-mecanico-select').value;
+      Storage.updateOrdem(osId, {
+        status: 'em_andamento',
+        mecanico: mecanicoNome,
+        horaInicio: new Date().toISOString()
+      });
+      Storage.addHistorico(osId, `Serviço delegado para ${mecanicoNome}`, currentUser.nome);
+      showToast(`Serviço delegado para ${mecanicoNome}!`, 'success');
+      renderListaOS('aguardando');
+      renderListaOS('em_andamento');
+      navigateTo('andamento');
+      return true;
+    });
+  }
 
       const mecanicoNome = document.getElementById('delegar-mecanico-select').value;
       Storage.updateOrdem(osId, {

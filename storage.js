@@ -12,26 +12,33 @@ const Storage = (() => {
     CARGOS: 'os_cargos',
     SESSAO: 'os_sessao',
     TEMPLATE_WHATSAPP: 'os_template_whatsapp',
+    TEMPLATES_WHATSAPP: 'os_templates_whatsapp',
     TEMA: 'os_theme',
     INITIALIZED: 'os_initialized'
   };
 
-  const DEFAULT_TEMPLATE_WHATSAPP = `Olá, @{nome_cliente}! Tudo bem?
+  const DEFAULT_TEMPLATES_WHATSAPP = [
+    {
+      id: 'tpl_padrao_retirada',
+      titulo: 'Veículo Pronto para Retirada',
+      mensagem: `Olá, @{nome_cliente}! Tudo bem?\n\nInformamos que o seu veículo está pronto para retirada!\n\nServiços realizados:\n@{lista_servicos}\n\nValor total: @{valor_total}\nPagamento: @{forma_pagamento} (@{status_pagamento})\n\nData: @{data}\nHora: @{hora}\n\nVeículo: @{veiculo}\n\nAgradecemos a preferência e ficamos à disposição!`,
+      padrao: true
+    },
+    {
+      id: 'tpl_orcamento_pronto',
+      titulo: 'Aviso de Orçamento Disponível',
+      mensagem: `Olá, @{nome_cliente}! Tudo bem?\n\nO orçamento para o seu veículo (@{veiculo}) foi concluído.\n\nServiços previstos:\n@{lista_servicos}\n\nValor total estimado: @{valor_total}\n\nPor favor, nos confirme a aprovação para iniciarmos a execução!`,
+      padrao: false
+    },
+    {
+      id: 'tpl_agradecimento',
+      titulo: 'Agradecimento e Garantia',
+      mensagem: `Olá, @{nome_cliente}! Passando para agradecer pela preferência!\n\nSeu veículo (@{veiculo}) já foi entregue. Caso tenha qualquer dúvida ou necessite de ajuste, conte conosco.\n\nTenha um ótimo dia!`,
+      padrao: false
+    }
+  ];
 
-Informamos que o seu veículo está pronto para retirada!
-
-Serviços realizados:
-@{lista_servicos}
-
-Valor total: @{valor_total}
-Pagamento: @{forma_pagamento} (@{status_pagamento})
-
-Data: @{data}
-Hora: @{hora}
-
-Veículo: @{veiculo}
-
-Agradecemos a preferência e ficamos à disposição!`;
+  const DEFAULT_TEMPLATE_WHATSAPP = DEFAULT_TEMPLATES_WHATSAPP[0].mensagem;
 
   /**
    * Inicializa o storage com dados padrão
@@ -190,6 +197,8 @@ Agradecemos a preferência e ficamos à disposição!`;
           usuario: u.usuario,
           senha: u.senha,
           role: u.role,
+          isInterno: !!u.is_interno,
+          exibirNaDelegacao: u.exibir_na_delegacao ?? true,
           fotoPerfil: u.foto_perfil || null,
           criadoEm: u.criado_em
         }));
@@ -237,9 +246,21 @@ Agradecemos a preferência e ficamos à disposição!`;
       }
 
       // 6. Template WA
-      const { data: config } = await client.from('configuracoes').select('*').eq('chave', 'template_whatsapp').single();
-      if (config && config.valor) {
-        localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, config.valor);
+      const { data: configMulti } = await client.from('configuracoes').select('*').eq('chave', 'templates_whatsapp').single();
+      if (configMulti && configMulti.valor) {
+        try {
+          const parsed = JSON.parse(configMulti.valor);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(KEYS.TEMPLATES_WHATSAPP, JSON.stringify(parsed));
+          }
+        } catch (e) {
+          console.warn('Erro ao ler templates_whatsapp:', e);
+        }
+      } else {
+        const { data: config } = await client.from('configuracoes').select('*').eq('chave', 'template_whatsapp').single();
+        if (config && config.valor) {
+          localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, config.valor);
+        }
       }
     } catch (e) {
       console.warn('Erro ao sincronizar com Supabase:', e);
@@ -296,9 +317,11 @@ Agradecemos a preferência e ficamos à disposição!`;
           senha: u.senha,
           role: u.role
         };
+        if (u.isInterno !== undefined) payload.is_interno = !!u.isInterno;
+        if (u.exibirNaDelegacao !== undefined) payload.exibir_na_delegacao = u.exibirNaDelegacao !== false;
         if (u.fotoPerfil) payload.foto_perfil = u.fotoPerfil;
         if (u.criadoEm) payload.criado_em = u.criadoEm;
-        await client.from('usuarios').upsert(payload, { onConflict: 'usuario', ignoreDuplicates: false });
+        await client.from('usuarios').upsert(payload, { onConflict: 'id', ignoreDuplicates: false });
       } else if (key === KEYS.CARGOS) {
         const c = dataItem;
         const payload = {
@@ -330,6 +353,12 @@ Agradecemos a preferência e ficamos à disposição!`;
         };
         if (cp.criadoEm) payload.criado_em = cp.criadoEm;
         await client.from('campos_personalizados').upsert(payload);
+      } else if (key === KEYS.TEMPLATES_WHATSAPP) {
+        await client.from('configuracoes').upsert({
+          chave: 'templates_whatsapp',
+          valor: JSON.stringify(dataItem),
+          atualizado_em: new Date().toISOString()
+        });
       }
     } catch (e) {
       console.warn('Erro ao salvar no Supabase:', e);
@@ -463,6 +492,14 @@ Agradecemos a preferência e ficamos à disposição!`;
   function saveUsuario(usuario) {
     const usuarios = getUsuarios();
     usuario.id = usuario.id || Utils.gerarId();
+    usuario.isInterno = !!usuario.isInterno;
+    usuario.exibirNaDelegacao = usuario.exibirNaDelegacao !== false;
+    if (usuario.isInterno) {
+      if (!usuario.usuario || !usuario.usuario.trim()) {
+        usuario.usuario = 'interno_' + usuario.id;
+      }
+      usuario.senha = usuario.senha || '';
+    }
     usuario.criadoEm = new Date().toISOString();
     usuarios.push(usuario);
     setData(KEYS.USUARIOS, usuarios);
@@ -474,7 +511,14 @@ Agradecemos a preferência e ficamos à disposição!`;
     const usuarios = getUsuarios();
     const idx = usuarios.findIndex(u => u.id === id);
     if (idx === -1) return null;
-    usuarios[idx] = { ...usuarios[idx], ...updates };
+    const updated = { ...usuarios[idx], ...updates };
+    if (updated.isInterno) {
+      if (!updated.usuario || !updated.usuario.trim()) {
+        updated.usuario = 'interno_' + updated.id;
+      }
+      updated.senha = updated.senha || '';
+    }
+    usuarios[idx] = updated;
     setData(KEYS.USUARIOS, usuarios);
     syncToSupabase(KEYS.USUARIOS, usuarios[idx]);
     return usuarios[idx];
@@ -490,6 +534,7 @@ Agradecemos a preferência e ficamos à disposição!`;
     const hash = Utils.hashSenha(senha);
     const uClean = (usuario || '').trim().toLowerCase();
     return getUsuarios().find(u => 
+      !u.isInterno &&
       (u.usuario.toLowerCase() === uClean || (u.email && u.email.toLowerCase() === uClean)) &&
       (u.senha === hash || u.senha === senha)
     ) || null;
@@ -691,12 +736,62 @@ Agradecemos a preferência e ficamos à disposição!`;
     setData(KEYS.CARGOS, cargos);
   }
 
-  function getTemplateWhatsApp() {
-    return localStorage.getItem(KEYS.TEMPLATE_WHATSAPP) || DEFAULT_TEMPLATE_WHATSAPP;
+  function getTemplatesWhatsApp() {
+    const data = getData(KEYS.TEMPLATES_WHATSAPP);
+    if (Array.isArray(data) && data.length > 0) return data;
+    const oldTpl = localStorage.getItem(KEYS.TEMPLATE_WHATSAPP);
+    if (oldTpl && oldTpl !== DEFAULT_TEMPLATE_WHATSAPP) {
+      const migrated = [
+        { ...DEFAULT_TEMPLATES_WHATSAPP[0], mensagem: oldTpl },
+        ...DEFAULT_TEMPLATES_WHATSAPP.slice(1)
+      ];
+      setData(KEYS.TEMPLATES_WHATSAPP, migrated);
+      return migrated;
+    }
+    setData(KEYS.TEMPLATES_WHATSAPP, DEFAULT_TEMPLATES_WHATSAPP);
+    return DEFAULT_TEMPLATES_WHATSAPP;
+  }
+
+  function getTemplateWhatsAppById(id) {
+    const templates = getTemplatesWhatsApp();
+    return templates.find(t => t.id === id) || templates[0] || null;
   }
 
   function saveTemplateWhatsApp(template) {
-    localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, template);
+    const templates = getTemplatesWhatsApp();
+    if (!template.id) {
+      template.id = 'tpl_' + Utils.gerarId();
+    }
+    if (template.padrao) {
+      templates.forEach(t => t.padrao = false);
+    }
+    const idx = templates.findIndex(t => t.id === template.id);
+    if (idx !== -1) {
+      templates[idx] = { ...templates[idx], ...template };
+    } else {
+      templates.push(template);
+    }
+    setData(KEYS.TEMPLATES_WHATSAPP, templates);
+    syncToSupabase(KEYS.TEMPLATES_WHATSAPP, templates);
+    return templates;
+  }
+
+  function deleteTemplateWhatsApp(id) {
+    let templates = getTemplatesWhatsApp();
+    if (templates.length <= 1) return templates;
+    templates = templates.filter(t => t.id !== id);
+    if (!templates.some(t => t.padrao)) {
+      templates[0].padrao = true;
+    }
+    setData(KEYS.TEMPLATES_WHATSAPP, templates);
+    syncToSupabase(KEYS.TEMPLATES_WHATSAPP, templates);
+    return templates;
+  }
+
+  function getTemplateWhatsApp() {
+    const templates = getTemplatesWhatsApp();
+    const padrao = templates.find(t => t.padrao) || templates[0];
+    return padrao ? padrao.mensagem : DEFAULT_TEMPLATE_WHATSAPP;
   }
 
   function getTema() {
@@ -711,8 +806,12 @@ Agradecemos a preferência e ficamos à disposição!`;
     initialize,
     sincronizarTudoComSupabase,
     DEFAULT_TEMPLATE_WHATSAPP,
+    DEFAULT_TEMPLATES_WHATSAPP,
     getTemplateWhatsApp,
+    getTemplatesWhatsApp,
+    getTemplateWhatsAppById,
     saveTemplateWhatsApp,
+    deleteTemplateWhatsApp,
     getTema,
     saveTema,
     // Ordens
