@@ -2892,7 +2892,7 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 0.78rem;
   color: var(--text-tertiary);
   text-align: center;
@@ -2910,8 +2910,23 @@ html {
   border-top: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
+.wisionarium-footer-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  padding: 2px 0;
+}
+
+.wisionarium-footer-link:hover,
+.wisionarium-footer-link:active {
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
 .wisionarium-footer-logo {
-  height: 17px;
+  height: 11px;
   width: auto;
   object-fit: contain;
   display: inline-block;

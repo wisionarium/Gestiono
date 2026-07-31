@@ -1,0 +1,12 @@
+{
+  "name": "gestiono-boa-gestao",
+  "version": "1.0.0",
+  "description": "Boa Gestão - Gestão de Ordens de Serviço",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y serve . -l 3000",
+    "start": "npx -y serve . -l 3000"
+  },
+  "author": "Wisionarium",
+  "license": "ISC"
+}
