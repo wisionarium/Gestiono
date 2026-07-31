@@ -210,6 +210,16 @@ const Utils = (() => {
       .toLowerCase();
   }
 
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function hashSenha(senha) {
     let hash = 0;
     for (let i = 0; i < senha.length; i++) {
@@ -256,7 +266,7 @@ const Utils = (() => {
     formatarData, formatarDataHora, formatarHora, calcularTempoTotal,
     traduzirStatus, traduzirVeiculo, traduzirPagamento,
     traduzirStatusPagamento, traduzirRole, formatarDataEntrega,
-    comprimirFotoBase64, removerAcentos,
+    comprimirFotoBase64, removerAcentos, escapeHtml,
     gerarMensagemWhatsApp, gerarLinkWhatsApp, abrirInstagram,
     hashSenha, gerarId, debounce
   };

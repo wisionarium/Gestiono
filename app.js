@@ -386,12 +386,23 @@ const App = (() => {
 
   // ---------- AUTH ----------
 
+  let loginTentativas = 0;
+  let loginBloqueadoAte = null;
+
   async function handleLogin(e) {
     e.preventDefault();
     const usuario = document.getElementById('login-usuario').value.trim();
     const senha = document.getElementById('login-senha').value;
     const errorEl = document.getElementById('login-error');
     const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    // Rate Limiting: Impede força bruta
+    if (loginBloqueadoAte && Date.now() < loginBloqueadoAte) {
+      const segundosRestantes = Math.ceil((loginBloqueadoAte - Date.now()) / 1000);
+      errorEl.textContent = `Muitas tentativas incorretas. Acesso bloqueado por mais ${segundosRestantes} segundos.`;
+      errorEl.classList.add('show');
+      return;
+    }
 
     if (submitBtn) {
       submitBtn.disabled = true;
@@ -413,6 +424,8 @@ const App = (() => {
       }
 
       if (user) {
+        loginTentativas = 0;
+        loginBloqueadoAte = null;
         currentUser = user;
         Storage.setUsuarioLogado(user);
         errorEl.classList.remove('show');
@@ -427,7 +440,14 @@ const App = (() => {
           });
         }
       } else {
-        errorEl.textContent = 'Usuário ou senha incorretos';
+        loginTentativas++;
+        if (loginTentativas >= 5) {
+          loginBloqueadoAte = Date.now() + (5 * 60 * 1000); // Bloqueio por 5 minutos
+          errorEl.textContent = 'Muitas tentativas de login incorretas. Acesso bloqueado temporariamente por 5 minutos por segurança.';
+        } else {
+          const restantes = 5 - loginTentativas;
+          errorEl.textContent = `Usuário ou senha incorretos. (${restantes} tentativa(s) restante(s))`;
+        }
         errorEl.classList.add('show');
       }
     } catch (err) {
@@ -2816,6 +2836,34 @@ const App = (() => {
     openModal('Instalar Aplicativo', bodyHtml, null);
   }
 
+  function openModalTermosEPolitica() {
+    const bodyHtml = `
+      <div style="font-size:var(--font-xs); color:var(--text-secondary); line-height:1.5; max-height:360px; overflow-y:auto; padding-right:6px;">
+        <h4 style="font-size:var(--font-sm); font-weight:700; color:var(--text-primary); margin-bottom:6px;">1. Termos de Uso do Sistema</h4>
+        <p style="margin-bottom:12px;">
+          O aplicativo <strong>Boa Gestão</strong> é uma plataforma operacional desenvolvida pela Wisionarium para gerenciamento de Ordens de Serviço, controle de atendimento e fluxo de trabalho em oficina. O acesso é restrito a usuários e funcionários devidamente autorizados.
+        </p>
+
+        <h4 style="font-size:var(--font-sm); font-weight:700; color:var(--text-primary); margin-bottom:6px;">2. Política de Privacidade & LGPD</h4>
+        <p style="margin-bottom:8px;">
+          Em conformidade com a <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - LGPD)</strong>, estabelecemos:
+        </p>
+        <ul style="list-style:disc; padding-left:18px; margin-bottom:12px; display:flex; flex-direction:column; gap:4px;">
+          <li><strong>Minimização de Dados:</strong> Coletamos apenas os dados estritamente necessários para a prestação do serviço (Nome do cliente, telefone de contato, modelo e cor do veículo).</li>
+          <li><strong>Finalidade Legal:</strong> Os dados cadastrados destinam-se exclusivamente ao cumprimento e execução do contrato de serviço firmado entre a oficina e o cliente.</li>
+          <li><strong>Segurança:</strong> Todas as comunicações utilizam criptografia HTTPS em trânsito e armazenamento seguro em repouso no Supabase Postgres.</li>
+          <li><strong>Direitos dos Titulares:</strong> O cliente ou usuário pode solicitar a correção, exportação ou exclusão definitiva de seus dados a qualquer momento via solicitação ao responsável administrativo.</li>
+        </ul>
+
+        <div style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.25); border-radius:var(--radius-sm); padding:10px; text-align:center; color:var(--accent); font-weight:600; margin-top:8px;">
+          Desenvolvido por Wisionarium • Conforme LGPD
+        </div>
+      </div>
+    `;
+
+    openModal('Termos de Uso & Privacidade (LGPD)', bodyHtml, null);
+  }
+
   function openModalNovoCargo() {
     openModalCargoForm('Novo Cargo', null, (nome, permissoesSelected) => {
       Storage.saveCargo({
@@ -2994,7 +3042,8 @@ const App = (() => {
     openModalNovoUsuario,
     openModalNovoCargo,
     openModalNovoCampo,
-    openModalNovaOpcao
+    openModalNovaOpcao,
+    openModalTermosEPolitica
   };
 })();
 
