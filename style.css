@@ -2886,32 +2886,42 @@ html {
   color: #64748b;
 }
 
-/* ---------- FOOTER CREDITS (WISIONARIUM) ---------- */
-.login-footer {
-  margin-top: var(--space-xl);
+/* ---------- FOOTER CREDITS (WISIONARIUM LOGO) ---------- */
+.login-footer,
+.app-credits-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-size: 0.78rem;
   color: var(--text-tertiary);
   text-align: center;
   letter-spacing: 0.3px;
 }
 
-.login-footer strong,
-.app-credits-footer strong {
-  color: var(--accent);
-  font-weight: 700;
+.login-footer {
+  margin-top: var(--space-xl);
 }
 
 .app-credits-footer {
   margin-top: var(--space-xl);
   margin-bottom: var(--space-sm);
-  padding: 14px var(--space-sm) var(--space-sm);
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  text-align: center;
+  padding: 16px var(--space-sm) var(--space-xs);
   border-top: 1px dashed rgba(255, 255, 255, 0.08);
-  letter-spacing: 0.3px;
+}
+
+.wisionarium-footer-logo {
+  height: 17px;
+  width: auto;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 [data-theme="light"] .app-credits-footer {
   border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .wisionarium-footer-logo {
+  filter: invert(0.85) hue-rotate(190deg);
 }
