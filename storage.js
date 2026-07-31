@@ -245,21 +245,23 @@ const Storage = (() => {
         localStorage.setItem(KEYS.CAMPOS, JSON.stringify(formattedCampos));
       }
 
-      // 6. Template WA
-      const { data: configMulti } = await client.from('configuracoes').select('*').eq('chave', 'templates_whatsapp').single();
-      if (configMulti && configMulti.valor) {
-        try {
-          const parsed = JSON.parse(configMulti.valor);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            localStorage.setItem(KEYS.TEMPLATES_WHATSAPP, JSON.stringify(parsed));
+      // 6. Template WA (Busca limpa sem gerar erro 406 caso a chave ainda não exista)
+      const { data: configs } = await client.from('configuracoes').select('*').in('chave', ['templates_whatsapp', 'template_whatsapp']);
+      if (configs && configs.length > 0) {
+        const multiConfig = configs.find(c => c.chave === 'templates_whatsapp');
+        const singleConfig = configs.find(c => c.chave === 'template_whatsapp');
+
+        if (multiConfig && multiConfig.valor) {
+          try {
+            const parsed = JSON.parse(multiConfig.valor);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              localStorage.setItem(KEYS.TEMPLATES_WHATSAPP, JSON.stringify(parsed));
+            }
+          } catch (e) {
+            console.warn('Erro ao ler templates_whatsapp:', e);
           }
-        } catch (e) {
-          console.warn('Erro ao ler templates_whatsapp:', e);
-        }
-      } else {
-        const { data: config } = await client.from('configuracoes').select('*').eq('chave', 'template_whatsapp').single();
-        if (config && config.valor) {
-          localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, config.valor);
+        } else if (singleConfig && singleConfig.valor) {
+          localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, singleConfig.valor);
         }
       }
     } catch (e) {
