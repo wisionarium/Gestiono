@@ -668,9 +668,10 @@ const App = (() => {
     if (currentUser) {
       const hasConfigPerm = temPermissao('configuracoes');
       const isConfigPage = (currentPage === 'admin' || currentPage.startsWith('admin-'));
-      
+      const isFormPage = (currentPage === 'nova-os' || currentPage.startsWith('editar') || currentPage.includes('os-'));
+
       if (btnAdmin) {
-        btnAdmin.style.display = (hasConfigPerm && !isConfigPage) ? 'flex' : 'none';
+        btnAdmin.style.display = (hasConfigPerm && !isConfigPage && !isFormPage) ? 'flex' : 'none';
       }
       if (btnLogout) {
         btnLogout.style.display = (!hasConfigPerm) ? 'flex' : 'none';
