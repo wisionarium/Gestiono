@@ -6,7 +6,13 @@
   <meta name="description" content="Sistema de gestão de ordens de serviço para oficina de veículos elétricos">
   <meta name="theme-color" content="#0a0a0f">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Boa Gestão">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <title>Boa Gestão — Gestão de Ordens de Serviço</title>
   <script>
@@ -521,6 +527,22 @@
               </div>
               <div class="settings-menu-item-right">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+
+            <!-- Instalar PWA -->
+            <div class="settings-menu-item" id="btn-pwa-install-menu" style="border: 1px solid var(--accent-border); background: var(--accent-bg); margin-top: 12px;">
+              <div class="settings-menu-item-left">
+                <div class="settings-menu-item-icon" style="color: var(--accent);">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </div>
+                <div class="settings-menu-item-info">
+                  <div class="settings-menu-item-title" style="color: var(--accent); font-weight:700;">Instalar Aplicativo</div>
+                  <div class="settings-menu-item-desc">Adicionar à Tela de Início (iOS e Android)</div>
+                </div>
+              </div>
+              <div class="settings-menu-item-right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               </div>
             </div>
           </div>

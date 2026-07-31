@@ -10,6 +10,7 @@ const App = (() => {
   let currentOSId = null;
   let editingOS = null;
   let fotosAnexadas = [];
+  let deferredPwaPrompt = null;
 
   function temPermissao(permissao) {
     if (!currentUser) return false;
@@ -25,6 +26,58 @@ const App = (() => {
   function init() {
     Storage.initialize();
     applyTheme();
+
+    // Registra Service Worker para PWA (offline & instalável)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => {
+            console.log('Service Worker PWA registrado com sucesso:', reg.scope);
+            // Verifica atualizações no servidor (ex: Vercel)
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              if (installingWorker) {
+                installingWorker.onstatechange = () => {
+                  if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    showToast('Nova versão disponível! Atualizando aplicativo...', 'info');
+                    setTimeout(() => window.location.reload(), 1200);
+                  }
+                };
+              }
+            };
+          })
+          .catch(err => console.warn('Erro ao registrar Service Worker PWA:', err));
+      });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    }
+
+    // Captura prompt nativo de instalação PWA (Android / Chrome)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPwaPrompt = e;
+    });
+
+    // Conecta ao Supabase Realtime para atualizações instantâneas em tempo real sem F5
+    if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.initRealtime) {
+      SupabaseConfig.initRealtime((table, payload) => {
+        if (typeof Storage.syncFromSupabase === 'function') {
+          Storage.syncFromSupabase().then(() => {
+            currentUser = Storage.getUsuarioLogado();
+            if (currentUser) {
+              renderDashboard();
+              renderCurrentList();
+            }
+          });
+        }
+      });
+    }
 
     // Always sync from Supabase on startup so all devices get fresh data
     if (typeof Storage.syncFromSupabase === 'function') {
@@ -83,6 +136,23 @@ const App = (() => {
 
     const btnAdmin = document.getElementById('btn-admin');
     if (btnAdmin) btnAdmin.addEventListener('click', () => navigateTo('admin'));
+
+    const btnPwaInstall = document.getElementById('btn-pwa-install-menu');
+    if (btnPwaInstall) {
+      btnPwaInstall.addEventListener('click', () => {
+        if (deferredPwaPrompt) {
+          deferredPwaPrompt.prompt();
+          deferredPwaPrompt.userChoice.then(choice => {
+            if (choice.outcome === 'accepted') {
+              showToast('Aplicativo adicionado à Tela de Início!', 'success');
+            }
+            deferredPwaPrompt = null;
+          });
+        } else {
+          openModalInstrucoesPWAiOS();
+        }
+      });
+    }
 
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
@@ -2714,6 +2784,36 @@ const App = (() => {
       navigateTo('andamento');
       return true;
     });
+  }
+
+  function openModalInstrucoesPWAiOS() {
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const bodyHtml = `
+      <div style="text-align:center; padding: 10px 0;">
+        <img src="logo.svg" alt="Boa Gestão" style="width:64px; height:64px; margin-bottom:12px; border-radius:var(--radius-md);">
+        <h3 style="font-size:1.1rem; font-weight:800; color:var(--text-primary); margin-bottom:8px;">Instalar o Boa Gestão</h3>
+        <p style="font-size:var(--font-xs); color:var(--text-secondary); margin-bottom:16px; line-height:1.5;">
+          Adicione o aplicativo diretamente à tela de início do seu celular para acesso rápido e offline:
+        </p>
+
+        <div style="text-align:left; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:12px; font-size:var(--font-xs);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="background:var(--accent-bg); color:var(--accent); font-weight:800; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</span>
+            <span>No navegador (${isIOS ? 'Safari' : 'Chrome'}), toque no ícone <strong>Compartilhar 📤</strong> ou no menu <strong>⋮</strong>.</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="background:var(--accent-bg); color:var(--accent); font-weight:800; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</span>
+            <span>Role as opções e selecione <strong>"Adicionar à Tela de Início" ➕</strong>.</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="background:var(--accent-bg); color:var(--accent); font-weight:800; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</span>
+            <span>Confirme tocando em <strong>Adicionar</strong> no canto superior direito.</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    openModal('Instalar Aplicativo', bodyHtml, null);
   }
 
   function openModalNovoCargo() {

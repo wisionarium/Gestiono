@@ -58,6 +58,53 @@ const SupabaseConfig = (() => {
     };
   }
 
+  let realtimeChannel = null;
+
+  function initRealtime(callback) {
+    if (realtimeChannel) return realtimeChannel;
+    const client = getClient();
+    if (!client) return null;
+
+    try {
+      realtimeChannel = client
+        .channel('public-db-realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ordens_servico' },
+          (payload) => {
+            console.log('⚡ Realtime: ordens_servico alterada', payload);
+            if (callback) callback('ordens_servico', payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'usuarios' },
+          (payload) => {
+            console.log('⚡ Realtime: usuarios alterados', payload);
+            if (callback) callback('usuarios', payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'configuracoes' },
+          (payload) => {
+            console.log('⚡ Realtime: configuracoes alteradas', payload);
+            if (callback) callback('configuracoes', payload);
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('📡 Supabase Realtime conectado com sucesso!');
+          }
+        });
+
+      return realtimeChannel;
+    } catch (e) {
+      console.warn('Erro ao conectar Supabase Realtime:', e);
+      return null;
+    }
+  }
+
   // Tenta inicializar na carga
   initClient();
 
@@ -65,6 +112,7 @@ const SupabaseConfig = (() => {
     getClient,
     isConnected,
     setCredentials,
-    getCredentials
+    getCredentials,
+    initRealtime
   };
 })();

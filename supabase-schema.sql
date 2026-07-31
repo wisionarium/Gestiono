@@ -108,3 +108,9 @@ CREATE POLICY "Public Campos Access" ON public.campos_personalizados FOR ALL USI
 
 DROP POLICY IF EXISTS "Public Config Access" ON public.configuracoes;
 CREATE POLICY "Public Config Access" ON public.configuracoes FOR ALL USING (true) WITH CHECK (true);
+
+-- HABILITAR SUPABASE REALTIME NAS TABELAS (Tempo Real)
+ALTER PUBLICATION supabase_realtime ADD TABLE public.ordens_servico;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.usuarios;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.cargos;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.configuracoes;
