@@ -2716,21 +2716,6 @@ const App = (() => {
     });
   }
 
-      const mecanicoNome = document.getElementById('delegar-mecanico-select').value;
-      Storage.updateOrdem(osId, {
-        status: 'em_andamento',
-        mecanico: mecanicoNome,
-        horaInicio: new Date().toISOString()
-      });
-      Storage.addHistorico(osId, `Serviço delegado para ${mecanicoNome}`, currentUser.nome);
-      showToast(`Serviço delegado para ${mecanicoNome}!`, 'success');
-      renderListaOS('aguardando');
-      renderListaOS('em_andamento');
-      navigateTo('andamento');
-      return true;
-    });
-  }
-
   function openModalNovoCargo() {
     openModalCargoForm('Novo Cargo', null, (nome, permissoesSelected) => {
       Storage.saveCargo({
