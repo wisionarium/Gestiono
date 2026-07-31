@@ -232,13 +232,32 @@ const Utils = (() => {
     };
   }
 
+  function abrirInstagram(username = 'wisionarium') {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const webUrl = `https://www.instagram.com/${username}/`;
+    const appUrl = `instagram://user?username=${username}`;
+
+    if (isMobile) {
+      const start = Date.now();
+      window.location.href = appUrl;
+
+      setTimeout(() => {
+        if (Date.now() - start < 1800) {
+          window.open(webUrl, '_blank');
+        }
+      }, 1200);
+    } else {
+      window.open(webUrl, '_blank');
+    }
+  }
+
   return {
     gerarCodigoOS, formatarMoeda, formatarTelefone, limparTelefone,
     formatarData, formatarDataHora, formatarHora, calcularTempoTotal,
     traduzirStatus, traduzirVeiculo, traduzirPagamento,
     traduzirStatusPagamento, traduzirRole, formatarDataEntrega,
     comprimirFotoBase64, removerAcentos,
-    gerarMensagemWhatsApp, gerarLinkWhatsApp,
+    gerarMensagemWhatsApp, gerarLinkWhatsApp, abrirInstagram,
     hashSenha, gerarId, debounce
   };
 })();
