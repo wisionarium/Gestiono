@@ -217,7 +217,7 @@ ul, ol { list-style: none; }
   height: 88px;
   margin: 0 auto var(--space-md);
   display: block;
-  filter: drop-shadow(0 8px 24px rgba(20, 107, 230, 0.45));
+  filter: none;
   transition: transform var(--transition-normal);
 }
 
@@ -231,7 +231,7 @@ ul, ol { list-style: none; }
   border-radius: var(--radius-sm);
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 2px 6px rgba(20, 107, 230, 0.3));
+  filter: none;
 }
 
 .login-logo h1 {
@@ -2884,4 +2884,34 @@ html {
 
 [data-theme="light"] .settings-menu-item-desc {
   color: #64748b;
+}
+
+/* ---------- FOOTER CREDITS (WISIONARIUM) ---------- */
+.login-footer {
+  margin-top: var(--space-xl);
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.login-footer strong,
+.app-credits-footer strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.app-credits-footer {
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-sm);
+  padding: 14px var(--space-sm) var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.3px;
+}
+
+[data-theme="light"] .app-credits-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
 }

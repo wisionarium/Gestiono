@@ -6,18 +6,15 @@
       <stop offset="100%" stop-color="#024bbd" />
     </linearGradient>
     <linearGradient id="logoHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25" />
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.2" />
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#023b96" flood-opacity="0.38" />
-    </filter>
   </defs>
 
   <!-- Background Squircle -->
-  <rect x="24" y="24" width="464" height="464" rx="110" ry="110" fill="url(#logoBg)" filter="url(#shadow)" />
+  <rect x="24" y="24" width="464" height="464" rx="110" ry="110" fill="url(#logoBg)" />
   <rect x="24" y="24" width="464" height="464" rx="110" ry="110" fill="url(#logoHighlight)" />
-  <rect x="24" y="24" width="464" height="464" rx="110" ry="110" fill="none" stroke="#ffffff" stroke-width="4" stroke-opacity="0.35" />
+  <rect x="24" y="24" width="464" height="464" rx="110" ry="110" fill="none" stroke="#ffffff" stroke-width="4" stroke-opacity="0.2" />
 
   <!-- Logo Graphic Mark (G + Checkmark) -->
   <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
