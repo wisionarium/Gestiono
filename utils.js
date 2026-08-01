@@ -287,223 +287,294 @@ const Utils = (() => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const pw = 210, ml = 15, cw = pw - ml * 2;
-    let y = 15;
 
-    function secTitle(t) {
-      doc.setDrawColor(203, 213, 225); doc.setFillColor(248, 250, 252);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
-      doc.text(t, ml + 4, y + 4); y += 7;
-      doc.line(ml, y - 2.5, ml + cw, y - 2.5); y += 1;
-    }
-    function field(lbl, val, x, mw) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
-      doc.text(lbl, x, y);
+    // Helper para desenhar campos sublinhados
+    function field(lbl, val, x, xLineEnd, yLine) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
+      doc.text(lbl, x, yLine);
       const lw = doc.getTextWidth(lbl) + 1;
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(51, 65, 133);
-      doc.text(val || '\u2014', x + lw, y);
-      doc.setDrawColor(148, 163, 184); doc.setLineDashPattern([1,1],0);
-      doc.line(x + lw, y + 0.5, x + mw, y + 0.5); doc.setLineDashPattern([],0);
+      
+      // Texto do valor em azul escuro e negrito acima da linha
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(51, 65, 133);
+      doc.text(val || '', x + lw + 1, yLine - 0.5);
+      
+      // Linha sólida cinza
+      doc.setDrawColor(180); doc.setLineWidth(0.2);
+      doc.line(x + lw, yLine + 0.8, xLineEnd, yLine + 0.8);
     }
-    function box(sy, ey) {
-      doc.setDrawColor(203, 213, 225); doc.setFillColor(248, 250, 252);
-      doc.roundedRect(ml, sy, cw, ey - sy, 2, 2, 'FD');
+
+    // Helper para desenhar títulos de seção com caixa cinza/verde claro
+    function drawSectionHeader(title, yPos) {
+      doc.setDrawColor(200); doc.setFillColor(240, 245, 240); // verde/cinza claro
+      doc.rect(ml, yPos, cw, 6, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(0);
+      doc.text(title, ml + 3, yPos + 4.2);
     }
-    function checkPage(need) { if (y + need > 280) { doc.addPage(); y = 15; } }
 
-    // HEADER
-    doc.setFont('helvetica','bold'); doc.setFontSize(26);
-    doc.setTextColor(239,68,68); doc.text('SUPRA', pw/2 - 2, y, {align:'right'});
-    doc.setTextColor(30,58,138); doc.text(' BIKE', pw/2 + 2, y, {align:'left'});
-    y += 8;
-    doc.setFontSize(11); doc.setTextColor(30,41,59);
-    doc.text('TERMO DE AUTORIZA\u00C7\u00C3O DE RETIRADA PARA MANUTEN\u00C7\u00C3O', pw/2, y, {align:'center'});
-    y += 3;
-    doc.setDrawColor(239,68,68); doc.setLineWidth(0.8); doc.line(ml, y, ml+cw, y); doc.setLineWidth(0.2); y += 6;
+    // Helper para desenhar checkbox vetorial (seguro contra fontes ausentes)
+    function drawCheck(lbl, checked, cx, cy) {
+      doc.setDrawColor(0); doc.setLineWidth(0.3);
+      doc.rect(cx, cy - 3, 3, 3);
+      if (checked) {
+        doc.line(cx, cy - 3, cx + 3, cy);
+        doc.line(cx, cy, cx + 3, cy - 3);
+      }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
+      doc.text(lbl, cx + 5, cy);
+    }
 
-    // GARANTIA + DATA
+    // 1. CABEÇALHO CENTRALIZADO
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(24);
+    doc.setTextColor(239, 68, 68); doc.text('SUPRA', pw / 2 - 2, 16, { align: 'right' });
+    doc.setTextColor(30, 58, 138); doc.text(' BIKE', pw / 2 + 2, 16, { align: 'left' });
+    
+    doc.setFontSize(13.5); doc.setTextColor(0);
+    doc.text('TERMO DE AUTORIZAÇÃO DE RETIRADA', pw / 2, 23, { align: 'center' });
+    doc.text('PARA MANUTENÇÃO', pw / 2, 28, { align: 'center' });
+
+    // 2. GARANTIA + DATA
+    let y = 36;
     if (d.temGarantia) {
-      doc.setFillColor(34,197,94); doc.roundedRect(ml, y-3.5, 24, 6, 1.5, 1.5, 'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(255,255,255);
-      doc.text('GARANTIA', ml+2, y);
+      doc.setFillColor(34, 197, 94); // Verde
+      doc.rect(ml, y - 3.5, 22, 5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255);
+      doc.text('GARANTIA', ml + 2, y);
     }
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(71,85,105);
-    doc.text('Data: ' + d.dataGeracao, ml+cw, y, {align:'right'}); y += 8;
+    
+    // Data no formato ___/___/_____
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
+    const dataExibicao = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : d.dataGeracao;
+    doc.text(`Data:  ${dataExibicao}`, ml + cw - 32, y);
 
-    // DADOS DO CLIENTE
-    let sy = y; box(sy, sy+24); y = sy+1; secTitle('DADOS DO CLIENTE');
-    field('Nome: ', os.clienteNome||'', ml+4, ml+cw*0.58);
-    field('Cel.: ', os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '', ml+cw*0.62, ml+cw-4);
-    y += 6; field('Endere\u00E7o: ', d.endereco||'N\u00E3o cadastrado', ml+4, ml+cw-4); y += 8;
+    // 3. DADOS DO CLIENTE
+    y = 41;
+    drawSectionHeader('DADOS DO CLIENTE', y);
+    
+    y += 12;
+    field('Nome:', os.clienteNome || '', ml + 2, ml + cw * 0.65, y);
+    field('Cel.:', os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '', ml + cw * 0.68, ml + cw - 2, y);
+    
+    y += 6;
+    const enderecoFormatado = os.clienteEndereco || d.endereco || 'Não cadastrado';
+    field('Endereço:', enderecoFormatado, ml + 2, ml + cw - 2, y);
 
-    // DADOS DO VEÍCULO
-    sy = y; box(sy, sy+18); y = sy+1; secTitle('DADOS DO VE\u00CDCULO');
-    field('Modelo: ', os.modeloVeiculo||'', ml+4, ml+cw*0.45);
-    field('Cor: ', os.corVeiculo||'', ml+cw*0.52, ml+cw-4); y += 8;
+    // 4. DADOS DO VEÍCULO
+    y = 66;
+    drawSectionHeader('DADOS DO VEÍCULO', y);
+    
+    y += 12;
+    field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.48, y);
+    field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
 
-    // TAXA DE RETIRADA
-    sy = y; box(sy, sy+18); y = sy+1; secTitle('TAXA DE RETIRADA');
-    field('Valor: ', d.valorRetirada||'', ml+4, ml+cw*0.45);
-    field('Levar: ', d.levar||'', ml+cw*0.52, ml+cw-4); y += 8;
+    // 5. TAXA DE RETIRADA
+    y = 86;
+    drawSectionHeader('TAXA DE RETIRADA', y);
+    
+    y += 12;
+    field('Valor:', d.valorRetirada || '', ml + 2, ml + cw * 0.48, y);
+    field('Levar:', d.levar || '', ml + cw * 0.52, ml + cw - 2, y);
 
-    // ITENS RETIRADOS
-    sy = y; box(sy, sy+18); y = sy+1; secTitle('ITENS RETIRADOS');
-    const itens = [{l:'Chaves',c:d.deixouChave},{l:'Controles',c:d.deixouControle},{l:'Carregador',c:d.deixouCarregador},{l:'Documentos',c:d.deixouDocumento}];
-    const colW = (cw-8)/4;
-    itens.forEach((it,i) => {
-      const ix = ml+4+i*colW;
-      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(30,58,138);
-      doc.text(it.c ? '\u2611' : '\u2610', ix, y);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(30,41,59);
-      doc.text(' '+it.l, ix+4, y);
-    }); y += 8;
+    // 6. ITENS RETIRADOS
+    y = 106;
+    drawSectionHeader('ITENS RETIRADOS', y);
+    
+    y += 11;
+    const colWidth = cw / 4;
+    drawCheck('Chaves [  ]', d.deixouChave, ml + 2, y);
+    drawCheck('Controles [  ]', d.deixouControle, ml + 2 + colWidth, y);
+    drawCheck('Carregador', d.deixouCarregador, ml + 2 + colWidth * 2, y);
+    drawCheck('Documentos', d.deixouDocumento, ml + 2 + colWidth * 3, y);
 
-    // DESCRIÇÃO DA MANUTENÇÃO (Unificada com Serviços)
+    // 7. DESCRIÇÃO DA MANUTENÇÃO (Unificada com Serviços e fotos de 5 slots dentro da caixa)
+    y = 125;
+    drawSectionHeader('DESCRIÇÃO DA MANUTENÇÃO', y);
+    
+    y += 6;
+    const boxStartY = y;
+    const boxHeight = 70; // Mantém fixo para encaixar exatamente em uma página
+    doc.setDrawColor(180); doc.setFillColor(255);
+    doc.rect(ml, boxStartY, cw, boxHeight);
+    
+    // Constrói texto unificado de serviços e observações
     let descTexto = '';
     if (d.servicos && d.servicos.length > 0) {
-      descTexto += 'SERVI\u00C7OS EXECUTADOS:\n';
+      descTexto += 'SERVIÇOS EXECUTADOS:\n';
       d.servicos.forEach((s, idx) => {
-        descTexto += `${idx + 1}. ${s.descricao || 'Servi\u00E7o'} (${formatarMoeda(s.valor || 0)})\n`;
+        descTexto += `${idx + 1}. ${s.descricao || 'Serviço'} (${formatarMoeda(s.valor || 0)})\n`;
       });
       descTexto += `VALOR TOTAL: ${formatarMoeda(os.valorTotal || 0)}\n`;
       if (d.observacoes) {
-        descTexto += `\nOBSERVA\u00C7\u00D5ES:\n${d.observacoes}`;
+        descTexto += `\nOBSERVAÇÕES:\n${d.observacoes}`;
       }
     } else {
-      descTexto = d.observacoes || 'Nenhuma manuten\u00E7\u00E3o cadastrada.';
+      descTexto = d.observacoes || 'Nenhuma manutenção cadastrada.';
     }
 
-    const obsLines = doc.splitTextToSize(descTexto, cw-12);
-    const obsH = Math.max(18, obsLines.length * 4.2 + 12);
-    checkPage(obsH);
-    sy = y; box(sy, sy+obsH); y = sy+1; secTitle('DESCRI\u00C7\u00C3O DA MANUTEN\u00C7\u00C3O (OBSERVA\u00C7\u00D5ES)');
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(51,65,133);
-    doc.text(obsLines, ml+4, y+1); y = sy+obsH+3;
+    // Imprime texto nas observações com quebra de linha
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 133);
+    const splitDesc = doc.splitTextToSize(descTexto, cw - 6);
+    doc.text(splitDesc, ml + 3, boxStartY + 4.5);
 
-    // AUTORIZAÇÃO
-    const a1 = 'Autorizo a SUPRA BIKE a retirar o ve\u00EDculo acima para realiza\u00E7\u00E3o de inspe\u00E7\u00E3o t\u00E9cnica, manuten\u00E7\u00E3o e/ou reparo.';
-    const a2 = 'Estou ciente de que a retirada do ve\u00EDculo n\u00E3o caracteriza aprova\u00E7\u00E3o autom\u00E1tica da garantia. Caso o defeito n\u00E3o esteja coberto pela garantia, ser\u00E1 apresentado or\u00E7amento para aprova\u00E7\u00E3o antes da execu\u00E7\u00E3o do servi\u00E7o.';
-    const a1L = doc.splitTextToSize(a1, cw-12), a2L = doc.splitTextToSize(a2, cw-12);
-    const aH = (a1L.length+a2L.length)*4.2+14;
-    checkPage(aH);
-    sy = y; box(sy, sy+aH); y = sy+1; secTitle('AUTORIZA\u00C7\u00C3O');
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(71,85,105);
-    doc.text(a1L, ml+4, y+1); y += a1L.length*4.2+2;
-    doc.text(a2L, ml+4, y+1); y = sy+aH+8;
+    // Imprime fotos no rodapé do bloco de descrição da manutenção
+    const photoAreaY = boxStartY + boxHeight - 26;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(0);
+    doc.text('FOTOS:', ml + 3, photoAreaY);
 
-    // ASSINATURAS
-    checkPage(20);
-    const sw = (cw-20)/2;
-    doc.setDrawColor(148,163,184);
-    doc.line(ml+4, y, ml+4+sw, y);
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(30,41,59);
-    doc.text('Assinatura do Cliente', ml+4+sw/2, y+5, {align:'center'});
-    const tx = ml+cw-4-sw;
-    if (os.mecanico) { doc.setTextColor(15,23,42); doc.text(os.mecanico, tx+sw/2, y-2, {align:'center'}); }
-    doc.line(tx, y, tx+sw, y);
-    doc.setTextColor(30,41,59); doc.text('T\u00E9cnico Respons\u00E1vel', tx+sw/2, y+5, {align:'center'});
+    // Calcula tamanho dos 5 slots de fotos
+    const pwImage = 30;
+    const phImage = 20;
+    const pGap = (cw - 6 - (pwImage * 5)) / 4;
 
-    // FOTOS (em nova página se houver fotos anexadas)
-    if (d.fotos && d.fotos.length > 0) {
-      doc.addPage();
-      y = 15;
-      doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(30,41,59);
-      doc.text('FOTOS DO VE\u00CDCULO - OS ' + os.id, pw/2, y, {align:'center'});
-      y += 10;
+    for (let i = 0; i < 5; i++) {
+      const px = ml + 3 + i * (pwImage + pGap);
+      doc.setDrawColor(200); doc.setFillColor(250, 250, 250);
+      doc.rect(px, photoAreaY + 2, pwImage, phImage, 'FD'); // Desenha slot placeholder
 
-      const imgW = 80, imgH = 60, gap = 8, cols = 2;
-      d.fotos.forEach((src, i) => {
-        if (!src) return;
-        const col = i % cols;
-        const x = ml + col * (imgW + gap);
-        if (col === 0 && i > 0) y += imgH + gap;
-        if (y + imgH > 280) { doc.addPage(); y = 15; }
+      // Se houver foto salva para este slot, renderiza de forma direta no PDF
+      if (d.fotos && d.fotos[i]) {
         try {
           let format = 'JPEG';
-          if (src.includes('image/png') || src.includes('data:image/png')) format = 'PNG';
-          // jsPDF adiciona fotos base64 de forma direta e síncrona
-          doc.addImage(src, format, x, y, imgW, imgH);
+          if (d.fotos[i].includes('image/png') || d.fotos[i].includes('data:image/png')) format = 'PNG';
+          doc.addImage(d.fotos[i], format, px, photoAreaY + 2, pwImage, phImage);
         } catch(e) {
-          console.warn('Erro ao desenhar imagem no PDF:', e);
+          console.warn('Erro ao inserir foto no PDF:', e);
         }
-      });
+      }
     }
 
-    // Salva o PDF diretamente no dispositivo
+    // 8. AUTORIZAÇÃO
+    y = boxStartY + boxHeight + 4;
+    drawSectionHeader('AUTORIZAÇÃO', y);
+    
+    y += 10;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(71, 85, 105);
+    const aut1 = 'Autorizo a SUPRA BIKE a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.';
+    const aut2 = 'Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.';
+    const splitAut1 = doc.splitTextToSize(aut1, cw - 4);
+    const splitAut2 = doc.splitTextToSize(aut2, cw - 4);
+    doc.text(splitAut1, ml + 2, y);
+    doc.text(splitAut2, ml + 2, y + 3.8);
+
+    // 9. ASSINATURAS (Centralizado em folha única)
+    y += 15;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
+    doc.text('Assinatura do Cliente:', pw / 2, y, { align: 'center' });
+    doc.setDrawColor(120); doc.setLineWidth(0.3);
+    doc.line(pw / 2 - 50, y + 6, pw / 2 + 50, y + 6);
+    
+    y += 14;
+    doc.text('Técnico Responsável', pw / 2, y, { align: 'center' });
+    if (os.mecanico) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(51, 65, 133);
+      doc.text(os.mecanico, pw / 2, y + 5.5, { align: 'center' });
+    }
+    doc.line(pw / 2 - 35, y + 7, pw / 2 + 35, y + 7);
+
+    // Salva o arquivo diretamente
     doc.save('Termo_Retirada_OS_' + os.id + '.pdf');
   }
 
   function _gerarPDFFallbackHTML(os, d) {
     let descTextoHtml = '';
     if (d.servicos && d.servicos.length > 0) {
-      descTextoHtml += '<strong style="color:#1e3a8a;">SERVI\u00C7OS EXECUTADOS:</strong><br>';
+      descTextoHtml += '<strong style="color:#1e3a8a;">SERVIÇOS EXECUTADOS:</strong><br>';
       d.servicos.forEach((s, idx) => {
-        descTextoHtml += `${idx + 1}. ${escapeHtml(s.descricao || 'Servi\u00E7o')} (${formatarMoeda(s.valor || 0)})<br>`;
+        descTextoHtml += `${idx + 1}. ${escapeHtml(s.descricao || 'Serviço')} (${formatarMoeda(s.valor || 0)})<br>`;
       });
       descTextoHtml += `<strong style="color:#ef4444;">VALOR TOTAL: ${formatarMoeda(os.valorTotal || 0)}</strong><br>`;
       if (d.observacoes) {
-        descTextoHtml += `<br><strong style="color:#1e3a8a;">OBSERVA\u00C7\u00D5ES:</strong><br>${escapeHtml(d.observacoes).replace(/\n/g, '<br>')}`;
+        descTextoHtml += `<br><strong style="color:#1e3a8a;">OBSERVAÇÕES:</strong><br>${escapeHtml(d.observacoes).replace(/\n/g, '<br>')}`;
       }
     } else {
-      descTextoHtml = d.observacoes ? escapeHtml(d.observacoes).replace(/\n/g, '<br>') : 'Nenhuma manuten\u00E7\u00E3o cadastrada.';
+      descTextoHtml = d.observacoes ? escapeHtml(d.observacoes).replace(/\n/g, '<br>') : 'Nenhuma manutenção cadastrada.';
     }
 
-    const fotosHtml = d.fotos.length > 0 ? `
-      <div class="section">
-        <div class="section-title">Fotos do Ve\u00EDculo</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${d.fotos.map(src => `<img src="${src}" style="width:120px;height:90px;object-fit:cover;border-radius:4px;border:1px solid #cbd5e1;">`).join('')}
-        </div>
-      </div>` : '';
+    // Slots das 5 fotos em HTML inline
+    let fotosHtml = '<div style="display:flex; gap:10px; margin-top:15px; border-top:1px solid #ddd; padding-top:10px;">';
+    for (let i = 0; i < 5; i++) {
+      if (d.fotos && d.fotos[i]) {
+        fotosHtml += `<div style="width:70px; height:50px; border:1px solid #cbd5e1; border-radius:4px; overflow:hidden;"><img src="${d.fotos[i]}" style="width:100%; height:100%; object-fit:cover;"></div>`;
+      } else {
+        fotosHtml += `<div style="width:70px; height:50px; border:1px dashed #cbd5e1; border-radius:4px; background:#f8fafc; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:9px;">Vazio</div>`;
+      }
+    }
+    fotosHtml += '</div>';
 
-    const ck = (v) => v ? '\u2611' : '\u2610';
+    const ck = (v) => v ? '☒' : '☐';
+    const dataExibicao = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : d.dataGeracao;
+    const enderecoFormatado = os.clienteEndereco || d.endereco || 'Não cadastrado';
+
     const htmlDoc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Retirada_OS_${os.id}</title>
 <style>
 @page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px}
-.header{text-align:center;border-bottom:2.5px solid #ef4444;padding-bottom:10px;margin-bottom:12px}
-.brand{font-size:30px;font-weight:800;letter-spacing:2px}.red{color:#ef4444}.blue{color:#1e3a8a}
-h2{font-size:13px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:6px}
-.meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.garantia-badge{background:#22c55e;color:#fff;padding:3px 10px;font-weight:800;font-size:10px;border-radius:4px;text-transform:uppercase}
-.section{border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;margin-bottom:10px;background:#f8fafc}
-.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#1e293b;border-bottom:1.5px solid #cbd5e1;padding-bottom:3px;margin-bottom:7px}
-.fields-row{display:flex;gap:15px;font-size:11px;margin-bottom:5px}.field{flex:1}
-.fl{font-weight:700}.fv{border-bottom:1px dashed #94a3b8;display:inline-block;min-width:60%;padding-left:3px;color:#334185}
-.checks-row{display:flex;gap:10px;font-size:11px}.ci{display:flex;align-items:center;gap:4px;flex:1}
-.ck{font-size:15px;font-weight:bold;color:#1e3a8a}
-.obs{font-size:10.5px;line-height:1.5;color:#334155;min-height:30px;}
-.auth{font-size:10px;line-height:1.5;color:#475569}
-.sigs{display:flex;gap:40px;margin-top:30px;font-size:11px}.sb{flex:1;text-align:center}
-.sl{border-bottom:1px solid #94a3b8;height:25px;margin-bottom:4px}.sn{font-weight:700;line-height:25px;color:#0f172a}
+body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px; max-width:800px; margin:0 auto;}
+.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}
+.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}
+h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}
+.meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.garantia-badge{background:#22c55e;color:#fff;padding:2px 8px;font-weight:800;font-size:9px;border-radius:3px;}
+.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px;}
+.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px; border-bottom:1px solid #f1f5f9; padding-bottom:4px;}
+.field{flex:1; display:flex;}
+.fl{font-weight:700; margin-right:5px;}
+.fv{color:#334185; font-weight:700;}
+.checks-row{display:flex;gap:15px;font-size:11px;margin-bottom:8px;}.ci{display:flex;align-items:center;gap:6px;}
+.ck{font-size:14px;color:#1e3a8a;font-weight:bold;}
+.obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px;}
+.obs{font-size:10px;line-height:1.4;color:#334155;}
+.auth{font-size:9.5px;line-height:1.4;color:#475569;margin-bottom:4px;}
+.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:25px;font-size:11px}
+.sb{text-align:center; width:60%;}
+.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}
 </style></head><body>
 <div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div>
-<h2>Termo de Autoriza\u00E7\u00E3o de Retirada para Manuten\u00E7\u00E3o</h2></div>
-<div class="meta-row"><div>${d.temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : ''}</div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>${d.dataGeracao}</u></div></div>
-<div class="section"><div class="section-title">Dados do Cliente</div>
-<div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">${os.clienteNome||'\u2014'}</span></div>
-<div class="field"><span class="fl">Cel.:</span> <span class="fv">${os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014'}</span></div></div>
-<div><span class="fl">Endere\u00E7o:</span> <span class="fv" style="width:85%">${d.endereco||'N\u00E3o cadastrado'}</span></div></div>
-<div class="section"><div class="section-title">Dados do Ve\u00EDculo</div>
-<div class="fields-row"><div class="field"><span class="fl">Modelo:</span> <span class="fv">${os.modeloVeiculo||'\u2014'}</span></div>
-<div class="field"><span class="fl">Cor:</span> <span class="fv">${os.corVeiculo||'\u2014'}</span></div></div></div>
-<div class="section"><div class="section-title">Taxa de Retirada</div>
-<div class="fields-row"><div class="field"><span class="fl">Valor:</span> <span class="fv">${d.valorRetirada||'\u2014'}</span></div>
-<div class="field"><span class="fl">Levar:</span> <span class="fv">${d.levar||'\u2014'}</span></div></div></div>
-<div class="section"><div class="section-title">Itens Retirados</div>
-<div class="checks-row"><div class="ci"><span class="ck">${ck(d.deixouChave)}</span> Chaves</div>
-<div class="ci"><span class="ck">${ck(d.deixouControle)}</span> Controles</div>
-<div class="ci"><span class="ck">${ck(d.deixouCarregador)}</span> Carregador</div>
-<div class="ci"><span class="ck">${ck(d.deixouDocumento)}</span> Documentos</div></div></div>
-<div class="section"><div class="section-title">Descri\u00E7\u00E3o da Manuten\u00E7\u00E3o (Observa\u00E7\u00F5es)</div><div class="obs">${descTextoHtml}</div></div>
-${fotosHtml}
-<div class="section"><div class="section-title">Autoriza\u00E7\u00E3o</div>
-<p class="auth">Autorizo a <strong>SUPRA BIKE</strong> a retirar o ve\u00EDculo acima para realiza\u00E7\u00E3o de inspe\u00E7\u00E3o t\u00E9cnica, manuten\u00E7\u00E3o e/ou reparo.</p>
-<p class="auth" style="margin-top:4px">Estou ciente de que a retirada do ve\u00EDculo n\u00E3o caracteriza aprova\u00E7\u00E3o autom\u00E1tica da garantia. Caso o defeito n\u00E3o esteja coberto pela garantia, ser\u00E1 apresentado or\u00E7amento para aprova\u00E7\u00E3o antes da execu\u00E7\u00E3o do servi\u00E7o.</p></div>
-<div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div>
-<div class="sb"><div class="sl sn">${os.mecanico||'\u2014'}</div><div style="font-weight:700">T\u00E9cnico Respons\u00E1vel</div></div></div>
+<h2>Termo de Autorização de Retirada para Manutenção</h2></div>
+<div class="meta-row"><div>${d.temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : ''}</div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>${dataExibicao}</u></div></div>
+
+<div class="section-title">Dados do Cliente</div>
+<div class="fields-row">
+  <div class="field"><span class="fl">Nome:</span> <span class="fv">${os.clienteNome||'\u2014'}</span></div>
+  <div class="field"><span class="fl">Cel.:</span> <span class="fv">${os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014'}</span></div>
+</div>
+<div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">${enderecoFormatado}</span></div>
+
+<div class="section-title" style="margin-top:8px;">Dados do Veículo</div>
+<div class="fields-row" style="border:none;">
+  <div class="field"><span class="fl">Modelo:</span> <span class="fv">${os.modeloVeiculo||'\u2014'}</span></div>
+  <div class="field"><span class="fl">Cor:</span> <span class="fv">${os.corVeiculo||'\u2014'}</span></div>
+</div>
+
+<div class="section-title" style="margin-top:8px;">Taxa de Retirada</div>
+<div class="fields-row" style="border:none;">
+  <div class="field"><span class="fl">Valor:</span> <span class="fv">${d.valorRetirada||'\u2014'}</span></div>
+  <div class="field"><span class="fl">Levar:</span> <span class="fv">${d.levar||'\u2014'}</span></div>
+</div>
+
+<div class="section-title" style="margin-top:8px;">Itens Retirados</div>
+<div class="checks-row">
+  <div class="ci"><span class="ck">${ck(d.deixouChave)}</span> Chaves [  ]</div>
+  <div class="ci"><span class="ck">${ck(d.deixouControle)}</span> Controles [  ]</div>
+  <div class="ci"><span class="ck">${ck(d.deixouCarregador)}</span> Carregador</div>
+  <div class="ci"><span class="ck">${ck(d.deixouDocumento)}</span> Documentos</div>
+</div>
+
+<div class="section-title" style="margin-top:8px;">Descrição da Manutenção</div>
+<div class="obs-container">
+  <div class="obs">${descTextoHtml}</div>
+  ${fotosHtml}
+</div>
+
+<div class="section-title" style="margin-top:8px;">Autorização</div>
+<p class="auth">Autorizo a <strong>SUPRA BIKE</strong> a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.</p>
+<p class="auth">Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.</p>
+
+<div class="sigs">
+  <div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div>
+  <div class="sb"><div class="sl sn">${os.mecanico||'\u2014'}</div><div style="font-weight:700">Técnico Responsável</div></div>
+</div>
 </body></html>`;
 
-    // Download direto como arquivo HTML (sem abrir caixa de impressão)
+    // Download direto do HTML
     const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.ordens_servico (
   id TEXT PRIMARY KEY,
   cliente_nome TEXT NOT NULL,
   cliente_telefone TEXT,
+  cliente_endereco TEXT,
   modelo_veiculo TEXT,
   cor_veiculo TEXT,
   servicos JSONB DEFAULT '[]'::jsonb,
@@ -44,6 +45,8 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
   usuario TEXT UNIQUE NOT NULL,
   senha TEXT NOT NULL,
   role TEXT NOT NULL,
+  is_interno BOOLEAN DEFAULT false,
+  exibir_na_delegacao BOOLEAN DEFAULT true,
   foto_perfil TEXT,
   criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
