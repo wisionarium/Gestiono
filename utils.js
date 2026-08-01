@@ -243,76 +243,22 @@ const Utils = (() => {
   }
 
   function gerarPDFRetirada(os) {
-    if (typeof html2pdf === 'undefined') {
+    if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
       alert('Aguarde o carregamento do gerador de PDF ou verifique sua conexão.');
       return;
     }
 
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
     const camposDef = typeof Storage !== 'undefined' ? Storage.getCampos() : [];
     const campos = os.camposPersonalizados || {};
-    
-    // Procura por Garantia
+
+    // === Coleta de dados dos campos personalizados ===
     let temGarantia = false;
-    for (const [campoId, val] of Object.entries(campos)) {
-      const cDef = camposDef.find(c => c.id === campoId);
-      if (cDef) {
-        const name = cDef.nome.toLowerCase();
-        if ((name.includes('garantia') || name.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) {
-          temGarantia = true;
-          break;
-        }
-      }
-    }
-
-    // Procura por Endereço
     let endereco = '';
-    for (const [campoId, val] of Object.entries(campos)) {
-      const cDef = camposDef.find(c => c.id === campoId);
-      if (cDef) {
-        const name = cDef.nome.toLowerCase();
-        if (name.includes('endereço') || name.includes('endereco') || name.includes('rua') || name.includes('bairro') || name.includes('cidade')) {
-          if (val.valor && typeof val.valor === 'string') {
-            endereco = val.valor;
-            break;
-          }
-        }
-      }
-    }
-
-    // Procura por Taxa de Retirada / Valor
     let valorRetirada = '';
-    for (const [campoId, val] of Object.entries(campos)) {
-      const cDef = camposDef.find(c => c.id === campoId);
-      if (cDef) {
-        const name = cDef.nome.toLowerCase();
-        if (name.includes('taxa') || name.includes('retirada') || name.includes('valor')) {
-          if (val.valor !== undefined && val.valor !== null) {
-            if (typeof val.valor === 'number') {
-              valorRetirada = formatarMoeda(val.valor);
-            } else if (typeof val.valor === 'string' && val.valor.trim() !== '' && val.valor.toLowerCase() !== 'true' && val.valor.toLowerCase() !== 'false') {
-              valorRetirada = val.valor;
-            }
-          }
-        }
-      }
-    }
-
-    // Procura por Levar
     let levar = '';
-    for (const [campoId, val] of Object.entries(campos)) {
-      const cDef = camposDef.find(c => c.id === campoId);
-      if (cDef) {
-        const name = cDef.nome.toLowerCase();
-        if (name.includes('levar') || name.includes('trazer') || name.includes('itens')) {
-          if (val.valor && typeof val.valor === 'string') {
-            levar = val.valor;
-            break;
-          }
-        }
-      }
-    }
-
-    // Determina itens retirados (checkboxes)
     let deixouChave = false;
     let deixouCarregador = false;
     let deixouControle = false;
@@ -320,183 +266,235 @@ const Utils = (() => {
 
     for (const [campoId, val] of Object.entries(campos)) {
       const cDef = camposDef.find(c => c.id === campoId);
-      if (cDef) {
-        const name = cDef.nome.toLowerCase();
-        if (name.includes('chave')) deixouChave = !!val.valor;
-        if (name.includes('carregador')) deixouCarregador = !!val.valor;
-        if (name.includes('controle') || name.includes('nfc') || name.includes('tag')) deixouControle = !!val.valor;
-        if (name.includes('documento') || name.includes('doc')) deixouDocumento = !!val.valor;
+      if (!cDef) continue;
+      const name = cDef.nome.toLowerCase();
+
+      if ((name.includes('garantia') || name.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) {
+        temGarantia = true;
       }
+      if (name.includes('endereço') || name.includes('endereco') || name.includes('rua') || name.includes('bairro') || name.includes('cidade')) {
+        if (val.valor && typeof val.valor === 'string') endereco = val.valor;
+      }
+      if (name.includes('taxa') || name.includes('retirada') || name.includes('valor')) {
+        if (val.valor !== undefined && val.valor !== null) {
+          if (typeof val.valor === 'number') valorRetirada = formatarMoeda(val.valor);
+          else if (typeof val.valor === 'string' && val.valor.trim() !== '' && val.valor.toLowerCase() !== 'true' && val.valor.toLowerCase() !== 'false') valorRetirada = val.valor;
+        }
+      }
+      if (name.includes('levar') || name.includes('trazer') || name.includes('itens')) {
+        if (val.valor && typeof val.valor === 'string') levar = val.valor;
+      }
+      if (name.includes('chave')) deixouChave = !!val.valor;
+      if (name.includes('carregador')) deixouCarregador = !!val.valor;
+      if (name.includes('controle') || name.includes('nfc') || name.includes('tag')) deixouControle = !!val.valor;
+      if (name.includes('documento') || name.includes('doc')) deixouDocumento = !!val.valor;
     }
 
     const dataGeracao = new Date().toLocaleDateString('pt-BR');
+    const pageW = 210;
+    const marginL = 15;
+    const marginR = 15;
+    const contentW = pageW - marginL - marginR;
+    let y = 15;
 
-    const opt = {
-      margin:       [10, 15, 10, 15],
-      filename:     'Termo_Retirada_OS_' + os.id + '.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+    // === Helpers ===
+    function drawSectionTitle(title) {
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      doc.text(title, marginL + 4, y + 4);
+      y += 7;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(marginL, y - 2.5, marginL + contentW, y - 2.5);
+      y += 1;
+    }
 
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '0';
-    container.style.top = '0';
-    container.style.zIndex = '-9999';
-    container.style.opacity = '1';
-    container.style.pointerEvents = 'none';
-    container.style.width = '794px'; // Largura exata A4 em 96 DPI
-    container.style.boxSizing = 'border-box';
-    container.style.fontFamily = "'Outfit', 'Inter', sans-serif";
-    container.style.color = "#0f172a";
-    container.style.padding = "30px";
-    container.style.background = "#ffffff";
+    function drawField(label, value, x, maxW) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      doc.text(label, x, y);
+      const labelW = doc.getTextWidth(label) + 1;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 133);
+      const val = value || '—';
+      doc.text(val, x + labelW, y);
+      // Underline dashed
+      doc.setDrawColor(148, 163, 184);
+      doc.setLineDashPattern([1, 1], 0);
+      doc.line(x + labelW, y + 0.5, x + maxW, y + 0.5);
+      doc.setLineDashPattern([], 0);
+    }
 
-    let htmlContent = `
-      <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">
-        <span style="font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: 2px;">
-          <span style="color: #ef4444;">SUPRA</span> <span style="color: #1e3a8a;">BIKE</span>
-        </span>
-        <h2 style="font-size: 15px; font-weight: 800; text-align: center; color: #1e293b; margin: 8px 0 0; text-transform: uppercase; letter-spacing: 0.5px;">
-          TERMO DE AUTORIZAÇÃO DE RETIRADA PARA MANUTENÇÃO
-        </h2>
-      </div>
+    function drawSectionBox(startY, endY) {
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(marginL, startY, contentW, endY - startY, 2, 2, 'FD');
+    }
 
-      <!-- Garantia e Data -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <div style="height: 26px;">
-          ${temGarantia ? `
-            <span style="background: #22c55e; color: #fff; padding: 4px 10px; font-weight: 800; font-size: 11px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px;">
-              GARANTIA
-            </span>
-          ` : ''}
-        </div>
-        <div style="font-size: 12px; font-weight: 600; color: #475569;">
-          Data: <span style="border-bottom: 1.5px solid #94a3b8; padding: 0 8px 2px;">${dataGeracao}</span>
-        </div>
-      </div>
+    // === CABEÇALHO ===
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(26);
+    doc.setTextColor(239, 68, 68); // vermelho
+    doc.text('SUPRA', pageW / 2 - 2, y, { align: 'right' });
+    doc.setTextColor(30, 58, 138); // azul escuro
+    doc.text(' BIKE', pageW / 2 + 2, y, { align: 'left' });
+    y += 8;
 
-      <!-- Dados do Cliente -->
-      <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fafc;">
-        <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 0.5px;">
-          DADOS DO CLIENTE
-        </div>
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; font-size: 12px; margin-bottom: 6px;">
-          <div><strong>Nome:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 80%; padding-left: 4px;">${os.clienteNome || ''}</span></div>
-          <div><strong>Cel.:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 75%; padding-left: 4px;">${os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : ''}</span></div>
-        </div>
-        <div style="font-size: 12px;">
-          <strong>Endereço:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 86%; padding-left: 4px;">${endereco || 'Não cadastrado'}</span>
-        </div>
-      </div>
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text('TERMO DE AUTORIZAÇÃO DE RETIRADA PARA MANUTENÇÃO', pageW / 2, y, { align: 'center' });
+    y += 3;
 
-      <!-- Dados do Veículo -->
-      <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fafc;">
-        <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 0.5px;">
-          DADOS DO VEÍCULO
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 12px;">
-          <div><strong>Modelo:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 78%; padding-left: 4px;">${os.modeloVeiculo || ''}</span></div>
-          <div><strong>Cor:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 82%; padding-left: 4px;">${os.corVeiculo || ''}</span></div>
-        </div>
-      </div>
+    // Linha vermelha separadora
+    doc.setDrawColor(239, 68, 68);
+    doc.setLineWidth(0.8);
+    doc.line(marginL, y, marginL + contentW, y);
+    doc.setLineWidth(0.2);
+    y += 6;
 
-      <!-- Taxa de Retirada -->
-      <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fafc;">
-        <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 0.5px;">
-          TAXA DE RETIRADA
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 12px;">
-          <div><strong>Valor:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 80%; padding-left: 4px;">${valorRetirada || ''}</span></div>
-          <div><strong>Levar:</strong> <span style="border-bottom: 1px dashed #94a3b8; display: inline-block; width: 80%; padding-left: 4px;">${levar || ''}</span></div>
-        </div>
-      </div>
+    // === GARANTIA + DATA ===
+    if (temGarantia) {
+      doc.setFillColor(34, 197, 94);
+      doc.roundedRect(marginL, y - 3.5, 24, 6, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text('GARANTIA', marginL + 2, y);
+    }
 
-      <!-- Itens Retirados -->
-      <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fafc;">
-        <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 0.5px;">
-          ITENS RETIRADOS
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); font-size: 12px; padding: 2px 0;">
-          <div style="display: flex; align-items: center; gap: 5px;">
-            <span style="font-size: 14px; font-weight: bold; color: #1e3a8a;">${deixouChave ? '☑' : '☐'}</span> Chaves
-          </div>
-          <div style="display: flex; align-items: center; gap: 5px;">
-            <span style="font-size: 14px; font-weight: bold; color: #1e3a8a;">${deixouControle ? '☑' : '☐'}</span> Controles
-          </div>
-          <div style="display: flex; align-items: center; gap: 5px;">
-            <span style="font-size: 14px; font-weight: bold; color: #1e3a8a;">${deixouCarregador ? '☑' : '☐'}</span> Carregador
-          </div>
-          <div style="display: flex; align-items: center; gap: 5px;">
-            <span style="font-size: 14px; font-weight: bold; color: #1e3a8a;">${deixouDocumento ? '☑' : '☐'}</span> Documentos
-          </div>
-        </div>
-      </div>
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Data: ' + dataGeracao, marginL + contentW, y, { align: 'right' });
+    y += 8;
 
-      <!-- Descrição da Manutenção -->
-      <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fafc;">
-        <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 0.5px;">
-          DESCRIÇÃO DA MANUTENÇÃO (OBSERVAÇÕES)
-        </div>
-        <div style="font-size: 11px; line-height: 1.5; color: #334155; min-height: 80px; word-break: break-word;">
-          ${os.observacoes ? os.observacoes.replace(/\n/g, '<br>') : 'Nenhuma observação cadastrada.'}
-        </div>
-      </div>
+    // === DADOS DO CLIENTE ===
+    let secY = y;
+    drawSectionBox(secY, secY + 24);
+    y = secY + 1;
+    drawSectionTitle('DADOS DO CLIENTE');
+    
+    drawField('Nome: ', os.clienteNome || '', marginL + 4, marginL + contentW * 0.58);
+    drawField('Cel.: ', os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '', marginL + contentW * 0.62, marginL + contentW - 4);
+    y += 6;
+    
+    drawField('Endereço: ', endereco || 'Não cadastrado', marginL + 4, marginL + contentW - 4);
+    y += 8;
 
-      <!-- Fotos (Opcional) -->
-      ${os.temFotos && Array.isArray(os.fotos) && os.fotos.length > 0 ? `
-        <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fafc;">
-          <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; letter-spacing: 0.5px;">
-            FOTOS
-          </div>
-          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-            ${os.fotos.map(src => `
-              <img src="${src}" style="width: 75px; height: 75px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1;">
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
+    // === DADOS DO VEÍCULO ===
+    secY = y;
+    drawSectionBox(secY, secY + 18);
+    y = secY + 1;
+    drawSectionTitle('DADOS DO VEÍCULO');
+    
+    drawField('Modelo: ', os.modeloVeiculo || '', marginL + 4, marginL + contentW * 0.45);
+    drawField('Cor: ', os.corVeiculo || '', marginL + contentW * 0.52, marginL + contentW - 4);
+    y += 8;
 
-      <!-- Autorização -->
-      <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 25px; background: #f8fafc; font-size: 10.5px; line-height: 1.5; color: #475569;">
-        <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 6px; letter-spacing: 0.5px;">
-          AUTORIZAÇÃO
-        </div>
-        <p style="margin-bottom: 4px;">
-          Autorizo a <strong>SUPRA BIKE</strong> a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.
-        </p>
-        <p>
-          Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.
-        </p>
-      </div>
+    // === TAXA DE RETIRADA ===
+    secY = y;
+    drawSectionBox(secY, secY + 18);
+    y = secY + 1;
+    drawSectionTitle('TAXA DE RETIRADA');
+    
+    drawField('Valor: ', valorRetirada || '', marginL + 4, marginL + contentW * 0.45);
+    drawField('Levar: ', levar || '', marginL + contentW * 0.52, marginL + contentW - 4);
+    y += 8;
 
-      <!-- Assinaturas -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; font-size: 11px;">
-        <div style="text-align: center;">
-          <div style="border-bottom: 1px solid #94a3b8; height: 25px; margin-bottom: 4px;"></div>
-          <strong>Assinatura do Cliente</strong>
-        </div>
-        <div style="text-align: center;">
-          <div style="border-bottom: 1px solid #94a3b8; height: 25px; margin-bottom: 4px; font-weight: 700; line-height: 25px; color: #0f172a;">
-            ${os.mecanico || '—'}
-          </div>
-          <strong>Técnico Responsável</strong>
-        </div>
-      </div>
-    `;
+    // === ITENS RETIRADOS ===
+    secY = y;
+    drawSectionBox(secY, secY + 18);
+    y = secY + 1;
+    drawSectionTitle('ITENS RETIRADOS');
+    
+    const itens = [
+      { label: 'Chaves', checked: deixouChave },
+      { label: 'Controles', checked: deixouControle },
+      { label: 'Carregador', checked: deixouCarregador },
+      { label: 'Documentos', checked: deixouDocumento }
+    ];
+    
+    const colW = (contentW - 8) / 4;
+    itens.forEach((item, i) => {
+      const ix = marginL + 4 + i * colW;
+      const checkChar = item.checked ? '☑' : '☐';
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 58, 138);
+      doc.text(checkChar, ix, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      doc.text(' ' + item.label, ix + 4, y);
+    });
+    y += 8;
 
-    container.innerHTML = htmlContent;
-    document.body.appendChild(container);
+    // === DESCRIÇÃO DA MANUTENÇÃO ===
+    const obsText = os.observacoes || 'Nenhuma observação cadastrada.';
+    const obsLines = doc.splitTextToSize(obsText, contentW - 12);
+    const obsHeight = Math.max(20, obsLines.length * 4.5 + 12);
+    
+    secY = y;
+    drawSectionBox(secY, secY + obsHeight);
+    y = secY + 1;
+    drawSectionTitle('DESCRIÇÃO DA MANUTENÇÃO (OBSERVAÇÕES)');
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 133);
+    doc.text(obsLines, marginL + 4, y + 1);
+    y = secY + obsHeight + 3;
 
-    setTimeout(() => {
-      html2pdf().from(container).set(opt).save().then(() => {
-        document.body.removeChild(container);
-      }).catch(err => {
-        console.error('Erro ao gerar PDF:', err);
-        document.body.removeChild(container);
-      });
-    }, 150);
+    // === AUTORIZAÇÃO ===
+    const autTexto1 = 'Autorizo a SUPRA BIKE a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.';
+    const autTexto2 = 'Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.';
+    const aut1Lines = doc.splitTextToSize(autTexto1, contentW - 12);
+    const aut2Lines = doc.splitTextToSize(autTexto2, contentW - 12);
+    const autHeight = (aut1Lines.length + aut2Lines.length) * 4.5 + 14;
+
+    secY = y;
+    drawSectionBox(secY, secY + autHeight);
+    y = secY + 1;
+    drawSectionTitle('AUTORIZAÇÃO');
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(aut1Lines, marginL + 4, y + 1);
+    y += aut1Lines.length * 4.5 + 2;
+    doc.text(aut2Lines, marginL + 4, y + 1);
+    y = secY + autHeight + 8;
+
+    // === ASSINATURAS ===
+    const sigW = (contentW - 20) / 2;
+
+    // Assinatura do cliente
+    doc.setDrawColor(148, 163, 184);
+    doc.line(marginL + 4, y, marginL + 4 + sigW, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Assinatura do Cliente', marginL + 4 + sigW / 2, y + 5, { align: 'center' });
+
+    // Técnico responsável
+    const tecX = marginL + contentW - 4 - sigW;
+    if (os.mecanico) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(os.mecanico, tecX + sigW / 2, y - 2, { align: 'center' });
+    }
+    doc.line(tecX, y, tecX + sigW, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Técnico Responsável', tecX + sigW / 2, y + 5, { align: 'center' });
+
+    // === SALVAR PDF ===
+    doc.save('Termo_Retirada_OS_' + os.id + '.pdf');
   }
 
   function abrirInstagram(username = 'wisionarium') {
