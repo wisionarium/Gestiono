@@ -242,43 +242,49 @@ const Utils = (() => {
     };
   }
 
-  function gerarPDFRetirada(os) {
+  function gerarPDFRetirada(osInput) {
+    const os = (typeof osInput === 'string' && typeof Storage !== 'undefined') ? Storage.getOrdemById(osInput) : osInput;
+    if (!os) {
+      console.warn('OS não encontrada para geração do PDF:', osInput);
+      return;
+    }
+
     const camposDef = typeof Storage !== 'undefined' ? Storage.getCampos() : [];
     const campos = os.camposPersonalizados || {};
 
     // === Coleta de dados dos campos personalizados ===
-    let temGarantia = false, endereco = '', valorRetirada = '', levar = '';
-    let deixouChave = false, deixouCarregador = false, deixouControle = false, deixouDocumento = false;
+    let temGarantia = !!os.temGarantia, endereco = os.clienteEndereco || '', valorRetirada = os.valorRetirada || '', levar = os.levar || '';
+    let deixouChave = !!os.deixouChave, deixouCarregador = !!os.deixouCarregador, deixouControle = !!os.deixouControle, deixouDocumento = !!os.deixouDocumento;
 
     for (const [campoId, val] of Object.entries(campos)) {
       const cDef = camposDef.find(c => c.id === campoId);
       if (!cDef) continue;
       const name = cDef.nome.toLowerCase();
-      if ((name.includes('garantia') || name.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) temGarantia = true;
-      if (name.includes('endere') || name.includes('rua') || name.includes('bairro') || name.includes('cidade')) { if (val.valor && typeof val.valor === 'string') endereco = val.valor; }
-      if (name.includes('taxa') || name.includes('retirada') || name.includes('valor')) {
+      if (!temGarantia && (name.includes('garantia') || name.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) temGarantia = true;
+      if (!endereco && (name.includes('endere') || name.includes('rua') || name.includes('bairro') || name.includes('cidade'))) { if (val.valor && typeof val.valor === 'string') endereco = val.valor; }
+      if (!valorRetirada && (name.includes('taxa') || name.includes('retirada') || name.includes('valor'))) {
         if (val.valor != null) {
           if (typeof val.valor === 'number') valorRetirada = formatarMoeda(val.valor);
           else if (typeof val.valor === 'string' && val.valor.trim() && !['true','false'].includes(val.valor.toLowerCase())) valorRetirada = val.valor;
         }
       }
-      if (name.includes('levar') || name.includes('trazer') || name.includes('itens')) { if (val.valor && typeof val.valor === 'string') levar = val.valor; }
-      if (name.includes('chave')) deixouChave = !!val.valor;
-      if (name.includes('carregador')) deixouCarregador = !!val.valor;
-      if (name.includes('controle') || name.includes('nfc') || name.includes('tag')) deixouControle = !!val.valor;
-      if (name.includes('documento') || name.includes('doc')) deixouDocumento = !!val.valor;
+      if (!levar && (name.includes('levar') || name.includes('trazer') || name.includes('itens'))) { if (val.valor && typeof val.valor === 'string') levar = val.valor; }
+      if (!deixouChave && name.includes('chave')) deixouChave = !!val.valor;
+      if (!deixouCarregador && name.includes('carregador')) deixouCarregador = !!val.valor;
+      if (!deixouControle && (name.includes('controle') || name.includes('nfc') || name.includes('tag'))) deixouControle = !!val.valor;
+      if (!deixouDocumento && (name.includes('documento') || name.includes('doc'))) deixouDocumento = !!val.valor;
     }
 
     const dataGeracao = new Date().toLocaleDateString('pt-BR');
     const servicos = os.servicos || [];
     const observacoes = os.observacoes || '';
-    const fotos = (os.temFotos && Array.isArray(os.fotos)) ? os.fotos : [];
+    const fotos = (os.temFotos && Array.isArray(os.fotos)) ? os.fotos : ((Array.isArray(os.fotos)) ? os.fotos : []);
 
     // === Tenta usar jsPDF (download direto sem print dialog) ===
     if (window.jspdf) {
       _gerarPDFComJsPDF(os, { temGarantia, endereco, valorRetirada, levar, deixouChave, deixouCarregador, deixouControle, deixouDocumento, dataGeracao, servicos, observacoes, fotos });
     } else {
-      // Fallback: gera HTML e faz download como arquivo .html (sem print dialog)
+      // Fallback: gera HTML e faz download como arquivo .html
       _gerarPDFFallbackHTML(os, { temGarantia, endereco, valorRetirada, levar, deixouChave, deixouCarregador, deixouControle, deixouDocumento, dataGeracao, servicos, observacoes, fotos });
     }
   }
@@ -618,6 +624,8 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
     traduzirStatusPagamento, traduzirRole, formatarDataEntrega,
     comprimirFotoBase64, removerAcentos, escapeHtml,
     gerarMensagemWhatsApp, gerarLinkWhatsApp, abrirInstagram, gerarPDFRetirada,
+    gerarPDFTermoRetirada: gerarPDFRetirada,
+    gerarPDFEntrega: gerarPDFRetirada,
     hashSenha, gerarId, debounce
   };
 })();
