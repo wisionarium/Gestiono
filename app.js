@@ -79,17 +79,19 @@ const App = (() => {
       });
     }
 
-    // Always sync from Supabase on startup so all devices get fresh data
-    if (typeof Storage.syncFromSupabase === 'function') {
-      Storage.syncFromSupabase().then(() => {
-        // Re-read user after sync in case users were updated from cloud
-        currentUser = Storage.getUsuarioLogado();
-        if (currentUser) {
-          renderDashboard();
-          renderCurrentList();
-        }
-      }).catch(err => console.warn('Sync from Supabase failed:', err));
-    }
+    // Always sync from Supabase on startup so all devices get fresh data (delayed to make app load instantly)
+    setTimeout(() => {
+      if (typeof Storage.syncFromSupabase === 'function') {
+        Storage.syncFromSupabase().then(() => {
+          // Re-read user after sync in case users were updated from cloud
+          currentUser = Storage.getUsuarioLogado();
+          if (currentUser) {
+            renderDashboard();
+            renderCurrentList();
+          }
+        }).catch(err => console.warn('Sync from Supabase failed:', err));
+      }
+    }, 200);
 
     currentUser = Storage.getUsuarioLogado();
 

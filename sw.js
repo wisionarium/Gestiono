@@ -3,7 +3,7 @@
 // Cache offline e suporte PWA completo
 // ============================================
 
-const CACHE_NAME = 'boa-gestao-v1';
+const CACHE_NAME = 'boa-gestao-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -44,33 +44,33 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Estratégia Network First com Fallback para Cache
+// Estratégia Stale-While-Revalidate (Cache primeiro, atualiza em background)
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições de API remota (ex: Supabase)
-  if (event.request.url.includes('supabase.co')) {
+  // Ignora requisições de API remota (ex: Supabase) ou chamadas não-GET
+  if (event.request.url.includes('supabase.co') || event.request.method !== 'GET') {
+    return;
+  }
+
+  // Ignora requisições que não sejam http ou https (ex: chrome-extension ou rotas locais especiais)
+  if (!event.request.url.startsWith('http')) {
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(event.request, networkResponse.clone());
           }
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
+          return networkResponse;
+        }).catch(() => {
+          // Ignora falhas silenciosas de rede em background
         });
-      })
+
+        // Retorna a resposta em cache se existir, senão espera a rede
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });

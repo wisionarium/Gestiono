@@ -137,9 +137,6 @@ const Storage = (() => {
     ];
     localStorage.setItem(KEYS.OPCOES, JSON.stringify(opcoesIniciais));
     localStorage.setItem(KEYS.INITIALIZED, 'true');
-    
-    // Tenta sincronizar do Supabase no arranque se configurado
-    sincronizarTudoComSupabase().then(() => syncFromSupabase());
   }
 
   // ---------- SUPABASE CLOUD SYNC ----------
