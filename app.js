@@ -1084,6 +1084,8 @@ const App = (() => {
       document.getElementById('nova-os-title').textContent = `Editar ${osData.id}`;
       document.getElementById('os-cliente-nome').value = osData.clienteNome;
       document.getElementById('os-telefone').value = osData.clienteTelefone;
+      const elCpf = document.getElementById('os-cpf');
+      if (elCpf) elCpf.value = osData.clienteCpf || '';
       const elEndereco = document.getElementById('os-endereco');
       if (elEndereco) elEndereco.value = osData.clienteEndereco || '';
       document.getElementById('os-modelo').value = osData.modeloVeiculo || '';
@@ -1334,9 +1336,11 @@ const App = (() => {
     const fotos = temFotos ? [...fotosAnexadas] : [];
 
     const elEndereco = document.getElementById('os-endereco');
+    const elCpf = document.getElementById('os-cpf');
     const osData = {
       clienteNome: document.getElementById('os-cliente-nome').value.trim(),
       clienteTelefone: document.getElementById('os-telefone').value.trim(),
+      clienteCpf: elCpf ? elCpf.value.trim() : '',
       clienteEndereco: elEndereco ? elEndereco.value.trim() : '',
       modeloVeiculo: document.getElementById('os-modelo').value,
       corVeiculo: document.getElementById('os-cor').value,

@@ -351,15 +351,18 @@ const Utils = (() => {
     drawSectionHeader('DADOS DO CLIENTE', y);
     
     y += 12;
-    field('Nome:', os.clienteNome || '', ml + 2, ml + cw * 0.65, y);
-    field('Cel.:', os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '', ml + cw * 0.68, ml + cw - 2, y);
+    field('Nome:', os.clienteNome || '', ml + 2, ml + cw - 2, y);
+    
+    y += 6;
+    field('CPF:', os.clienteCpf || '', ml + 2, ml + cw * 0.48, y);
+    field('Cel.:', os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '', ml + cw * 0.52, ml + cw - 2, y);
     
     y += 6;
     const enderecoFormatado = os.clienteEndereco || d.endereco || 'Não cadastrado';
     field('Endereço:', enderecoFormatado, ml + 2, ml + cw - 2, y);
 
     // 4. DADOS DO VEÍCULO
-    y = 66;
+    y = 71;
     drawSectionHeader('DADOS DO VEÍCULO', y);
     
     y += 12;
@@ -367,7 +370,7 @@ const Utils = (() => {
     field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
 
     // 5. TAXA DE RETIRADA
-    y = 86;
+    y = 91;
     drawSectionHeader('TAXA DE RETIRADA', y);
     
     y += 12;
@@ -375,10 +378,10 @@ const Utils = (() => {
     field('Levar:', d.levar || '', ml + cw * 0.52, ml + cw - 2, y);
 
     // 6. ITENS RETIRADOS
-    y = 106;
+    y = 111;
     drawSectionHeader('ITENS RETIRADOS', y);
     
-    y += 11;
+    y += 10;
     const colWidth = cw / 4;
     drawCheck('Chaves [  ]', d.deixouChave, ml + 2, y);
     drawCheck('Controles [  ]', d.deixouControle, ml + 2 + colWidth, y);
@@ -386,12 +389,12 @@ const Utils = (() => {
     drawCheck('Documentos', d.deixouDocumento, ml + 2 + colWidth * 3, y);
 
     // 7. DESCRIÇÃO DA MANUTENÇÃO (Unificada com Serviços e fotos de 5 slots dentro da caixa)
-    y = 125;
+    y = 129;
     drawSectionHeader('DESCRIÇÃO DA MANUTENÇÃO', y);
     
     y += 6;
     const boxStartY = y;
-    const boxHeight = 70; // Mantém fixo para encaixar exatamente em uma página
+    const boxHeight = 67; // Reduzido de 70 para 67 para compensar a linha extra do CPF e caber em folha única
     doc.setDrawColor(180); doc.setFillColor(255);
     doc.rect(ml, boxStartY, cw, boxHeight);
     
@@ -416,7 +419,7 @@ const Utils = (() => {
     doc.text(splitDesc, ml + 3, boxStartY + 4.5);
 
     // Imprime fotos no rodapé do bloco de descrição da manutenção
-    const photoAreaY = boxStartY + boxHeight - 26;
+    const photoAreaY = boxStartY + boxHeight - 25;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(0);
     doc.text('FOTOS:', ml + 3, photoAreaY);
 
@@ -534,6 +537,9 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
 <div class="section-title">Dados do Cliente</div>
 <div class="fields-row">
   <div class="field"><span class="fl">Nome:</span> <span class="fv">${os.clienteNome||'\u2014'}</span></div>
+</div>
+<div class="fields-row">
+  <div class="field"><span class="fl">CPF:</span> <span class="fv">${os.clienteCpf||'\u2014'}</span></div>
   <div class="field"><span class="fl">Cel.:</span> <span class="fv">${os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014'}</span></div>
 </div>
 <div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">${enderecoFormatado}</span></div>

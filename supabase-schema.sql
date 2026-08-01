@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.ordens_servico (
   id TEXT PRIMARY KEY,
   cliente_nome TEXT NOT NULL,
   cliente_telefone TEXT,
+  cliente_cpf TEXT,
   cliente_endereco TEXT,
   modelo_veiculo TEXT,
   cor_veiculo TEXT,
