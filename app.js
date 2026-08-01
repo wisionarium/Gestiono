@@ -1077,18 +1077,24 @@ const App = (() => {
             <input type="text" class="form-input" id="pdf-edit-taxa" value="${Utils.escapeHtml(os.valorRetirada || 'R$ 0,00')}">
           </div>
           <div class="form-group">
-            <label class="form-label">Levar</label>
-            <input type="text" class="form-input" id="pdf-edit-levar" value="${Utils.escapeHtml(os.levar || '')}" placeholder="Capacete, etc.">
+            <label class="form-label">Taxa de Entrega (R$)</label>
+            <input type="text" class="form-input" id="pdf-edit-taxa-entrega" value="${Utils.escapeHtml(os.taxaEntrega || os.levar || 'R$ 0,00')}">
           </div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Itens Deixados pelo Cliente</label>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-chave" ${os.deixouChave ? 'checked' : ''}> Chaves</label>
-            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-controle" ${os.deixouControle ? 'checked' : ''}> Controles</label>
-            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-carregador" ${os.deixouCarregador ? 'checked' : ''}> Carregador</label>
-            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-documento" ${os.deixouDocumento ? 'checked' : ''}> Documentos</label>
+            <div>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-chave" ${os.deixouChave ? 'checked' : ''}> Chaves</label>
+              <input type="number" class="form-input mt-xs" id="pdf-edit-qtd-chave" value="${Utils.escapeHtml(os.qtdChave || '')}" placeholder="Qtd (ex: 2)" style="font-size:11px; padding:4px 8px;">
+            </div>
+            <div>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-controle" ${os.deixouControle ? 'checked' : ''}> Controles</label>
+              <input type="number" class="form-input mt-xs" id="pdf-edit-qtd-controle" value="${Utils.escapeHtml(os.qtdControle || '')}" placeholder="Qtd (ex: 1)" style="font-size:11px; padding:4px 8px;">
+            </div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; grid-column:span 2;"><input type="checkbox" id="pdf-edit-carregador" ${os.deixouCarregador ? 'checked' : ''}> Carregador</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; grid-column:span 2;"><input type="checkbox" id="pdf-edit-documento" ${os.deixouDocumento ? 'checked' : ''}> Documentos</label>
           </div>
         </div>
 
@@ -1113,9 +1119,11 @@ const App = (() => {
         mecanico: document.getElementById('pdf-edit-mecanico').value,
         temGarantia: document.getElementById('pdf-edit-garantia').checked,
         valorRetirada: document.getElementById('pdf-edit-taxa').value,
-        levar: document.getElementById('pdf-edit-levar').value,
+        taxaEntrega: document.getElementById('pdf-edit-taxa-entrega').value,
         deixouChave: document.getElementById('pdf-edit-chave').checked,
+        qtdChave: document.getElementById('pdf-edit-qtd-chave').value,
         deixouControle: document.getElementById('pdf-edit-controle').checked,
+        qtdControle: document.getElementById('pdf-edit-qtd-controle').value,
         deixouCarregador: document.getElementById('pdf-edit-carregador').checked,
         deixouDocumento: document.getElementById('pdf-edit-documento').checked,
         observacoes: document.getElementById('pdf-edit-obs').value

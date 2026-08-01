@@ -252,9 +252,10 @@ const Utils = (() => {
     const camposDef = typeof Storage !== 'undefined' ? Storage.getCampos() : [];
     const campos = os.camposPersonalizados || {};
 
-    // === Coleta de dados dos campos personalizados ===
-    let temGarantia = !!os.temGarantia, endereco = os.clienteEndereco || '', valorRetirada = os.valorRetirada || '', levar = os.levar || '';
+    // === Coleta de dados dos campos personalizados e diretos ===
+    let temGarantia = !!os.temGarantia, endereco = os.clienteEndereco || '', valorRetirada = os.valorRetirada || 'R$ 0,00', taxaEntrega = os.taxaEntrega || os.levar || 'R$ 0,00';
     let deixouChave = !!os.deixouChave, deixouCarregador = !!os.deixouCarregador, deixouControle = !!os.deixouControle, deixouDocumento = !!os.deixouDocumento;
+    let qtdChave = os.qtdChave || '', qtdControle = os.qtdControle || '';
 
     for (const [campoId, val] of Object.entries(campos)) {
       const cDef = camposDef.find(c => c.id === campoId);
@@ -262,17 +263,24 @@ const Utils = (() => {
       const name = cDef.nome.toLowerCase();
       if (!temGarantia && (name.includes('garantia') || name.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) temGarantia = true;
       if (!endereco && (name.includes('endere') || name.includes('rua') || name.includes('bairro') || name.includes('cidade'))) { if (val.valor && typeof val.valor === 'string') endereco = val.valor; }
-      if (!valorRetirada && (name.includes('taxa') || name.includes('retirada') || name.includes('valor'))) {
+      if ((!valorRetirada || valorRetirada === 'R$ 0,00') && (name.includes('retirada') || name.includes('taxa'))) {
         if (val.valor != null) {
           if (typeof val.valor === 'number') valorRetirada = formatarMoeda(val.valor);
           else if (typeof val.valor === 'string' && val.valor.trim() && !['true','false'].includes(val.valor.toLowerCase())) valorRetirada = val.valor;
         }
       }
-      if (!levar && (name.includes('levar') || name.includes('trazer') || name.includes('itens'))) { if (val.valor && typeof val.valor === 'string') levar = val.valor; }
+      if ((!taxaEntrega || taxaEntrega === 'R$ 0,00') && (name.includes('entrega') || name.includes('levar') || name.includes('trazer'))) {
+        if (val.valor != null) {
+          if (typeof val.valor === 'number') taxaEntrega = formatarMoeda(val.valor);
+          else if (typeof val.valor === 'string' && val.valor.trim() && !['true','false'].includes(val.valor.toLowerCase())) taxaEntrega = val.valor;
+        }
+      }
       if (!deixouChave && name.includes('chave')) deixouChave = !!val.valor;
       if (!deixouCarregador && name.includes('carregador')) deixouCarregador = !!val.valor;
       if (!deixouControle && (name.includes('controle') || name.includes('nfc') || name.includes('tag'))) deixouControle = !!val.valor;
       if (!deixouDocumento && (name.includes('documento') || name.includes('doc'))) deixouDocumento = !!val.valor;
+      if (!qtdChave && name.includes('chave') && val.quantidade) qtdChave = val.quantidade;
+      if (!qtdControle && (name.includes('controle') || name.includes('nfc') || name.includes('tag')) && val.quantidade) qtdControle = val.quantidade;
     }
 
     const dataGeracao = new Date().toLocaleDateString('pt-BR');
@@ -280,44 +288,48 @@ const Utils = (() => {
     const observacoes = os.observacoes || '';
     const fotos = (os.temFotos && Array.isArray(os.fotos)) ? os.fotos : ((Array.isArray(os.fotos)) ? os.fotos : []);
 
-    // === Tenta usar jsPDF (download direto sem print dialog) ===
+    const dataBag = { temGarantia, endereco, valorRetirada, taxaEntrega, deixouChave, deixouCarregador, deixouControle, deixouDocumento, qtdChave, qtdControle, dataGeracao, servicos, observacoes, fotos };
+
     if (window.jspdf) {
-      _gerarPDFComJsPDF(os, { temGarantia, endereco, valorRetirada, levar, deixouChave, deixouCarregador, deixouControle, deixouDocumento, dataGeracao, servicos, observacoes, fotos });
+      _gerarPDFComJsPDF(os, dataBag);
     } else {
-      // Fallback: gera HTML e faz download como arquivo .html
-      _gerarPDFFallbackHTML(os, { temGarantia, endereco, valorRetirada, levar, deixouChave, deixouCarregador, deixouControle, deixouDocumento, dataGeracao, servicos, observacoes, fotos });
+      _gerarPDFFallbackHTML(os, dataBag);
     }
   }
 
   function _gerarPDFComJsPDF(os, d) {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pw = 210, ml = 15, cw = pw - ml * 2;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-    // Helper para desenhar campos sublinhados
-    function field(lbl, val, x, xLineEnd, yLine) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
-      doc.text(lbl, x, yLine);
-      const lw = doc.getTextWidth(lbl) + 1;
-      
-      // Texto do valor em azul escuro e negrito acima da linha
-      doc.setFont('helvetica', 'bold'); doc.setTextColor(51, 65, 133);
-      doc.text(val || '', x + lw + 1, yLine - 0.5);
-      
-      // Linha sólida cinza
-      doc.setDrawColor(180); doc.setLineWidth(0.2);
-      doc.line(x + lw, yLine + 0.8, xLineEnd, yLine + 0.8);
+    const pw = 210;
+    const ml = 15;
+    const cw = 180;
+
+    function drawSectionHeader(title, cy) {
+      doc.setFillColor(240, 245, 240);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(ml, cy, cw, 6, 'FD');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, ml + 3, cy + 4.2);
     }
 
-    // Helper para desenhar títulos de seção com caixa cinza/verde claro
-    function drawSectionHeader(title, yPos) {
-      doc.setDrawColor(200); doc.setFillColor(240, 245, 240); // verde/cinza claro
-      doc.rect(ml, yPos, cw, 6, 'FD');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(0);
-      doc.text(title, ml + 3, yPos + 4.2);
+    function field(lbl, val, xStart, xLineEnd, cy) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
+      doc.text(lbl, xStart, cy);
+      const lblW = doc.getTextWidth(lbl) + 1.5;
+      const lx = xStart + lblW;
+
+      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2);
+      doc.line(lx, cy + 1, xLineEnd, cy + 1);
+
+      if (val) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(51, 65, 133);
+        doc.text(String(val), lx + 1, cy - 0.5);
+      }
     }
 
-    // Helper para desenhar checkbox vetorial (seguro contra fontes ausentes)
     function drawCheck(lbl, checked, cx, cy) {
       doc.setDrawColor(0); doc.setLineWidth(0.3);
       doc.rect(cx, cy - 3, 3, 3);
@@ -325,35 +337,33 @@ const Utils = (() => {
         doc.line(cx, cy - 3, cx + 3, cy);
         doc.line(cx, cy, cx + 3, cy - 3);
       }
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0);
       doc.text(lbl, cx + 5, cy);
     }
 
-    // 1. CABEÇALHO CENTRALIZADO
+    // 1. CABEÇALHO
     doc.setFont('helvetica', 'bold'); doc.setFontSize(24);
     doc.setTextColor(239, 68, 68); doc.text('SUPRA', pw / 2 - 2, 16, { align: 'right' });
     doc.setTextColor(30, 58, 138); doc.text(' BIKE', pw / 2 + 2, 16, { align: 'left' });
     
     doc.setFontSize(13.5); doc.setTextColor(0);
-    doc.text('TERMO DE AUTORIZAÇÃO DE ENTREGA', pw / 2, 23, { align: 'center' });
-    doc.text('PARA MANUTENÇÃO', pw / 2, 28, { align: 'center' });
+    doc.text('RELATÓRIO E TERMO DE ENTREGA', pw / 2, 24, { align: 'center' });
 
     // 2. GARANTIA + DATA
-    let y = 36;
+    let y = 33;
     if (d.temGarantia) {
-      doc.setFillColor(34, 197, 94); // Verde
+      doc.setFillColor(34, 197, 94);
       doc.rect(ml, y - 3.5, 22, 5, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255);
       doc.text('GARANTIA', ml + 2, y);
     }
     
-    // Data no formato ___/___/_____
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
     const dataExibicao = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : d.dataGeracao;
     doc.text(`Data:  ${dataExibicao}`, ml + cw - 32, y);
 
     // 3. DADOS DO CLIENTE
-    y = 41;
+    y = 38;
     drawSectionHeader('DADOS DO CLIENTE', y);
     
     y += 12;
@@ -368,68 +378,76 @@ const Utils = (() => {
     field('Endereço:', enderecoFormatado, ml + 2, ml + cw - 2, y);
 
     // 4. DADOS DO VEÍCULO
-    y = 71;
+    y = 68;
     drawSectionHeader('DADOS DO VEÍCULO', y);
     
     y += 12;
     field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.48, y);
     field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
 
-    // 5. TAXA DE RETIRADA
-    y = 91;
-    drawSectionHeader('TAXA DE RETIRADA', y);
+    // 5. TAXAS (RETIRADA E ENTREGA)
+    y = 88;
+    drawSectionHeader('TAXAS (RETIRADA E ENTREGA)', y);
     
     y += 12;
-    field('Valor:', d.valorRetirada || '', ml + 2, ml + cw * 0.48, y);
-    field('Levar:', d.levar || '', ml + cw * 0.52, ml + cw - 2, y);
+    field('Taxa Retirada:', d.valorRetirada || 'R$ 0,00', ml + 2, ml + cw * 0.48, y);
+    field('Taxa Entrega:', d.taxaEntrega || 'R$ 0,00', ml + cw * 0.52, ml + cw - 2, y);
 
     // 6. ITENS RETIRADOS
-    y = 111;
+    y = 108;
     drawSectionHeader('ITENS RETIRADOS', y);
     
     y += 10;
     const colWidth = cw / 4;
-    drawCheck('Chaves [  ]', d.deixouChave, ml + 2, y);
-    drawCheck('Controles [  ]', d.deixouControle, ml + 2 + colWidth, y);
+    const labelChave = 'Chaves' + (d.qtdChave ? ` [ ${d.qtdChave} ]` : ' [   ]');
+    const labelControle = 'Controles' + (d.qtdControle ? ` [ ${d.qtdControle} ]` : ' [   ]');
+    drawCheck(labelChave, d.deixouChave, ml + 2, y);
+    drawCheck(labelControle, d.deixouControle, ml + 2 + colWidth, y);
     drawCheck('Carregador', d.deixouCarregador, ml + 2 + colWidth * 2, y);
     drawCheck('Documentos', d.deixouDocumento, ml + 2 + colWidth * 3, y);
 
-    // 7. DESCRIÇÃO DA MANUTENÇÃO (Unificada com Serviços e fotos de 5 slots dentro da caixa)
-    y = 129;
+    // 7. DESCRIÇÃO DA MANUTENÇÃO
+    y = 126;
     drawSectionHeader('DESCRIÇÃO DA MANUTENÇÃO', y);
     
     y += 6;
     const boxStartY = y;
-    const boxHeight = 67; // Reduzido de 70 para 67 para compensar a linha extra do CPF e caber em folha única
+    const boxHeight = 76;
     doc.setDrawColor(180); doc.setFillColor(255);
     doc.rect(ml, boxStartY, cw, boxHeight);
     
-    // Constrói texto unificado de serviços e observações
-    let descTexto = '';
+    let currentY = boxStartY + 4.5;
+    
     if (d.servicos && d.servicos.length > 0) {
-      descTexto += 'SERVIÇOS EXECUTADOS:\n';
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('SERVIÇOS EXECUTADOS:', ml + 3, currentY);
+      currentY += 4.5;
+
       d.servicos.forEach((s, idx) => {
-        descTexto += `${idx + 1}. ${s.descricao || 'Serviço'} (${formatarMoeda(s.valor || 0)})\n`;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 133);
+        doc.text(`${idx + 1}. ${s.descricao || 'Serviço'}`, ml + 3, currentY);
+        doc.text(`(${formatarMoeda(s.valor || 0)})`, ml + 50, currentY);
+        currentY += 4.5;
       });
-      descTexto += `VALOR TOTAL: ${formatarMoeda(os.valorTotal || 0)}\n`;
-      if (d.observacoes) {
-        descTexto += `\nOBSERVAÇÕES:\n${d.observacoes}`;
-      }
-    } else {
-      descTexto = d.observacoes || 'Nenhuma manutenção cadastrada.';
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(239, 68, 68);
+      doc.text(`VALOR TOTAL: ${formatarMoeda(os.valorTotal || 0)}`, ml + cw - 3, currentY - 4.5, { align: 'right' });
+      currentY += 1.5;
     }
 
-    // Imprime texto nas observações com quebra de linha
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 133);
-    const splitDesc = doc.splitTextToSize(descTexto, cw - 6);
-    doc.text(splitDesc, ml + 3, boxStartY + 4.5);
+    if (d.observacoes) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('OBSERVAÇÕES:', ml + 3, currentY);
+      currentY += 4.5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 133);
+      const splitObs = doc.splitTextToSize(d.observacoes, cw - 6);
+      doc.text(splitObs, ml + 3, currentY);
+    }
 
-    // Imprime fotos no rodapé do bloco de descrição da manutenção
     const photoAreaY = boxStartY + boxHeight - 25;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(0);
     doc.text('FOTOS:', ml + 3, photoAreaY);
 
-    // Calcula tamanho dos 5 slots de fotos
     const pwImage = 30;
     const phImage = 20;
     const pGap = (cw - 6 - (pwImage * 5)) / 4;
@@ -437,9 +455,8 @@ const Utils = (() => {
     for (let i = 0; i < 5; i++) {
       const px = ml + 3 + i * (pwImage + pGap);
       doc.setDrawColor(200); doc.setFillColor(250, 250, 250);
-      doc.rect(px, photoAreaY + 2, pwImage, phImage, 'FD'); // Desenha slot placeholder
+      doc.rect(px, photoAreaY + 2, pwImage, phImage, 'FD');
 
-      // Se houver foto salva para este slot, renderiza de forma direta no PDF
       if (d.fotos && d.fotos[i]) {
         try {
           let format = 'JPEG';
@@ -451,21 +468,8 @@ const Utils = (() => {
       }
     }
 
-    // 8. AUTORIZAÇÃO
-    y = boxStartY + boxHeight + 4;
-    drawSectionHeader('AUTORIZAÇÃO', y);
-    
-    y += 10;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(71, 85, 105);
-    const aut1 = 'Autorizo a SUPRA BIKE a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.';
-    const aut2 = 'Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.';
-    const splitAut1 = doc.splitTextToSize(aut1, cw - 4);
-    const splitAut2 = doc.splitTextToSize(aut2, cw - 4);
-    doc.text(splitAut1, ml + 2, y);
-    doc.text(splitAut2, ml + 2, y + 3.8);
-
-    // 9. ASSINATURAS (Centralizado em folha única)
-    y += 15;
+    // 8. ASSINATURAS
+    y = boxStartY + boxHeight + 12;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
     doc.text('Assinatura do Cliente:', pw / 2, y, { align: 'center' });
     doc.setDrawColor(120); doc.setLineWidth(0.3);
@@ -479,7 +483,6 @@ const Utils = (() => {
     }
     doc.line(pw / 2 - 35, y + 7, pw / 2 + 35, y + 7);
 
-    // Salva o arquivo diretamente
     doc.save('Termo_Entrega_OS_' + os.id + '.pdf');
   }
 
@@ -488,9 +491,9 @@ const Utils = (() => {
     if (d.servicos && d.servicos.length > 0) {
       descTextoHtml += '<strong style="color:#1e3a8a;">SERVIÇOS EXECUTADOS:</strong><br>';
       d.servicos.forEach((s, idx) => {
-        descTextoHtml += `${idx + 1}. ${escapeHtml(s.descricao || 'Serviço')} (${formatarMoeda(s.valor || 0)})<br>`;
+        descTextoHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>${idx + 1}. ${escapeHtml(s.descricao || 'Serviço')} (${formatarMoeda(s.valor || 0)})</span></div>`;
       });
-      descTextoHtml += `<strong style="color:#ef4444;">VALOR TOTAL: ${formatarMoeda(os.valorTotal || 0)}</strong><br>`;
+      descTextoHtml += `<div style="text-align:right; margin-top:4px;"><strong style="color:#ef4444; font-size:12px;">VALOR TOTAL: ${formatarMoeda(os.valorTotal || 0)}</strong></div>`;
       if (d.observacoes) {
         descTextoHtml += `<br><strong style="color:#1e3a8a;">OBSERVAÇÕES:</strong><br>${escapeHtml(d.observacoes).replace(/\n/g, '<br>')}`;
       }
@@ -512,6 +515,8 @@ const Utils = (() => {
     const ck = (v) => v ? '☒' : '☐';
     const dataExibicao = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : d.dataGeracao;
     const enderecoFormatado = os.clienteEndereco || d.endereco || 'Não cadastrado';
+    const labelChaveHtml = 'Chaves ' + (d.qtdChave ? `[ ${d.qtdChave} ]` : '[   ]');
+    const labelControleHtml = 'Controles ' + (d.qtdControle ? `[ ${d.qtdControle} ]` : '[   ]');
 
     const htmlDoc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Entrega_OS_${os.id}</title>
 <style>
@@ -519,7 +524,7 @@ const Utils = (() => {
 body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px; max-width:800px; margin:0 auto;}
 .header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}
 .brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}
-h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}
+h2{font-size:13px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}
 .meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .garantia-badge{background:#22c55e;color:#fff;padding:2px 8px;font-weight:800;font-size:9px;border-radius:3px;}
 .section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px;}
@@ -531,13 +536,12 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
 .ck{font-size:14px;color:#1e3a8a;font-weight:bold;}
 .obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px;}
 .obs{font-size:10px;line-height:1.4;color:#334155;}
-.auth{font-size:9.5px;line-height:1.4;color:#475569;margin-bottom:4px;}
-.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:25px;font-size:11px}
+.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}
 .sb{text-align:center; width:60%;}
 .sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}
 </style></head><body>
 <div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div>
-<h2>Termo de Autorização de Entrega para Manutenção</h2></div>
+<h2>Relatório e Termo de Entrega</h2></div>
 <div class="meta-row"><div>${d.temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : ''}</div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>${dataExibicao}</u></div></div>
 
 <div class="section-title">Dados do Cliente</div>
@@ -556,16 +560,16 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
   <div class="field"><span class="fl">Cor:</span> <span class="fv">${os.corVeiculo||'\u2014'}</span></div>
 </div>
 
-<div class="section-title" style="margin-top:8px;">Taxa de Retirada</div>
+<div class="section-title" style="margin-top:8px;">Taxas (Retirada e Entrega)</div>
 <div class="fields-row" style="border:none;">
-  <div class="field"><span class="fl">Valor:</span> <span class="fv">${d.valorRetirada||'\u2014'}</span></div>
-  <div class="field"><span class="fl">Levar:</span> <span class="fv">${d.levar||'\u2014'}</span></div>
+  <div class="field"><span class="fl">Taxa Retirada:</span> <span class="fv">${d.valorRetirada||'R$ 0,00'}</span></div>
+  <div class="field"><span class="fl">Taxa Entrega:</span> <span class="fv">${d.taxaEntrega||'R$ 0,00'}</span></div>
 </div>
 
 <div class="section-title" style="margin-top:8px;">Itens Retirados</div>
 <div class="checks-row">
-  <div class="ci"><span class="ck">${ck(d.deixouChave)}</span> Chaves [  ]</div>
-  <div class="ci"><span class="ck">${ck(d.deixouControle)}</span> Controles [  ]</div>
+  <div class="ci"><span class="ck">${ck(d.deixouChave)}</span> ${labelChaveHtml}</div>
+  <div class="ci"><span class="ck">${ck(d.deixouControle)}</span> ${labelControleHtml}</div>
   <div class="ci"><span class="ck">${ck(d.deixouCarregador)}</span> Carregador</div>
   <div class="ci"><span class="ck">${ck(d.deixouDocumento)}</span> Documentos</div>
 </div>
@@ -575,10 +579,6 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
   <div class="obs">${descTextoHtml}</div>
   ${fotosHtml}
 </div>
-
-<div class="section-title" style="margin-top:8px;">Autorização</div>
-<p class="auth">Autorizo a <strong>SUPRA BIKE</strong> a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.</p>
-<p class="auth">Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.</p>
 
 <div class="sigs">
   <div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div>
