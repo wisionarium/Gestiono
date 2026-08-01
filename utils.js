@@ -329,7 +329,7 @@ const Utils = (() => {
     doc.setTextColor(30, 58, 138); doc.text(' BIKE', pw / 2 + 2, 16, { align: 'left' });
     
     doc.setFontSize(13.5); doc.setTextColor(0);
-    doc.text('TERMO DE AUTORIZAÇÃO DE RETIRADA', pw / 2, 23, { align: 'center' });
+    doc.text('TERMO DE AUTORIZAÇÃO DE ENTREGA', pw / 2, 23, { align: 'center' });
     doc.text('PARA MANUTENÇÃO', pw / 2, 28, { align: 'center' });
 
     // 2. GARANTIA + DATA
@@ -474,7 +474,7 @@ const Utils = (() => {
     doc.line(pw / 2 - 35, y + 7, pw / 2 + 35, y + 7);
 
     // Salva o arquivo diretamente
-    doc.save('Termo_Retirada_OS_' + os.id + '.pdf');
+    doc.save('Termo_Entrega_OS_' + os.id + '.pdf');
   }
 
   function _gerarPDFFallbackHTML(os, d) {
@@ -507,7 +507,7 @@ const Utils = (() => {
     const dataExibicao = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : d.dataGeracao;
     const enderecoFormatado = os.clienteEndereco || d.endereco || 'Não cadastrado';
 
-    const htmlDoc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Retirada_OS_${os.id}</title>
+    const htmlDoc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Entrega_OS_${os.id}</title>
 <style>
 @page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px; max-width:800px; margin:0 auto;}
@@ -531,7 +531,7 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
 .sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}
 </style></head><body>
 <div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div>
-<h2>Termo de Autorização de Retirada para Manutenção</h2></div>
+<h2>Termo de Autorização de Entrega para Manutenção</h2></div>
 <div class="meta-row"><div>${d.temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : ''}</div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>${dataExibicao}</u></div></div>
 
 <div class="section-title">Dados do Cliente</div>
@@ -585,7 +585,7 @@ h2{font-size:12px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Termo_Retirada_OS_' + os.id + '.html';
+    a.download = 'Termo_Entrega_OS_' + os.id + '.html';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -639,7 +639,15 @@ const Storage = (() => {
   // ---------- OPÇÕES / LISTAS CONFIGURÁVEIS ----------
 
   function getOpcoes() {
-    return getData(KEYS.OPCOES);
+    const list = getData(KEYS.OPCOES);
+    if (Array.isArray(list)) {
+      list.forEach(op => {
+        if (Array.isArray(op.itens)) {
+          op.itens.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
+        }
+      });
+    }
+    return list;
   }
 
   function getOpcaoById(id) {

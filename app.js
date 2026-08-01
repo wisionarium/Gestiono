@@ -170,6 +170,13 @@ const App = (() => {
       }, 300));
     }
 
+    const searchPDFs = document.getElementById('search-pdfs-input');
+    if (searchPDFs) {
+      searchPDFs.addEventListener('input', Utils.debounce((e) => {
+        renderListaPDFs();
+      }, 300));
+    }
+
     // Home navigation links
     const btnHomeNovoOrcamento = document.getElementById('home-btn-novo-orcamento');
     if (btnHomeNovoOrcamento) {
@@ -535,6 +542,10 @@ const App = (() => {
       case 'concluidos':
         renderCurrentList();
         break;
+      case 'pdfs':
+        renderListaPDFs();
+        updateNavBadges();
+        break;
       case 'admin':
         renderAdmin();
         updateNavBadges();
@@ -890,6 +901,238 @@ const App = (() => {
     });
   }
 
+  // ---------- GERENCIADOR DE PDFS ----------
+
+  function renderListaPDFs() {
+    const container = document.getElementById('list-pdfs');
+    const countEl = document.getElementById('count-pdfs');
+    if (!container) return;
+
+    container.innerHTML = '';
+    let ordens = Storage.getOrdensByStatus('concluido');
+
+    // Search filter
+    const searchPDFs = document.getElementById('search-pdfs-input');
+    const rawQuery = searchPDFs && searchPDFs.value.trim() ? searchPDFs.value.trim() : '';
+    const qClean = Utils.removerAcentos(rawQuery);
+
+    if (qClean) {
+      ordens = ordens.filter(os =>
+        Utils.removerAcentos(os.id).includes(qClean) ||
+        Utils.removerAcentos(os.clienteNome).includes(qClean) ||
+        Utils.removerAcentos(os.clienteTelefone).includes(qClean) ||
+        Utils.removerAcentos(os.modeloVeiculo).includes(qClean) ||
+        Utils.removerAcentos(os.corVeiculo).includes(qClean) ||
+        Utils.removerAcentos(os.mecanico).includes(qClean)
+      );
+    }
+
+    // Sort: newest first
+    ordens.sort((a, b) => {
+      const dataA = a.horaFim || a.dataServico || a.criadoEm;
+      const dataB = b.horaFim || b.dataServico || b.criadoEm;
+      return new Date(dataB) - new Date(dataA);
+    });
+
+    if (countEl) countEl.textContent = ordens.length;
+
+    if (ordens.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z"/></svg>
+          </div>
+          <div class="empty-state-title">Nenhum PDF disponível</div>
+          <div class="empty-state-text">${rawQuery ? 'Tente outro termo de busca' : 'Finalize ordens de serviço para gerar os PDFs.'}</div>
+        </div>`;
+      return;
+    }
+
+    let htmlResult = '';
+    ordens.forEach(os => {
+      const dataStr = os.horaFim ? new Date(os.horaFim).toLocaleDateString('pt-BR') : (os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : '');
+      const servicosStr = (os.servicos || []).map(s => s.descricao).join(', ') || 'Manutenção geral';
+      
+      htmlResult += `
+        <div class="os-card" style="margin-bottom:var(--space-md); border-left:4px solid var(--accent); padding:var(--space-md); background:var(--bg-surface); border-radius:var(--radius-lg); border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--space-xs);">
+            <div>
+              <div style="font-weight:800; font-size:var(--font-md); color:var(--text-primary);">${os.id} — ${Utils.escapeHtml(os.clienteNome)}</div>
+              <div style="font-size:var(--font-xs); color:var(--text-secondary); margin-top:2px;">
+                🛵 ${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')} (${Utils.escapeHtml(os.corVeiculo || 'Cor')}) · 📅 ${dataStr}
+              </div>
+            </div>
+            <span class="badge badge-success" style="font-size:10px; padding:3px 8px;">Concluído</span>
+          </div>
+
+          <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:var(--space-sm); border-top:1px dashed rgba(255,255,255,0.06); padding-top:6px;">
+            🛠️ ${Utils.escapeHtml(servicosStr)}
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+            <button class="btn btn-secondary btn-sm btn-edit-pdf" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;">
+              ✏️ Editar PDF
+            </button>
+            <button class="btn btn-primary btn-sm btn-download-pdf" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#2563eb; border-color:#2563eb; color:#fff;">
+              📄 Baixar PDF
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = htmlResult;
+
+    container.querySelectorAll('.btn-edit-pdf').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModalEditorPDF(btn.dataset.id);
+      });
+    });
+
+    container.querySelectorAll('.btn-download-pdf').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Utils.gerarPDFTermoRetirada(btn.dataset.id);
+      });
+    });
+  }
+
+  function openModalEditorPDF(osId) {
+    const os = Storage.getOrdemById(osId);
+    if (!os) return;
+
+    const opcoesModelo = Storage.getOpcaoByCampo('modelo');
+    const itensModelo = opcoesModelo ? [...opcoesModelo.itens] : [];
+    itensModelo.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
+
+    const opcoesCor = Storage.getOpcaoByCampo('cor');
+    const itensCor = opcoesCor ? [...opcoesCor.itens] : [];
+    itensCor.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
+
+    const usuarios = Storage.getUsuarios();
+    const tecnicos = usuarios.filter(u => u.exibirNaDelegacao !== false);
+    tecnicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+
+    const modelsHtml = itensModelo.map(m => `<option value="${m}" ${os.modeloVeiculo === m ? 'selected' : ''}>${m}</option>`).join('');
+    const colorsHtml = itensCor.map(c => `<option value="${c}" ${os.corVeiculo === c ? 'selected' : ''}>${c}</option>`).join('');
+    const techHtml = tecnicos.map(t => `<option value="${t.nome}" ${os.mecanico === t.nome ? 'selected' : ''}>${t.nome}</option>`).join('');
+
+    const bodyHtml = `
+      <form id="form-editor-pdf">
+        <div class="section-divider" style="margin-top:0;">Dados do Cliente (PDF)</div>
+        <div class="form-group">
+          <label class="form-label required">Nome Completo</label>
+          <input type="text" class="form-input" id="pdf-edit-nome" value="${Utils.escapeHtml(os.clienteNome || '')}" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">CPF</label>
+            <input type="text" class="form-input" id="pdf-edit-cpf" value="${Utils.escapeHtml(os.clienteCpf || '')}" placeholder="000.000.000-00">
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Telefone</label>
+            <input type="tel" class="form-input" id="pdf-edit-telefone" value="${Utils.escapeHtml(os.clienteTelefone || '')}" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Endereço</label>
+          <input type="text" class="form-input" id="pdf-edit-endereco" value="${Utils.escapeHtml(os.clienteEndereco || '')}">
+        </div>
+
+        <div class="section-divider">Dados do Veículo & Mecânico</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Modelo</label>
+            <select class="form-select" id="pdf-edit-modelo">
+              <option value="">Selecione...</option>
+              ${modelsHtml}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cor</label>
+            <select class="form-select" id="pdf-edit-cor">
+              <option value="">Selecione...</option>
+              ${colorsHtml}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Técnico Responsável</label>
+          <select class="form-select" id="pdf-edit-mecanico">
+            <option value="">Selecione...</option>
+            ${techHtml}
+          </select>
+        </div>
+
+        <div class="section-divider">Configurações do Termo de Entrega</div>
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="pdf-edit-garantia" ${os.temGarantia ? 'checked' : ''} style="width:18px; height:18px;">
+          <label for="pdf-edit-garantia" style="font-weight:700; cursor:pointer;">Possui Garantia (Badge Verde)</label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Taxa de Retirada (R$)</label>
+            <input type="text" class="form-input" id="pdf-edit-taxa" value="${Utils.escapeHtml(os.valorRetirada || 'R$ 0,00')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Levar</label>
+            <input type="text" class="form-input" id="pdf-edit-levar" value="${Utils.escapeHtml(os.levar || '')}" placeholder="Capacete, etc.">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Itens Deixados pelo Cliente</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-chave" ${os.deixouChave ? 'checked' : ''}> Chaves</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-controle" ${os.deixouControle ? 'checked' : ''}> Controles</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-carregador" ${os.deixouCarregador ? 'checked' : ''}> Carregador</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="pdf-edit-documento" ${os.deixouDocumento ? 'checked' : ''}> Documentos</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observações / Descrição da Manutenção</label>
+          <textarea class="form-textarea" id="pdf-edit-obs" rows="3">${Utils.escapeHtml(os.observacoes || '')}</textarea>
+        </div>
+      </form>
+    `;
+
+    openModal(`Editar PDF — ${os.id}`, bodyHtml, () => {
+      const form = document.getElementById('form-editor-pdf');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+
+      const updates = {
+        clienteNome: document.getElementById('pdf-edit-nome').value.trim(),
+        clienteCpf: document.getElementById('pdf-edit-cpf').value.trim(),
+        clienteTelefone: document.getElementById('pdf-edit-telefone').value.trim(),
+        clienteEndereco: document.getElementById('pdf-edit-endereco').value.trim(),
+        modeloVeiculo: document.getElementById('pdf-edit-modelo').value,
+        corVeiculo: document.getElementById('pdf-edit-cor').value,
+        mecanico: document.getElementById('pdf-edit-mecanico').value,
+        temGarantia: document.getElementById('pdf-edit-garantia').checked,
+        valorRetirada: document.getElementById('pdf-edit-taxa').value,
+        levar: document.getElementById('pdf-edit-levar').value,
+        deixouChave: document.getElementById('pdf-edit-chave').checked,
+        deixouControle: document.getElementById('pdf-edit-controle').checked,
+        deixouCarregador: document.getElementById('pdf-edit-carregador').checked,
+        deixouDocumento: document.getElementById('pdf-edit-documento').checked,
+        observacoes: document.getElementById('pdf-edit-obs').value
+      };
+
+      Storage.updateOrdem(osId, updates);
+      showToast('Dados do PDF atualizados com sucesso!', 'success');
+      renderListaPDFs();
+      
+      setTimeout(() => {
+        Utils.gerarPDFTermoRetirada(osId);
+      }, 300);
+
+      return true;
+    });
+  }
+
   function updateNavBadges() {
     const ordens = Storage.getOrdens();
     const aguardando = ordens.filter(o => o.status === 'aguardando').length;
@@ -1171,7 +1414,8 @@ const App = (() => {
     const select = document.getElementById(selectId);
     if (!select) return;
     const opcao = Storage.getOpcaoByCampo(campo);
-    const itens = opcao ? opcao.itens : [];
+    const itens = opcao ? [...opcao.itens] : [];
+    itens.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
 
     // Keep as text input if no options configured, otherwise use select
     if (select.tagName === 'SELECT') {
@@ -1469,7 +1713,7 @@ const App = (() => {
     }
     if (os.status === 'concluido') {
       actionsHtml += `<button class="btn btn-blue btn-block mt-sm" id="btn-detail-pdf" style="background:#2563eb; border-color:#2563eb; color:white; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px;">
-        📄 Baixar Termo de Retirada (PDF)</button>`;
+        📄 Baixar Termo de Entrega (PDF)</button>`;
     }
     if (canExcluir) {
       actionsHtml += `<button class="btn btn-danger btn-block btn-sm mt-md" id="btn-detail-excluir">Excluir OS</button>`;
@@ -2790,6 +3034,8 @@ const App = (() => {
       showToast('Nenhum funcionário disponível na lista de delegação!', 'error');
       return;
     }
+
+    tecnicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
 
     const optionsHtml = tecnicos.map(t => {
       const cargo = cargos.find(c => c.id === t.role);

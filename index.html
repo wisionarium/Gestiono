@@ -428,6 +428,19 @@
           <div class="kanban-list" id="list-concluidos"></div>
         </div>
 
+        <!-- ===== GERENCIADOR DE PDFS PAGE ===== -->
+        <div class="page" id="page-pdfs">
+          <div class="page-header">
+            <div class="page-title">📄 Gerenciador de PDFs</div>
+            <div class="page-subtitle">Edite e baixe os Termos de Entrega dos serviços concluídos · <span id="count-pdfs">0</span> itens</div>
+          </div>
+          <div class="search-bar" style="margin-bottom:var(--space-md);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="search-pdfs-input" placeholder="🔍 Pesquisar cliente, ID da OS ou veículo...">
+          </div>
+          <div class="kanban-list" id="list-pdfs"></div>
+        </div>
+
         <!-- ===== OS DETAIL PAGE ===== -->
         <div class="page" id="page-os-detail">
           <div id="os-detail-content"></div>
@@ -698,10 +711,6 @@
           <span>Serviços</span>
           <span class="nav-badge" id="badge-servicos" style="display:none;background:var(--status-aguardando)">0</span>
         </button>
-        <button class="nav-item" data-page="nova-os">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
-          <span>+Orçamento</span>
-        </button>
         <button class="nav-item" data-page="andamento">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           <span>Andamento</span>
@@ -711,6 +720,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           <span>Concluídos</span>
           <span class="nav-badge" id="badge-concluidos" style="display:none;background:var(--status-concluido)">0</span>
+        </button>
+        <button class="nav-item" data-page="pdfs">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z"/></svg>
+          <span>PDFs</span>
         </button>
       </nav>
 
@@ -740,9 +753,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-  <script src="supabase-config.js?v=17.0"></script>
-  <script src="utils.js?v=17.0"></script>
-  <script src="storage.js?v=17.0"></script>
-  <script src="app.js?v=17.0"></script>
+  <script src="supabase-config.js?v=18.0"></script>
+  <script src="utils.js?v=18.0"></script>
+  <script src="storage.js?v=18.0"></script>
+  <script src="app.js?v=18.0"></script>
 </body>
 </html>
