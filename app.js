@@ -732,7 +732,8 @@ const App = (() => {
     if (isCurrentMonth) {
       return { key: `mes_${ano}_${date.getMonth()}`, label: `Este Mês (${mesNome})`, order: 3 };
     } else {
-      const orderVal = 10000 - (ano * 12 + date.getMonth());
+      const diffMonths = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+      const orderVal = 4 + diffMonths;
       return { key: `mes_${ano}_${date.getMonth()}`, label: `${mesNome} de ${ano}`, order: orderVal };
     }
   }
