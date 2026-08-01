@@ -243,14 +243,6 @@ const Utils = (() => {
   }
 
   function gerarPDFRetirada(os) {
-    if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
-      alert('Aguarde o carregamento do gerador de PDF ou verifique sua conexão.');
-      return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
     const camposDef = typeof Storage !== 'undefined' ? Storage.getCampos() : [];
     const campos = os.camposPersonalizados || {};
 
@@ -291,210 +283,138 @@ const Utils = (() => {
     }
 
     const dataGeracao = new Date().toLocaleDateString('pt-BR');
-    const pageW = 210;
-    const marginL = 15;
-    const marginR = 15;
-    const contentW = pageW - marginL - marginR;
-    let y = 15;
+    const checkOn = '☑';
+    const checkOff = '☐';
 
-    // === Helpers ===
-    function drawSectionTitle(title) {
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(203, 213, 225);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(30, 41, 59);
-      doc.text(title, marginL + 4, y + 4);
-      y += 7;
-      doc.setDrawColor(203, 213, 225);
-      doc.line(marginL, y - 2.5, marginL + contentW, y - 2.5);
-      y += 1;
+    const htmlDoc = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Termo_Retirada_OS_${os.id}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm 15mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #0f172a; background: #fff; padding: 10px; font-size: 12px; }
+    .header { text-align: center; border-bottom: 2.5px solid #ef4444; padding-bottom: 10px; margin-bottom: 12px; }
+    .header .brand { font-size: 30px; font-weight: 800; letter-spacing: 2px; }
+    .header .brand .red { color: #ef4444; }
+    .header .brand .blue { color: #1e3a8a; }
+    .header h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #1e293b; margin-top: 6px; letter-spacing: 0.5px; }
+    .meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .garantia-badge { background: #22c55e; color: #fff; padding: 3px 10px; font-weight: 800; font-size: 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; }
+    .data-label { font-size: 11px; font-weight: 600; color: #475569; }
+    .section { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; background: #f8fafc; }
+    .section-title { font-weight: 800; font-size: 10px; text-transform: uppercase; color: #1e293b; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 7px; letter-spacing: 0.5px; }
+    .fields-row { display: flex; gap: 15px; font-size: 11px; margin-bottom: 5px; }
+    .fields-row .field { flex: 1; }
+    .field-label { font-weight: 700; }
+    .field-value { border-bottom: 1px dashed #94a3b8; display: inline-block; min-width: 60%; padding-left: 3px; color: #334185; }
+    .field-full { font-size: 11px; }
+    .checks-row { display: flex; gap: 10px; font-size: 11px; }
+    .check-item { display: flex; align-items: center; gap: 4px; flex: 1; }
+    .check-icon { font-size: 15px; font-weight: bold; color: #1e3a8a; }
+    .obs-text { font-size: 10.5px; line-height: 1.5; color: #334155; min-height: 50px; word-break: break-word; white-space: pre-wrap; }
+    .auth-text { font-size: 10px; line-height: 1.5; color: #475569; }
+    .signatures { display: flex; gap: 40px; margin-top: 30px; font-size: 11px; }
+    .sig-block { flex: 1; text-align: center; }
+    .sig-line { border-bottom: 1px solid #94a3b8; height: 25px; margin-bottom: 4px; }
+    .sig-name { font-weight: 700; line-height: 25px; color: #0f172a; }
+    .sig-label { font-weight: 700; }
+    @media print {
+      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
     }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div>
+    <h2>Termo de Autorização de Retirada para Manutenção</h2>
+  </div>
 
-    function drawField(label, value, x, maxW) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(30, 41, 59);
-      doc.text(label, x, y);
-      const labelW = doc.getTextWidth(label) + 1;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(51, 65, 133);
-      const val = value || '—';
-      doc.text(val, x + labelW, y);
-      // Underline dashed
-      doc.setDrawColor(148, 163, 184);
-      doc.setLineDashPattern([1, 1], 0);
-      doc.line(x + labelW, y + 0.5, x + maxW, y + 0.5);
-      doc.setLineDashPattern([], 0);
+  <div class="meta-row">
+    <div>${temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : ''}</div>
+    <div class="data-label">Data: <u>${dataGeracao}</u></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Dados do Cliente</div>
+    <div class="fields-row">
+      <div class="field"><span class="field-label">Nome:</span> <span class="field-value">${os.clienteNome || '—'}</span></div>
+      <div class="field"><span class="field-label">Cel.:</span> <span class="field-value">${os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '—'}</span></div>
+    </div>
+    <div class="field-full"><span class="field-label">Endereço:</span> <span class="field-value" style="width:85%">${endereco || 'Não cadastrado'}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Dados do Veículo</div>
+    <div class="fields-row">
+      <div class="field"><span class="field-label">Modelo:</span> <span class="field-value">${os.modeloVeiculo || '—'}</span></div>
+      <div class="field"><span class="field-label">Cor:</span> <span class="field-value">${os.corVeiculo || '—'}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Taxa de Retirada</div>
+    <div class="fields-row">
+      <div class="field"><span class="field-label">Valor:</span> <span class="field-value">${valorRetirada || '—'}</span></div>
+      <div class="field"><span class="field-label">Levar:</span> <span class="field-value">${levar || '—'}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Itens Retirados</div>
+    <div class="checks-row">
+      <div class="check-item"><span class="check-icon">${deixouChave ? checkOn : checkOff}</span> Chaves</div>
+      <div class="check-item"><span class="check-icon">${deixouControle ? checkOn : checkOff}</span> Controles</div>
+      <div class="check-item"><span class="check-icon">${deixouCarregador ? checkOn : checkOff}</span> Carregador</div>
+      <div class="check-item"><span class="check-icon">${deixouDocumento ? checkOn : checkOff}</span> Documentos</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Descrição da Manutenção (Observações)</div>
+    <div class="obs-text">${os.observacoes || 'Nenhuma observação cadastrada.'}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Autorização</div>
+    <p class="auth-text">Autorizo a <strong>SUPRA BIKE</strong> a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.</p>
+    <p class="auth-text" style="margin-top:4px">Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.</p>
+  </div>
+
+  <div class="signatures">
+    <div class="sig-block">
+      <div class="sig-line"></div>
+      <div class="sig-label">Assinatura do Cliente</div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-line sig-name">${os.mecanico || '—'}</div>
+      <div class="sig-label">Técnico Responsável</div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() { window.print(); };
+  <\/script>
+</body>
+</html>`;
+
+    // Abre nova janela com o termo e aciona impressão/salvar como PDF
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(htmlDoc);
+      printWindow.document.close();
+    } else {
+      // Fallback: usa Blob + link
+      const blob = new Blob([htmlDoc], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
-
-    function drawSectionBox(startY, endY) {
-      doc.setDrawColor(203, 213, 225);
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(marginL, startY, contentW, endY - startY, 2, 2, 'FD');
-    }
-
-    // === CABEÇALHO ===
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
-    doc.setTextColor(239, 68, 68); // vermelho
-    doc.text('SUPRA', pageW / 2 - 2, y, { align: 'right' });
-    doc.setTextColor(30, 58, 138); // azul escuro
-    doc.text(' BIKE', pageW / 2 + 2, y, { align: 'left' });
-    y += 8;
-
-    doc.setFontSize(11);
-    doc.setTextColor(30, 41, 59);
-    doc.text('TERMO DE AUTORIZAÇÃO DE RETIRADA PARA MANUTENÇÃO', pageW / 2, y, { align: 'center' });
-    y += 3;
-
-    // Linha vermelha separadora
-    doc.setDrawColor(239, 68, 68);
-    doc.setLineWidth(0.8);
-    doc.line(marginL, y, marginL + contentW, y);
-    doc.setLineWidth(0.2);
-    y += 6;
-
-    // === GARANTIA + DATA ===
-    if (temGarantia) {
-      doc.setFillColor(34, 197, 94);
-      doc.roundedRect(marginL, y - 3.5, 24, 6, 1.5, 1.5, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(255, 255, 255);
-      doc.text('GARANTIA', marginL + 2, y);
-    }
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    doc.text('Data: ' + dataGeracao, marginL + contentW, y, { align: 'right' });
-    y += 8;
-
-    // === DADOS DO CLIENTE ===
-    let secY = y;
-    drawSectionBox(secY, secY + 24);
-    y = secY + 1;
-    drawSectionTitle('DADOS DO CLIENTE');
-    
-    drawField('Nome: ', os.clienteNome || '', marginL + 4, marginL + contentW * 0.58);
-    drawField('Cel.: ', os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '', marginL + contentW * 0.62, marginL + contentW - 4);
-    y += 6;
-    
-    drawField('Endereço: ', endereco || 'Não cadastrado', marginL + 4, marginL + contentW - 4);
-    y += 8;
-
-    // === DADOS DO VEÍCULO ===
-    secY = y;
-    drawSectionBox(secY, secY + 18);
-    y = secY + 1;
-    drawSectionTitle('DADOS DO VEÍCULO');
-    
-    drawField('Modelo: ', os.modeloVeiculo || '', marginL + 4, marginL + contentW * 0.45);
-    drawField('Cor: ', os.corVeiculo || '', marginL + contentW * 0.52, marginL + contentW - 4);
-    y += 8;
-
-    // === TAXA DE RETIRADA ===
-    secY = y;
-    drawSectionBox(secY, secY + 18);
-    y = secY + 1;
-    drawSectionTitle('TAXA DE RETIRADA');
-    
-    drawField('Valor: ', valorRetirada || '', marginL + 4, marginL + contentW * 0.45);
-    drawField('Levar: ', levar || '', marginL + contentW * 0.52, marginL + contentW - 4);
-    y += 8;
-
-    // === ITENS RETIRADOS ===
-    secY = y;
-    drawSectionBox(secY, secY + 18);
-    y = secY + 1;
-    drawSectionTitle('ITENS RETIRADOS');
-    
-    const itens = [
-      { label: 'Chaves', checked: deixouChave },
-      { label: 'Controles', checked: deixouControle },
-      { label: 'Carregador', checked: deixouCarregador },
-      { label: 'Documentos', checked: deixouDocumento }
-    ];
-    
-    const colW = (contentW - 8) / 4;
-    itens.forEach((item, i) => {
-      const ix = marginL + 4 + i * colW;
-      const checkChar = item.checked ? '☑' : '☐';
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(30, 58, 138);
-      doc.text(checkChar, ix, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(30, 41, 59);
-      doc.text(' ' + item.label, ix + 4, y);
-    });
-    y += 8;
-
-    // === DESCRIÇÃO DA MANUTENÇÃO ===
-    const obsText = os.observacoes || 'Nenhuma observação cadastrada.';
-    const obsLines = doc.splitTextToSize(obsText, contentW - 12);
-    const obsHeight = Math.max(20, obsLines.length * 4.5 + 12);
-    
-    secY = y;
-    drawSectionBox(secY, secY + obsHeight);
-    y = secY + 1;
-    drawSectionTitle('DESCRIÇÃO DA MANUTENÇÃO (OBSERVAÇÕES)');
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(51, 65, 133);
-    doc.text(obsLines, marginL + 4, y + 1);
-    y = secY + obsHeight + 3;
-
-    // === AUTORIZAÇÃO ===
-    const autTexto1 = 'Autorizo a SUPRA BIKE a retirar o veículo acima para realização de inspeção técnica, manutenção e/ou reparo.';
-    const autTexto2 = 'Estou ciente de que a retirada do veículo não caracteriza aprovação automática da garantia. Caso o defeito não esteja coberto pela garantia, será apresentado orçamento para aprovação antes da execução do serviço.';
-    const aut1Lines = doc.splitTextToSize(autTexto1, contentW - 12);
-    const aut2Lines = doc.splitTextToSize(autTexto2, contentW - 12);
-    const autHeight = (aut1Lines.length + aut2Lines.length) * 4.5 + 14;
-
-    secY = y;
-    drawSectionBox(secY, secY + autHeight);
-    y = secY + 1;
-    drawSectionTitle('AUTORIZAÇÃO');
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(71, 85, 105);
-    doc.text(aut1Lines, marginL + 4, y + 1);
-    y += aut1Lines.length * 4.5 + 2;
-    doc.text(aut2Lines, marginL + 4, y + 1);
-    y = secY + autHeight + 8;
-
-    // === ASSINATURAS ===
-    const sigW = (contentW - 20) / 2;
-
-    // Assinatura do cliente
-    doc.setDrawColor(148, 163, 184);
-    doc.line(marginL + 4, y, marginL + 4 + sigW, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    doc.text('Assinatura do Cliente', marginL + 4 + sigW / 2, y + 5, { align: 'center' });
-
-    // Técnico responsável
-    const tecX = marginL + contentW - 4 - sigW;
-    if (os.mecanico) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      doc.text(os.mecanico, tecX + sigW / 2, y - 2, { align: 'center' });
-    }
-    doc.line(tecX, y, tecX + sigW, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    doc.text('Técnico Responsável', tecX + sigW / 2, y + 5, { align: 'center' });
-
-    // === SALVAR PDF ===
-    doc.save('Termo_Retirada_OS_' + os.id + '.pdf');
   }
 
   function abrirInstagram(username = 'wisionarium') {
