@@ -340,12 +340,18 @@ const Utils = (() => {
     };
 
     const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '0';
+    container.style.top = '0';
+    container.style.zIndex = '-9999';
+    container.style.opacity = '0.01';
+    container.style.pointerEvents = 'none';
+    container.style.width = '794px'; // Largura exata A4 em 96 DPI
+    container.style.boxSizing = 'border-box';
     container.style.fontFamily = "'Outfit', 'Inter', sans-serif";
     container.style.color = "#0f172a";
-    container.style.padding = "10px";
-    container.style.background = "#fff";
-    container.style.width = "100%";
-    container.style.boxSizing = "border-box";
+    container.style.padding = "30px";
+    container.style.background = "#ffffff";
 
     let htmlContent = `
       <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">
@@ -483,12 +489,14 @@ const Utils = (() => {
     container.innerHTML = htmlContent;
     document.body.appendChild(container);
 
-    html2pdf().from(container).set(opt).save().then(() => {
-      document.body.removeChild(container);
-    }).catch(err => {
-      console.error('Erro ao gerar PDF:', err);
-      document.body.removeChild(container);
-    });
+    setTimeout(() => {
+      html2pdf().from(container).set(opt).save().then(() => {
+        document.body.removeChild(container);
+      }).catch(err => {
+        console.error('Erro ao gerar PDF:', err);
+        document.body.removeChild(container);
+      });
+    }, 150);
   }
 
   function abrirInstagram(username = 'wisionarium') {
