@@ -344,7 +344,7 @@ const Utils = (() => {
     container.style.left = '0';
     container.style.top = '0';
     container.style.zIndex = '-9999';
-    container.style.opacity = '0.01';
+    container.style.opacity = '1';
     container.style.pointerEvents = 'none';
     container.style.width = '794px'; // Largura exata A4 em 96 DPI
     container.style.boxSizing = 'border-box';
