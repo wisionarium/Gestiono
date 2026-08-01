@@ -606,6 +606,7 @@ const Storage = (() => {
     campo.criadoEm = new Date().toISOString();
     campos.push(campo);
     setData(KEYS.CAMPOS, campos);
+    syncToSupabase(KEYS.CAMPOS, campo);
     return campo;
   }
 
@@ -615,12 +616,14 @@ const Storage = (() => {
     if (idx === -1) return null;
     campos[idx] = { ...campos[idx], ...updates };
     setData(KEYS.CAMPOS, campos);
+    syncToSupabase(KEYS.CAMPOS, campos[idx]);
     return campos[idx];
   }
 
   function deleteCampo(id) {
     const campos = getCampos().filter(c => c.id !== id);
     setData(KEYS.CAMPOS, campos);
+    deleteFromSupabase('campos_personalizados', id);
   }
 
   function toggleCampo(id) {
@@ -629,6 +632,7 @@ const Storage = (() => {
     if (idx === -1) return;
     campos[idx].ativo = !campos[idx].ativo;
     setData(KEYS.CAMPOS, campos);
+    syncToSupabase(KEYS.CAMPOS, campos[idx]);
     return campos[idx];
   }
 
@@ -654,6 +658,7 @@ const Storage = (() => {
     opcao.criadoEm = new Date().toISOString();
     opcoes.push(opcao);
     setData(KEYS.OPCOES, opcoes);
+    syncToSupabase(KEYS.OPCOES, opcao);
     return opcao;
   }
 
@@ -663,12 +668,14 @@ const Storage = (() => {
     if (idx === -1) return null;
     opcoes[idx] = { ...opcoes[idx], ...updates };
     setData(KEYS.OPCOES, opcoes);
+    syncToSupabase(KEYS.OPCOES, opcoes[idx]);
     return opcoes[idx];
   }
 
   function deleteOpcao(id) {
     const opcoes = getOpcoes().filter(o => o.id !== id);
     setData(KEYS.OPCOES, opcoes);
+    deleteFromSupabase('opcoes_listas', id);
   }
 
   function addItemOpcao(opcaoId, item) {
@@ -679,6 +686,7 @@ const Storage = (() => {
       opcoes[idx].itens.push(item);
     }
     setData(KEYS.OPCOES, opcoes);
+    syncToSupabase(KEYS.OPCOES, opcoes[idx]);
     return opcoes[idx];
   }
 
@@ -688,6 +696,7 @@ const Storage = (() => {
     if (idx === -1) return;
     opcoes[idx].itens = opcoes[idx].itens.filter(i => i !== item);
     setData(KEYS.OPCOES, opcoes);
+    syncToSupabase(KEYS.OPCOES, opcoes[idx]);
     return opcoes[idx];
   }
 
@@ -700,6 +709,7 @@ const Storage = (() => {
       opcoes[idx].itens[itemIdx] = newItem.trim();
     }
     setData(KEYS.OPCOES, opcoes);
+    syncToSupabase(KEYS.OPCOES, opcoes[idx]);
     return opcoes[idx];
   }
 
@@ -720,6 +730,7 @@ const Storage = (() => {
     cargo.criadoEm = new Date().toISOString();
     cargos.push(cargo);
     setData(KEYS.CARGOS, cargos);
+    syncToSupabase(KEYS.CARGOS, cargo);
     return cargo;
   }
 
@@ -729,6 +740,7 @@ const Storage = (() => {
     if (idx === -1) return null;
     cargos[idx] = { ...cargos[idx], ...updates };
     setData(KEYS.CARGOS, cargos);
+    syncToSupabase(KEYS.CARGOS, cargos[idx]);
     return cargos[idx];
   }
 
@@ -737,6 +749,7 @@ const Storage = (() => {
     if (id === 'role_admin') return;
     const cargos = getCargos().filter(c => c.id !== id);
     setData(KEYS.CARGOS, cargos);
+    deleteFromSupabase('cargos', id);
   }
 
   function getTemplatesWhatsApp() {

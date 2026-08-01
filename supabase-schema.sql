@@ -117,4 +117,6 @@ CREATE POLICY "Public Config Access" ON public.configuracoes FOR ALL USING (true
 ALTER PUBLICATION supabase_realtime ADD TABLE public.ordens_servico;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.usuarios;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.cargos;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.opcoes_listas;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.campos_personalizados;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.configuracoes;
