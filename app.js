@@ -1384,12 +1384,9 @@ const App = (() => {
           <textarea class="form-textarea" id="retirada-edit-obs" rows="3" placeholder="Insira observações ou detalhes sobre a retirada..."></textarea>
         </div>
 
-        <div style="margin-top:20px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--glass-border); padding-top:16px;">
-          <button type="button" class="btn btn-primary btn-block" id="btn-nova-retirada-save-download" style="background:#f59e0b; border-color:#f59e0b; color:#fff; font-weight:700; padding:12px; font-size:13px;">
-            📋 Salvar & Baixar Termo de Retirada (PDF)
-          </button>
-          <button type="button" class="btn btn-secondary btn-block" id="btn-nova-retirada-save-only" style="font-weight:700;">
-            💾 Apenas Salvar
+        <div style="margin-top:20px; border-top:1px solid var(--glass-border); padding-top:16px;">
+          <button type="button" class="btn btn-primary btn-block" id="btn-nova-retirada-confirmar" style="background:#f59e0b; border-color:#f59e0b; color:#fff; font-weight:700; padding:14px; font-size:14px; border-radius:12px;">
+            ✅ Confirmar Ordem de Retirada
           </button>
         </div>
       </form>
@@ -1397,60 +1394,48 @@ const App = (() => {
 
     openModal('Nova Ordem de Retirada', bodyHtml, null);
 
-    const getFormOrdem = () => {
-      const form = document.getElementById('form-nova-retirada');
-      if (!form.checkValidity()) { form.reportValidity(); return null; }
+    const btnConfirmar = document.getElementById('btn-nova-retirada-confirmar');
+    if (btnConfirmar) {
+      btnConfirmar.addEventListener('click', () => {
+        const form = document.getElementById('form-nova-retirada');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
 
-      const ordens = Storage.getOrdens();
-      const novoId = Utils.gerarCodigoOS(ordens);
+        const novaOrdem = {
+          tipo: 'retirada',
+          status: 'retirada_pendente',
+          clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
+          clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
+          clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
+          clienteEndereco: document.getElementById('retirada-edit-endereco').value.trim(),
+          modeloVeiculo: document.getElementById('retirada-edit-modelo').value,
+          corVeiculo: document.getElementById('retirada-edit-cor').value,
+          mecanico: document.getElementById('retirada-edit-mecanico').value,
+          temGarantia: document.getElementById('retirada-edit-garantia').checked,
+          valorRetirada: document.getElementById('retirada-edit-taxa').value,
+          taxaEntrega: document.getElementById('retirada-edit-taxa-entrega').value,
+          deixouChave: document.getElementById('retirada-edit-chave').checked,
+          qtdChave: document.getElementById('retirada-edit-qtd-chave').value,
+          deixouControle: document.getElementById('retirada-edit-controle').checked,
+          qtdControle: document.getElementById('retirada-edit-qtd-controle').value,
+          deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
+          deixouDocumento: document.getElementById('retirada-edit-documento').checked,
+          observacoes: document.getElementById('retirada-edit-obs').value,
+          servicos: [{ descricao: 'Ordem de Retirada', valor: 0 }],
+          valorTotal: 0,
+          formaPagamento: ['pendente'],
+          statusPagamento: 'pendente',
+          prioridade: 'normal',
+          atendente: currentUser ? currentUser.nome : 'Sistema',
+          criadoPor: currentUser ? currentUser.nome : 'Sistema',
+          criadoEm: new Date().toISOString(),
+          atualizadoEm: new Date().toISOString()
+        };
 
-      return {
-        id: novoId,
-        status: 'concluido',
-        clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
-        clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
-        clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
-        clienteEndereco: document.getElementById('retirada-edit-endereco').value.trim(),
-        modeloVeiculo: document.getElementById('retirada-edit-modelo').value,
-        corVeiculo: document.getElementById('retirada-edit-cor').value,
-        mecanico: document.getElementById('retirada-edit-mecanico').value,
-        temGarantia: document.getElementById('retirada-edit-garantia').checked,
-        valorRetirada: document.getElementById('retirada-edit-taxa').value,
-        taxaEntrega: document.getElementById('retirada-edit-taxa-entrega').value,
-        deixouChave: document.getElementById('retirada-edit-chave').checked,
-        qtdChave: document.getElementById('retirada-edit-qtd-chave').value,
-        deixouControle: document.getElementById('retirada-edit-controle').checked,
-        qtdControle: document.getElementById('retirada-edit-qtd-controle').value,
-        deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
-        deixouDocumento: document.getElementById('retirada-edit-documento').checked,
-        observacoes: document.getElementById('retirada-edit-obs').value,
-        servicos: [{ descricao: 'Ordem de Retirada', valor: 0 }],
-        valorTotal: 0,
-        criadoEm: new Date().toISOString(),
-        atualizadoEm: new Date().toISOString()
-      };
-    };
-
-    const btnSaveOnly = document.getElementById('btn-nova-retirada-save-only');
-    if (btnSaveOnly) {
-      btnSaveOnly.addEventListener('click', () => {
-        const novaOrdem = getFormOrdem();
-        if (!novaOrdem) return;
-        Storage.salvarOrdem(novaOrdem);
-        showToast(`Ordem de Retirada ${novaOrdem.id} criada com sucesso!`, 'success');
+        const saved = Storage.saveOrdem(novaOrdem);
+        showToast(`Ordem de Retirada ${saved.id} registrada! Veja na aba Retirada em Serviços.`, 'success');
         closeModal();
-      });
-    }
-
-    const btnSaveDownload = document.getElementById('btn-nova-retirada-save-download');
-    if (btnSaveDownload) {
-      btnSaveDownload.addEventListener('click', () => {
-        const novaOrdem = getFormOrdem();
-        if (!novaOrdem) return;
-        Storage.salvarOrdem(novaOrdem);
-        showToast(`Ordem de Retirada ${novaOrdem.id} salva! Gerando PDF...`, 'success');
-        closeModal();
-        setTimeout(() => Utils.gerarPDFRetiradaDoc(novaOrdem), 300);
+        renderListaOS('aguardando');
+        updateNavBadges();
       });
     }
   }
