@@ -1167,7 +1167,7 @@ const App = (() => {
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Técnico Responsável</label>
+          <label class="form-label">${targetType === 'retirada' ? 'Motorista Responsável' : 'Técnico Responsável'}</label>
           <select class="form-select" id="pdf-edit-mecanico">
             <option value="">Selecione...</option>
             ${techHtml}
@@ -1208,7 +1208,7 @@ const App = (() => {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Observações / Descrição da Manutenção</label>
+          <label class="form-label">${targetType === 'retirada' ? 'Relato do cliente' : 'Observações / Descrição da Manutenção'}</label>
           <textarea class="form-textarea" id="pdf-edit-obs" rows="3">${Utils.escapeHtml(os.observacoes || '')}</textarea>
         </div>
 
@@ -1339,7 +1339,7 @@ const App = (() => {
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Técnico Responsável</label>
+          <label class="form-label">Motorista Responsável</label>
           <select class="form-select" id="retirada-edit-mecanico">
             <option value="">Selecione...</option>
             ${techHtml}
@@ -1380,64 +1380,59 @@ const App = (() => {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Observações / Descrição da Manutenção</label>
-          <textarea class="form-textarea" id="retirada-edit-obs" rows="3" placeholder="Insira observações ou detalhes sobre a retirada..."></textarea>
+          <label class="form-label">Relato do cliente</label>
+          <textarea class="form-textarea" id="retirada-edit-obs" rows="3" placeholder="Descreva o relato do cliente sobre o veículo..."></textarea>
         </div>
 
-        <div style="margin-top:20px; border-top:1px solid var(--glass-border); padding-top:16px;">
-          <button type="button" class="btn btn-primary btn-block" id="btn-nova-retirada-confirmar" style="background:#f59e0b; border-color:#f59e0b; color:#fff; font-weight:700; padding:14px; font-size:14px; border-radius:12px;">
-            ✅ Confirmar Ordem de Retirada
-          </button>
+        <div class="form-group" style="margin-top:16px; padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:10px; font-size:12px; color:var(--text-secondary); line-height:1.5;">
+          <p style="margin-bottom:8px;">Declaro estar ciente e de acordo com a retirada do meu veículo pela Supra Bike para realização de inspeção técnica, diagnóstico e dos serviços de manutenção que se fizerem necessários.</p>
+          <p style="margin-bottom:8px;">Autorizo a equipe técnica da Supra Bike a executar os procedimentos necessários para avaliação e manutenção do veículo, conforme as condições identificadas durante a análise.</p>
+          <p style="font-weight:700; color:var(--text-primary); margin-bottom:0;">Ao prosseguir, confirmo que li, compreendi e aceito os termos acima.</p>
         </div>
       </form>
     `;
 
-    openModal('Nova Ordem de Retirada', bodyHtml, null);
+    openModal('Nova Ordem de Retirada', bodyHtml, () => {
+      const form = document.getElementById('form-nova-retirada');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
 
-    const btnConfirmar = document.getElementById('btn-nova-retirada-confirmar');
-    if (btnConfirmar) {
-      btnConfirmar.addEventListener('click', () => {
-        const form = document.getElementById('form-nova-retirada');
-        if (!form.checkValidity()) { form.reportValidity(); return; }
+      const novaOrdem = {
+        tipo: 'retirada',
+        status: 'retirada_pendente',
+        clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
+        clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
+        clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
+        clienteEndereco: document.getElementById('retirada-edit-endereco').value.trim(),
+        modeloVeiculo: document.getElementById('retirada-edit-modelo').value,
+        corVeiculo: document.getElementById('retirada-edit-cor').value,
+        mecanico: document.getElementById('retirada-edit-mecanico').value,
+        temGarantia: document.getElementById('retirada-edit-garantia').checked,
+        valorRetirada: document.getElementById('retirada-edit-taxa').value,
+        taxaEntrega: document.getElementById('retirada-edit-taxa-entrega').value,
+        deixouChave: document.getElementById('retirada-edit-chave').checked,
+        qtdChave: document.getElementById('retirada-edit-qtd-chave').value,
+        deixouControle: document.getElementById('retirada-edit-controle').checked,
+        qtdControle: document.getElementById('retirada-edit-qtd-controle').value,
+        deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
+        deixouDocumento: document.getElementById('retirada-edit-documento').checked,
+        observacoes: document.getElementById('retirada-edit-obs').value,
+        servicos: [{ descricao: 'Ordem de Retirada', valor: 0 }],
+        valorTotal: 0,
+        formaPagamento: ['pendente'],
+        statusPagamento: 'pendente',
+        prioridade: 'normal',
+        atendente: currentUser ? currentUser.nome : 'Sistema',
+        criadoPor: currentUser ? currentUser.nome : 'Sistema',
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString()
+      };
 
-        const novaOrdem = {
-          tipo: 'retirada',
-          status: 'retirada_pendente',
-          clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
-          clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
-          clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
-          clienteEndereco: document.getElementById('retirada-edit-endereco').value.trim(),
-          modeloVeiculo: document.getElementById('retirada-edit-modelo').value,
-          corVeiculo: document.getElementById('retirada-edit-cor').value,
-          mecanico: document.getElementById('retirada-edit-mecanico').value,
-          temGarantia: document.getElementById('retirada-edit-garantia').checked,
-          valorRetirada: document.getElementById('retirada-edit-taxa').value,
-          taxaEntrega: document.getElementById('retirada-edit-taxa-entrega').value,
-          deixouChave: document.getElementById('retirada-edit-chave').checked,
-          qtdChave: document.getElementById('retirada-edit-qtd-chave').value,
-          deixouControle: document.getElementById('retirada-edit-controle').checked,
-          qtdControle: document.getElementById('retirada-edit-qtd-controle').value,
-          deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
-          deixouDocumento: document.getElementById('retirada-edit-documento').checked,
-          observacoes: document.getElementById('retirada-edit-obs').value,
-          servicos: [{ descricao: 'Ordem de Retirada', valor: 0 }],
-          valorTotal: 0,
-          formaPagamento: ['pendente'],
-          statusPagamento: 'pendente',
-          prioridade: 'normal',
-          atendente: currentUser ? currentUser.nome : 'Sistema',
-          criadoPor: currentUser ? currentUser.nome : 'Sistema',
-          criadoEm: new Date().toISOString(),
-          atualizadoEm: new Date().toISOString()
-        };
-
-        const saved = Storage.saveOrdem(novaOrdem);
-        showToast(`Ordem de Retirada ${saved.id} registrada! Veja na aba Retirada em Serviços.`, 'success');
-        closeModal();
-        renderListaOS('aguardando');
-        updateNavBadges();
-      });
-    }
+      const saved = Storage.saveOrdem(novaOrdem);
+      showToast(`Ordem de Retirada ${saved.id} registrada! Veja na aba Retirada em Serviços.`, 'success');
+      renderListaOS('aguardando');
+      updateNavBadges();
+      return true;
+    });
   }
 
   function updateNavBadges() {
