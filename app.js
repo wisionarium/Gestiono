@@ -969,19 +969,19 @@ const App = (() => {
             🛠️ ${Utils.escapeHtml(servicosStr)}
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
-            <button class="btn btn-secondary btn-sm btn-edit-pdf" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px;">
-              ✏️ Editar
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+            <button class="btn btn-primary btn-block btn-pdf-open" data-id="${os.id}" data-type="os" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; font-size:13px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(37,99,235,0.3);">
+              📋 Ordem de serviço
             </button>
-            <button class="btn btn-primary btn-sm btn-pdf-entrega" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px; background:#22c55e; border-color:#22c55e; color:#fff;">
-              📄 Entrega
-            </button>
-            <button class="btn btn-primary btn-sm btn-pdf-retirada" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px; background:#f59e0b; border-color:#f59e0b; color:#fff;">
-              📋 Retirada
-            </button>
-            <button class="btn btn-primary btn-sm btn-pdf-os" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px; background:#2563eb; border-color:#2563eb; color:#fff;">
-              📑 Ordem Serviço
-            </button>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <button class="btn btn-primary btn-pdf-open" data-id="${os.id}" data-type="retirada" style="background:#f59e0b; border-color:#f59e0b; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; font-size:12px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(245,158,11,0.3);">
+                📄 Retirada
+              </button>
+              <button class="btn btn-primary btn-pdf-open" data-id="${os.id}" data-type="entrega" style="background:#22c55e; border-color:#22c55e; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; font-size:12px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(34,197,94,0.3);">
+                📄 Entrega
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -989,36 +989,15 @@ const App = (() => {
 
     container.innerHTML = htmlResult;
 
-    container.querySelectorAll('.btn-edit-pdf').forEach(btn => {
+    container.querySelectorAll('.btn-pdf-open').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openModalEditorPDF(btn.dataset.id);
-      });
-    });
-
-    container.querySelectorAll('.btn-pdf-entrega').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        Utils.gerarPDFEntrega(btn.dataset.id);
-      });
-    });
-
-    container.querySelectorAll('.btn-pdf-retirada').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        Utils.gerarPDFRetiradaDoc(btn.dataset.id);
-      });
-    });
-
-    container.querySelectorAll('.btn-pdf-os').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        Utils.gerarPDFOrdemServico(btn.dataset.id);
+        openModalEditorPDF(btn.dataset.id, btn.dataset.type);
       });
     });
   }
 
-  function openModalEditorPDF(osId) {
+  function openModalEditorPDF(osId, targetType = 'os') {
     const os = Storage.getOrdemById(osId);
     if (!os) return;
 
@@ -1037,6 +1016,20 @@ const App = (() => {
     const modelsHtml = itensModelo.map(m => `<option value="${m}" ${os.modeloVeiculo === m ? 'selected' : ''}>${m}</option>`).join('');
     const colorsHtml = itensCor.map(c => `<option value="${c}" ${os.corVeiculo === c ? 'selected' : ''}>${c}</option>`).join('');
     const techHtml = tecnicos.map(t => `<option value="${t.nome}" ${os.mecanico === t.nome ? 'selected' : ''}>${t.nome}</option>`).join('');
+
+    let modalTitle = `Editor — Ordem de Serviço (${os.id})`;
+    let actionBtnText = '📑 Salvar & Baixar Ordem de Serviço (PDF)';
+    let actionBtnColor = '#2563eb';
+
+    if (targetType === 'retirada') {
+      modalTitle = `Editor — Termo de Retirada (${os.id})`;
+      actionBtnText = '📋 Salvar & Baixar Termo de Retirada (PDF)';
+      actionBtnColor = '#f59e0b';
+    } else if (targetType === 'entrega') {
+      modalTitle = `Editor — Termo de Entrega (${os.id})`;
+      actionBtnText = '📄 Salvar & Baixar Termo de Entrega (PDF)';
+      actionBtnColor = '#22c55e';
+    }
 
     const bodyHtml = `
       <form id="form-editor-pdf">
@@ -1085,7 +1078,7 @@ const App = (() => {
           </select>
         </div>
 
-        <div class="section-divider">Configurações do Termo de Entrega</div>
+        <div class="section-divider">Configurações e Valores do Documento</div>
         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
           <input type="checkbox" id="pdf-edit-garantia" ${os.temGarantia ? 'checked' : ''} style="width:18px; height:18px;">
           <label for="pdf-edit-garantia" style="font-weight:700; cursor:pointer;">Possui Garantia (Badge Verde)</label>
@@ -1122,14 +1115,25 @@ const App = (() => {
           <label class="form-label">Observações / Descrição da Manutenção</label>
           <textarea class="form-textarea" id="pdf-edit-obs" rows="3">${Utils.escapeHtml(os.observacoes || '')}</textarea>
         </div>
+
+        <div style="margin-top:20px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--glass-border); padding-top:16px;">
+          <button type="button" class="btn btn-primary btn-block" id="btn-pdf-save-download" style="background:${actionBtnColor}; border-color:${actionBtnColor}; color:#fff; font-weight:700; padding:12px; font-size:13px;">
+            ${actionBtnText}
+          </button>
+          <button type="button" class="btn btn-secondary btn-block" id="btn-pdf-save-only" style="font-weight:700;">
+            💾 Apenas Salvar Alterações
+          </button>
+        </div>
       </form>
     `;
 
-    openModal(`Editar PDF — ${os.id}`, bodyHtml, () => {
-      const form = document.getElementById('form-editor-pdf');
-      if (!form.checkValidity()) { form.reportValidity(); return false; }
+    openModal(modalTitle, bodyHtml, null);
 
-      const updates = {
+    const getFormUpdates = () => {
+      const form = document.getElementById('form-editor-pdf');
+      if (!form.checkValidity()) { form.reportValidity(); return null; }
+
+      return {
         clienteNome: document.getElementById('pdf-edit-nome').value.trim(),
         clienteCpf: document.getElementById('pdf-edit-cpf').value.trim(),
         clienteTelefone: document.getElementById('pdf-edit-telefone').value.trim(),
@@ -1148,13 +1152,38 @@ const App = (() => {
         deixouDocumento: document.getElementById('pdf-edit-documento').checked,
         observacoes: document.getElementById('pdf-edit-obs').value
       };
+    };
 
-      Storage.updateOrdem(osId, updates);
-      showToast('Dados do PDF atualizados com sucesso!', 'success');
-      renderListaPDFs();
+    const triggerDownload = () => {
+      if (targetType === 'os') Utils.gerarPDFOrdemServico(osId);
+      else if (targetType === 'retirada') Utils.gerarPDFRetiradaDoc(osId);
+      else Utils.gerarPDFEntrega(osId);
+    };
 
-      return true;
-    });
+    const btnSaveOnly = document.getElementById('btn-pdf-save-only');
+    if (btnSaveOnly) {
+      btnSaveOnly.addEventListener('click', () => {
+        const updates = getFormUpdates();
+        if (!updates) return;
+        Storage.updateOrdem(osId, updates);
+        showToast('Dados salvos com sucesso!', 'success');
+        renderListaPDFs();
+        closeModal();
+      });
+    }
+
+    const btnSaveDownload = document.getElementById('btn-pdf-save-download');
+    if (btnSaveDownload) {
+      btnSaveDownload.addEventListener('click', () => {
+        const updates = getFormUpdates();
+        if (!updates) return;
+        Storage.updateOrdem(osId, updates);
+        showToast('Dados salvos! Gerando PDF...', 'success');
+        renderListaPDFs();
+        closeModal();
+        setTimeout(() => triggerDownload(), 300);
+      });
+    }
   }
 
   function updateNavBadges() {
