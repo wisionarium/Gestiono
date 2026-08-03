@@ -969,12 +969,18 @@ const App = (() => {
             🛠️ ${Utils.escapeHtml(servicosStr)}
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-            <button class="btn btn-secondary btn-sm btn-edit-pdf" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;">
-              ✏️ Editar PDF
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
+            <button class="btn btn-secondary btn-sm btn-edit-pdf" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px;">
+              ✏️ Editar
             </button>
-            <button class="btn btn-primary btn-sm btn-download-pdf" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#2563eb; border-color:#2563eb; color:#fff;">
-              📄 Baixar PDF
+            <button class="btn btn-primary btn-sm btn-pdf-entrega" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px; background:#22c55e; border-color:#22c55e; color:#fff;">
+              📄 Entrega
+            </button>
+            <button class="btn btn-primary btn-sm btn-pdf-retirada" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px; background:#f59e0b; border-color:#f59e0b; color:#fff;">
+              📋 Retirada
+            </button>
+            <button class="btn btn-primary btn-sm btn-pdf-os" data-id="${os.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; font-weight:700; font-size:11px; background:#2563eb; border-color:#2563eb; color:#fff;">
+              📑 Ordem Serviço
             </button>
           </div>
         </div>
@@ -990,10 +996,24 @@ const App = (() => {
       });
     });
 
-    container.querySelectorAll('.btn-download-pdf').forEach(btn => {
+    container.querySelectorAll('.btn-pdf-entrega').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Utils.gerarPDFTermoRetirada(btn.dataset.id);
+        Utils.gerarPDFEntrega(btn.dataset.id);
+      });
+    });
+
+    container.querySelectorAll('.btn-pdf-retirada').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Utils.gerarPDFRetiradaDoc(btn.dataset.id);
+      });
+    });
+
+    container.querySelectorAll('.btn-pdf-os').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Utils.gerarPDFOrdemServico(btn.dataset.id);
       });
     });
   }
@@ -1132,10 +1152,6 @@ const App = (() => {
       Storage.updateOrdem(osId, updates);
       showToast('Dados do PDF atualizados com sucesso!', 'success');
       renderListaPDFs();
-      
-      setTimeout(() => {
-        Utils.gerarPDFTermoRetirada(osId);
-      }, 300);
 
       return true;
     });
@@ -1720,8 +1736,18 @@ const App = (() => {
         Enviar WhatsApp</button>`;
     }
     if (os.status === 'concluido') {
-      actionsHtml += `<button class="btn btn-blue btn-block mt-sm" id="btn-detail-pdf" style="background:#2563eb; border-color:#2563eb; color:white; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px;">
-        📄 Baixar Termo de Entrega (PDF)</button>`;
+      actionsHtml += `
+        <div style="margin-top:var(--space-sm); display:flex; flex-direction:column; gap:6px;">
+          <button class="btn btn-primary btn-block" id="btn-detail-pdf-entrega" style="background:#22c55e; border-color:#22c55e; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+            📄 Baixar Termo de Entrega (PDF)
+          </button>
+          <button class="btn btn-primary btn-block" id="btn-detail-pdf-retirada" style="background:#f59e0b; border-color:#f59e0b; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+            📋 Baixar Termo de Retirada (PDF)
+          </button>
+          <button class="btn btn-primary btn-block" id="btn-detail-pdf-os" style="background:#2563eb; border-color:#2563eb; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+            📑 Baixar Ordem de Serviço (PDF)
+          </button>
+        </div>`;
     }
     if (canExcluir) {
       actionsHtml += `<button class="btn btn-danger btn-block btn-sm mt-md" id="btn-detail-excluir">Excluir OS</button>`;
@@ -1860,9 +1886,19 @@ const App = (() => {
       openModalEnviarWhatsApp(os);
     });
 
-    const btnPdf = document.getElementById('btn-detail-pdf');
-    if (btnPdf) btnPdf.addEventListener('click', () => {
-      Utils.gerarPDFRetirada(os);
+    const btnPdfEntrega = document.getElementById('btn-detail-pdf-entrega');
+    if (btnPdfEntrega) btnPdfEntrega.addEventListener('click', () => {
+      Utils.gerarPDFEntrega(os);
+    });
+
+    const btnPdfRetirada = document.getElementById('btn-detail-pdf-retirada');
+    if (btnPdfRetirada) btnPdfRetirada.addEventListener('click', () => {
+      Utils.gerarPDFRetiradaDoc(os);
+    });
+
+    const btnPdfOS = document.getElementById('btn-detail-pdf-os');
+    if (btnPdfOS) btnPdfOS.addEventListener('click', () => {
+      Utils.gerarPDFOrdemServico(os);
     });
 
     const btnExcluir = document.getElementById('btn-detail-excluir');
