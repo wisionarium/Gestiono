@@ -193,10 +193,7 @@ const App = (() => {
       cardHomePendentes.addEventListener('click', () => navigateTo('servicos'));
     }
 
-    const cardHomeMensal = document.getElementById('home-card-mensal');
-    if (cardHomeMensal) {
-      cardHomeMensal.addEventListener('click', () => navigateTo('servicos'));
-    }
+
 
     // Delivery date & time handlers
     const checkEntrega = document.getElementById('os-check-data-entrega');
@@ -618,26 +615,7 @@ const App = (() => {
     const countPendentesEl = document.getElementById('home-count-pendentes');
     if (countPendentesEl) countPendentesEl.textContent = pendentesCount;
 
-    // Resumo mensal: faturamento de ordens do mês atual
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
 
-    const ordensDoMes = ordens.filter(o => {
-      if (!o.criadoEm) return false;
-      const dataCriacao = new Date(o.criadoEm);
-      return dataCriacao.getMonth() === currentMonth && dataCriacao.getFullYear() === currentYear;
-    });
-
-    const faturamentoTotal = ordensDoMes.reduce((acc, o) => acc + (o.valorTotal || 0), 0);
-
-    const faturamentoEl = document.getElementById('home-faturamento-mensal');
-    if (faturamentoEl) {
-      if (temPermissao('ver_valores_cliente')) {
-        faturamentoEl.textContent = Utils.formatarMoeda(faturamentoTotal);
-      } else {
-        faturamentoEl.textContent = '🔒 Restrito';
-      }
-    }
   }
 
   function updateHeaderTitle(page) {
