@@ -956,11 +956,6 @@ const App = (() => {
             <button class="btn btn-primary btn-block btn-pdf-open" data-id="${os.id}" data-type="os" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; font-size:13px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(37,99,235,0.3);">
               📋 Ordem de serviço
             </button>
-
-          <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
-            <button class="btn btn-primary btn-block btn-pdf-open" data-id="${os.id}" data-type="os" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; font-size:13px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(37,99,235,0.3);">
-              📋 Ordem de serviço
-            </button>
             <button class="btn btn-primary btn-block btn-pdf-open" data-id="${os.id}" data-type="entrega" style="background:#22c55e; border-color:#22c55e; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding:12px; font-size:13px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(34,197,94,0.3);">
               📄 Entrega
             </button>
