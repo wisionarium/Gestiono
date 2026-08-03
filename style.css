@@ -2501,6 +2501,11 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+#home-btn-ordem-retirada,
+.btn-ordem-retirada-large {
+  background: #f59e0b !important; /* Solid Orange for Retirada */
+}
+
 .btn-novo-orcamento-large:hover,
 .btn-novo-orcamento-large:focus {
   box-shadow: none !important;

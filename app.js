@@ -9,6 +9,8 @@ const App = (() => {
   let currentUser = null;
   let currentOSId = null;
   let editingOS = null;
+  let origemRetiradaId = null;
+  let currentServicosSubtab = 'servicos';
   let fotosAnexadas = [];
   let deferredPwaPrompt = null;
 
@@ -196,6 +198,38 @@ const App = (() => {
     const cardHomePendentes = document.getElementById('home-card-pendentes');
     if (cardHomePendentes) {
       cardHomePendentes.addEventListener('click', () => navigateTo('servicos'));
+    }
+
+    // Sub-abas de Serviços (SERVIÇOS / RETIRADA)
+    const subtabServicos = document.getElementById('subtab-servicos');
+    const subtabRetirada = document.getElementById('subtab-retirada');
+
+    if (subtabServicos && subtabRetirada) {
+      subtabServicos.addEventListener('click', () => {
+        currentServicosSubtab = 'servicos';
+        subtabServicos.classList.add('active');
+        subtabRetirada.classList.remove('active');
+        subtabServicos.style.background = '#ffffff';
+        subtabServicos.style.color = '#0f172a';
+        subtabServicos.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+        subtabRetirada.style.background = 'transparent';
+        subtabRetirada.style.color = '#64748b';
+        subtabRetirada.style.boxShadow = 'none';
+        renderListaOS('aguardando');
+      });
+
+      subtabRetirada.addEventListener('click', () => {
+        currentServicosSubtab = 'retirada';
+        subtabRetirada.classList.add('active');
+        subtabServicos.classList.remove('active');
+        subtabRetirada.style.background = '#ffffff';
+        subtabRetirada.style.color = '#0f172a';
+        subtabRetirada.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+        subtabServicos.style.background = 'transparent';
+        subtabServicos.style.color = '#64748b';
+        subtabServicos.style.boxShadow = 'none';
+        renderListaOS('aguardando');
+      });
     }
 
 
@@ -753,7 +787,92 @@ const App = (() => {
 
     container.innerHTML = '';
 
+    // Se for a aba 'aguardando' e estiver na sub-aba RETIRADA
+    if (status === 'aguardando' && currentServicosSubtab === 'retirada') {
+      let ordensRetirada = Storage.getOrdens().filter(o => (o.tipo === 'retirada' || o.status === 'retirada_pendente') && o.status !== 'convertida');
+
+      const searchGeneral = document.getElementById('search-input');
+      const rawQuery = searchGeneral ? searchGeneral.value.trim() : '';
+      const qClean = Utils.removerAcentos(rawQuery);
+
+      if (qClean) {
+        ordensRetirada = ordensRetirada.filter(os =>
+          Utils.removerAcentos(os.id || '').includes(qClean) ||
+          Utils.removerAcentos(os.clienteNome || '').includes(qClean) ||
+          Utils.removerAcentos(os.clienteTelefone || '').includes(qClean) ||
+          Utils.removerAcentos(os.modeloVeiculo || '').includes(qClean)
+        );
+      }
+
+      if (countEl) countEl.textContent = ordensRetirada.length;
+
+      if (ordensRetirada.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="empty-state-title">Nenhuma ordem de retirada em espera</div>
+            <div class="empty-state-text">${rawQuery ? 'Tente outro termo de busca' : 'Clique no botão "Ordem de Retirada" na Home para registrar.'}</div>
+          </div>`;
+        return;
+      }
+
+      let htmlResult = '';
+      ordensRetirada.forEach(os => {
+        const dataStr = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : '';
+        htmlResult += `
+          <div class="os-card" style="margin-bottom:var(--space-md); border-left:4px solid #f59e0b; padding:var(--space-md); background:var(--bg-surface); border-radius:var(--radius-lg); border:1px solid var(--glass-border); border-left:4px solid #f59e0b;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--space-xs);">
+              <div>
+                <div style="font-weight:800; font-size:var(--font-md); color:#f59e0b;">${os.id}</div>
+                <div style="font-weight:800; font-size:15px; color:var(--text-primary); margin-top:2px;">${Utils.escapeHtml(os.clienteNome)}</div>
+                <div style="font-size:var(--font-xs); color:var(--text-secondary); margin-top:2px;">
+                  🛵 ${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')} (${Utils.escapeHtml(os.corVeiculo || 'Cor')}) · 📅 ${dataStr}
+                </div>
+              </div>
+              <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:10px; padding:3px 8px; font-weight:700;">Retirada em Espera</span>
+            </div>
+
+            <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:var(--space-sm); border-top:1px dashed rgba(255,255,255,0.06); padding-top:6px;">
+              📝 ${Utils.escapeHtml(os.observacoes || 'Ordem de Retirada cadastrada')}
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+              <button class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
+                ✅ Confirmar Serviço
+              </button>
+              <button class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
+                📄 Baixar PDF
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = htmlResult;
+
+      container.querySelectorAll('.btn-confirmar-retirada').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmarRetiradaParaServico(btn.dataset.id);
+        });
+      });
+
+      container.querySelectorAll('.btn-pdf-retirada-card').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          Utils.gerarPDFRetiradaDoc(btn.dataset.id);
+        });
+      });
+
+      return;
+    }
+
     let ordens = Storage.getOrdensByStatus(status);
+    if (status === 'aguardando') {
+      ordens = ordens.filter(o => o.tipo !== 'retirada' && o.status !== 'retirada_pendente');
+    }
 
     // Search filter
     const searchConcluidos = document.getElementById('search-concluidos-input');
@@ -1488,12 +1607,20 @@ const App = (() => {
 
   // ---------- NOVA OS ----------
 
+  function confirmarRetiradaParaServico(retiradaId) {
+    const osRetirada = Storage.getOrdemById(retiradaId);
+    if (!osRetirada) return;
+    navigateTo('nova-os');
+    renderNovaOS(osRetirada, true);
+  }
+
   function openNovaOS() {
     editingOS = null;
+    origemRetiradaId = null;
     navigateTo('nova-os');
   }
 
-  function renderNovaOS(osData) {
+  function renderNovaOS(osData, isConversaoRetirada = false) {
     const form = document.getElementById('form-nova-os');
     const campos = Storage.getCamposAtivos();
     const opcoes = Storage.getOpcoes();
@@ -1524,8 +1651,22 @@ const App = (() => {
     // Render custom fields
     renderCamposPersonalizados(campos);
 
-    // If editing
-    if (osData) {
+    if (isConversaoRetirada && osData) {
+      editingOS = null;
+      origemRetiradaId = osData.id;
+      document.getElementById('nova-os-title').textContent = `Nova OS (da Retirada ${osData.id})`;
+      document.getElementById('os-cliente-nome').value = osData.clienteNome || '';
+      document.getElementById('os-telefone').value = osData.clienteTelefone || '';
+      const elCpf = document.getElementById('os-cpf');
+      if (elCpf) elCpf.value = osData.clienteCpf || '';
+      const elEndereco = document.getElementById('os-endereco');
+      if (elEndereco) elEndereco.value = osData.clienteEndereco || '';
+      document.getElementById('os-modelo').value = osData.modeloVeiculo || '';
+      document.getElementById('os-cor').value = osData.corVeiculo || '';
+      document.getElementById('os-observacoes').value = osData.observacoes || '';
+      updateValorTotal();
+    } else if (osData) {
+      origemRetiradaId = null;
       editingOS = osData;
       document.getElementById('nova-os-title').textContent = `Editar ${osData.id}`;
       document.getElementById('os-cliente-nome').value = osData.clienteNome;
@@ -1825,9 +1966,16 @@ const App = (() => {
     } else {
       const saved = Storage.saveOrdem(osData);
       showToast(`OS ${saved.id} criada com sucesso!`, 'success');
+
+      if (origemRetiradaId) {
+        Storage.updateOrdem(origemRetiradaId, { status: 'convertida', atualizadoEm: new Date().toISOString() });
+        showToast(`Retirada ${origemRetiradaId} convertida em Ordem de Serviço!`, 'info');
+        origemRetiradaId = null;
+      }
     }
 
     editingOS = null;
+    currentServicosSubtab = 'servicos';
     navigateTo('servicos');
   }
 
