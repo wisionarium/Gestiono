@@ -183,6 +183,11 @@ const App = (() => {
       btnHomeNovoOrcamento.addEventListener('click', () => navigateTo('nova-os'));
     }
 
+    const btnHomeOrdemRetirada = document.getElementById('home-btn-ordem-retirada');
+    if (btnHomeOrdemRetirada) {
+      btnHomeOrdemRetirada.addEventListener('click', () => openModalNovaOrdemRetirada());
+    }
+
     const cardHomeSemana = document.getElementById('home-card-estatisticas-semana');
     if (cardHomeSemana) {
       cardHomeSemana.addEventListener('click', () => navigateTo('servicos'));
@@ -952,14 +957,13 @@ const App = (() => {
               📋 Ordem de serviço
             </button>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <button class="btn btn-primary btn-pdf-open" data-id="${os.id}" data-type="retirada" style="background:#f59e0b; border-color:#f59e0b; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; font-size:12px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(245,158,11,0.3);">
-                📄 Retirada
-              </button>
-              <button class="btn btn-primary btn-pdf-open" data-id="${os.id}" data-type="entrega" style="background:#22c55e; border-color:#22c55e; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; font-size:12px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(34,197,94,0.3);">
-                📄 Entrega
-              </button>
-            </div>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+            <button class="btn btn-primary btn-block btn-pdf-open" data-id="${os.id}" data-type="os" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; font-size:13px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(37,99,235,0.3);">
+              📋 Ordem de serviço
+            </button>
+            <button class="btn btn-primary btn-block btn-pdf-open" data-id="${os.id}" data-type="entrega" style="background:#22c55e; border-color:#22c55e; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; padding:12px; font-size:13px; border-radius:var(--radius-md); box-shadow:0 2px 6px rgba(34,197,94,0.3);">
+              📄 Entrega
+            </button>
           </div>
         </div>
       `;
@@ -1160,6 +1164,179 @@ const App = (() => {
         renderListaPDFs();
         closeModal();
         setTimeout(() => triggerDownload(), 300);
+      });
+    }
+  }
+
+  function openModalNovaOrdemRetirada() {
+    const opcoesModelo = Storage.getOpcaoByCampo('modelo');
+    const itensModelo = opcoesModelo ? [...opcoesModelo.itens] : [];
+    itensModelo.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
+
+    const opcoesCor = Storage.getOpcaoByCampo('cor');
+    const itensCor = opcoesCor ? [...opcoesCor.itens] : [];
+    itensCor.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
+
+    const usuarios = Storage.getUsuarios();
+    const tecnicos = usuarios.filter(u => u.exibirNaDelegacao !== false);
+    tecnicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+
+    const modelsHtml = itensModelo.map(m => `<option value="${m}">${m}</option>`).join('');
+    const colorsHtml = itensCor.map(c => `<option value="${c}">${c}</option>`).join('');
+    const techHtml = tecnicos.map(t => `<option value="${t.nome}">${t.nome}</option>`).join('');
+
+    const bodyHtml = `
+      <form id="form-nova-retirada">
+        <div class="section-divider" style="margin-top:0;">Dados do Cliente</div>
+        <div class="form-group">
+          <label class="form-label required">Nome Completo</label>
+          <input type="text" class="form-input" id="retirada-edit-nome" placeholder="Ex: João da Silva" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">CPF</label>
+            <input type="text" class="form-input" id="retirada-edit-cpf" placeholder="000.000.000-00">
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Telefone</label>
+            <input type="tel" class="form-input" id="retirada-edit-telefone" placeholder="(00) 00000-0000" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Endereço</label>
+          <input type="text" class="form-input" id="retirada-edit-endereco" placeholder="Rua, número, bairro, cidade">
+        </div>
+
+        <div class="section-divider">Dados do Veículo & Mecânico</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Modelo</label>
+            <select class="form-select" id="retirada-edit-modelo">
+              <option value="">Selecione...</option>
+              ${modelsHtml}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cor</label>
+            <select class="form-select" id="retirada-edit-cor">
+              <option value="">Selecione...</option>
+              ${colorsHtml}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Técnico Responsável</label>
+          <select class="form-select" id="retirada-edit-mecanico">
+            <option value="">Selecione...</option>
+            ${techHtml}
+          </select>
+        </div>
+
+        <div class="section-divider">Configurações e Valores do Documento</div>
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="retirada-edit-garantia" style="width:18px; height:18px;">
+          <label for="retirada-edit-garantia" style="font-weight:700; cursor:pointer;">Possui Garantia (Badge Verde)</label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Taxa de Retirada (R$)</label>
+            <input type="text" class="form-input" id="retirada-edit-taxa" value="R$ 0,00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Taxa de Entrega (R$)</label>
+            <input type="text" class="form-input" id="retirada-edit-taxa-entrega" value="R$ 0,00">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Itens Deixados pelo Cliente</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="retirada-edit-chave"> Chaves</label>
+              <input type="number" class="form-input mt-xs" id="retirada-edit-qtd-chave" placeholder="Qtd (ex: 2)" style="font-size:11px; padding:4px 8px;">
+            </div>
+            <div>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px;"><input type="checkbox" id="retirada-edit-controle"> Controles</label>
+              <input type="number" class="form-input mt-xs" id="retirada-edit-qtd-controle" placeholder="Qtd (ex: 1)" style="font-size:11px; padding:4px 8px;">
+            </div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; grid-column:span 2;"><input type="checkbox" id="retirada-edit-carregador"> Carregador</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; grid-column:span 2;"><input type="checkbox" id="retirada-edit-documento"> Documentos</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observações / Descrição da Manutenção</label>
+          <textarea class="form-textarea" id="retirada-edit-obs" rows="3" placeholder="Insira observações ou detalhes sobre a retirada..."></textarea>
+        </div>
+
+        <div style="margin-top:20px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--glass-border); padding-top:16px;">
+          <button type="button" class="btn btn-primary btn-block" id="btn-nova-retirada-save-download" style="background:#f59e0b; border-color:#f59e0b; color:#fff; font-weight:700; padding:12px; font-size:13px;">
+            📋 Salvar & Baixar Termo de Retirada (PDF)
+          </button>
+          <button type="button" class="btn btn-secondary btn-block" id="btn-nova-retirada-save-only" style="font-weight:700;">
+            💾 Apenas Salvar
+          </button>
+        </div>
+      </form>
+    `;
+
+    openModal('Nova Ordem de Retirada', bodyHtml, null);
+
+    const getFormOrdem = () => {
+      const form = document.getElementById('form-nova-retirada');
+      if (!form.checkValidity()) { form.reportValidity(); return null; }
+
+      const ordens = Storage.getOrdens();
+      const novoId = Utils.gerarCodigoOS(ordens);
+
+      return {
+        id: novoId,
+        status: 'concluido',
+        clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
+        clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
+        clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
+        clienteEndereco: document.getElementById('retirada-edit-endereco').value.trim(),
+        modeloVeiculo: document.getElementById('retirada-edit-modelo').value,
+        corVeiculo: document.getElementById('retirada-edit-cor').value,
+        mecanico: document.getElementById('retirada-edit-mecanico').value,
+        temGarantia: document.getElementById('retirada-edit-garantia').checked,
+        valorRetirada: document.getElementById('retirada-edit-taxa').value,
+        taxaEntrega: document.getElementById('retirada-edit-taxa-entrega').value,
+        deixouChave: document.getElementById('retirada-edit-chave').checked,
+        qtdChave: document.getElementById('retirada-edit-qtd-chave').value,
+        deixouControle: document.getElementById('retirada-edit-controle').checked,
+        qtdControle: document.getElementById('retirada-edit-qtd-controle').value,
+        deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
+        deixouDocumento: document.getElementById('retirada-edit-documento').checked,
+        observacoes: document.getElementById('retirada-edit-obs').value,
+        servicos: [{ descricao: 'Ordem de Retirada', valor: 0 }],
+        valorTotal: 0,
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString()
+      };
+    };
+
+    const btnSaveOnly = document.getElementById('btn-nova-retirada-save-only');
+    if (btnSaveOnly) {
+      btnSaveOnly.addEventListener('click', () => {
+        const novaOrdem = getFormOrdem();
+        if (!novaOrdem) return;
+        Storage.salvarOrdem(novaOrdem);
+        showToast(`Ordem de Retirada ${novaOrdem.id} criada com sucesso!`, 'success');
+        closeModal();
+      });
+    }
+
+    const btnSaveDownload = document.getElementById('btn-nova-retirada-save-download');
+    if (btnSaveDownload) {
+      btnSaveDownload.addEventListener('click', () => {
+        const novaOrdem = getFormOrdem();
+        if (!novaOrdem) return;
+        Storage.salvarOrdem(novaOrdem);
+        showToast(`Ordem de Retirada ${novaOrdem.id} salva! Gerando PDF...`, 'success');
+        closeModal();
+        setTimeout(() => Utils.gerarPDFRetiradaDoc(novaOrdem), 300);
       });
     }
   }
