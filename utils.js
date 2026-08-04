@@ -355,7 +355,11 @@ const Utils = (() => {
       }
       doc.line(pw / 2 - 35, y + 7, pw / 2 + 35, y + 7);
     }
-    return { drawSectionHeader, field, drawCheck, drawHeader, drawFotos, drawAssinaturas };
+    function drawFooter(pw) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100);
+      doc.text('Supra Bike CNPJ 07.870.286.0001-05  - Estr. Real de Mauá N 739. Magé, RJ.', pw / 2, 285, { align: 'center' });
+    }
+    return { drawSectionHeader, field, drawCheck, drawHeader, drawFotos, drawAssinaturas, drawFooter };
   }
 
   // =============================================
@@ -403,12 +407,11 @@ const Utils = (() => {
     h.field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
 
     // Taxas
-    y = 88; h.drawSectionHeader('TAXAS (RETIRADA E ENTREGA)', y);
-    y += 12; h.field('Taxa Retirada:', d.valorRetirada || 'R$ 0,00', ml + 2, ml + cw * 0.48, y);
-    h.field('Taxa Entrega:', d.taxaEntrega || 'R$ 0,00', ml + cw * 0.52, ml + cw - 2, y);
+    y = 88; h.drawSectionHeader('TAXA DE ENTREGA', y);
+    y += 12; h.field('Valor:', d.taxaEntrega || 'R$ 0,00', ml + 2, ml + cw - 2, y);
 
-    // Itens Retirados
-    y = 108; h.drawSectionHeader('ITENS RETIRADOS', y);
+    // Itens Entregues
+    y = 108; h.drawSectionHeader('ITENS ENTREGUES', y);
     y += 10;
     const colW = cw / 4;
     h.drawCheck('Chaves' + (d.qtdChave ? ' [ ' + d.qtdChave + ' ]' : ' [   ]'), d.deixouChave, ml + 2, y);
@@ -444,8 +447,17 @@ const Utils = (() => {
     }
 
     h.drawFotos(d.fotos, boxStartY + boxHeight - 25);
-    y = boxStartY + boxHeight + 12;
-    h.drawAssinaturas(pw, y, os.mecanico, 'Técnico Responsável');
+
+    // Declaração de recebimento
+    y = boxStartY + boxHeight + 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(70);
+    const termoEntrega = "Declaro que recebi o veículo/produto da Supra Bike e confirmo que ele foi entregue em perfeitas condições, após a realização dos serviços de manutenção, conforme verificado no momento da entrega.\nDeclaro ainda que realizei a conferência do veículo/produto e estou ciente de que o seu recebimento representa a aceitação das condições em que foi entregue.\nAo prosseguir, confirmo que li, compreendi e aceito os termos acima.";
+    const linesTermoE = doc.splitTextToSize(termoEntrega, cw);
+    doc.text(linesTermoE, ml, y);
+
+    y += (linesTermoE.length * 3.5) + 12;
+    h.drawAssinaturas(pw, y, os.mecanico, 'Responsável pela Entrega');
+    h.drawFooter(pw);
 
     doc.save('Termo_Entrega_OS_' + os.id + '.pdf');
   }
@@ -469,7 +481,9 @@ const Utils = (() => {
     for (let i = 0; i < 5; i++) { fotosHtml += d.fotos && d.fotos[i] ? '<div style="width:70px;height:50px;border:1px solid #cbd5e1;border-radius:4px;overflow:hidden;"><img src="' + d.fotos[i] + '" style="width:100%;height:100%;object-fit:cover;"></div>' : '<div style="width:70px;height:50px;border:1px dashed #cbd5e1;border-radius:4px;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:9px;">Vazio</div>'; }
     fotosHtml += '</div>';
 
-    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Entrega_OS_' + os.id + '</title><style>@page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px;max-width:800px;margin:0 auto}.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}h2{font-size:13px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}.meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.garantia-badge{background:#22c55e;color:#fff;padding:2px 8px;font-weight:800;font-size:9px;border-radius:3px}.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px}.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}.field{flex:1;display:flex}.fl{font-weight:700;margin-right:5px}.fv{color:#334185;font-weight:700}.checks-row{display:flex;gap:15px;font-size:11px;margin-bottom:8px}.ci{display:flex;align-items:center;gap:6px}.ck{font-size:14px;color:#1e3a8a;font-weight:bold}.obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px}.obs{font-size:10px;line-height:1.4;color:#334155}.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}.sb{text-align:center;width:60%}.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}</style></head><body><div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div><h2>Relatório e Termo de Entrega</h2></div><div class="meta-row"><div>' + (d.temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : '') + '</div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>' + dataExibicao + '</u></div></div><div class="section-title">Dados do Cliente</div><div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">' + (os.clienteNome||'\u2014') + '</span></div></div><div class="fields-row"><div class="field"><span class="fl">CPF:</span> <span class="fv">' + (os.clienteCpf||'\u2014') + '</span></div><div class="field"><span class="fl">Cel.:</span> <span class="fv">' + (os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014') + '</span></div></div><div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">' + enderecoF + '</span></div><div class="section-title" style="margin-top:8px;">Dados do Veículo</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Modelo:</span> <span class="fv">' + (os.modeloVeiculo||'\u2014') + '</span></div><div class="field"><span class="fl">Cor:</span> <span class="fv">' + (os.corVeiculo||'\u2014') + '</span></div></div><div class="section-title" style="margin-top:8px;">Taxas (Retirada e Entrega)</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Taxa Retirada:</span> <span class="fv">' + (d.valorRetirada||'R$ 0,00') + '</span></div><div class="field"><span class="fl">Taxa Entrega:</span> <span class="fv">' + (d.taxaEntrega||'R$ 0,00') + '</span></div></div><div class="section-title" style="margin-top:8px;">Itens Retirados</div><div class="checks-row"><div class="ci"><span class="ck">' + ck(d.deixouChave) + '</span> ' + lChave + '</div><div class="ci"><span class="ck">' + ck(d.deixouControle) + '</span> ' + lControle + '</div><div class="ci"><span class="ck">' + ck(d.deixouCarregador) + '</span> Carregador</div><div class="ci"><span class="ck">' + ck(d.deixouDocumento) + '</span> Documentos</div></div><div class="section-title" style="margin-top:8px;">Descrição da Manutenção</div><div class="obs-container"><div class="obs">' + descHtml + '</div>' + fotosHtml + '</div><div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div><div class="sb"><div class="sl sn">' + (os.mecanico||'\u2014') + '</div><div style="font-weight:700">Técnico Responsável</div></div></div></body></html>';
+    const termoTexto = '<div style="margin-top:14px;margin-bottom:14px;padding:8px 10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:4px;font-size:10px;line-height:1.4;color:#334155;"><p style="margin-bottom:4px;">Declaro que recebi o veículo/produto da Supra Bike e confirmo que ele foi entregue em perfeitas condições, após a realização dos serviços de manutenção, conforme verificado no momento da entrega.</p><p style="margin-bottom:4px;">Declaro ainda que realizei a conferência do veículo/produto e estou ciente de que o seu recebimento representa a aceitação das condições em que foi entregue.</p><p style="font-weight:700;color:#0f172a;margin-bottom:0;">Ao prosseguir, confirmo que li, compreendi e aceito os termos acima.</p></div>';
+
+    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Entrega_OS_' + os.id + '</title><style>@page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px;max-width:800px;margin:0 auto}.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}h2{font-size:13px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}.meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.garantia-badge{background:#22c55e;color:#fff;padding:2px 8px;font-weight:800;font-size:9px;border-radius:3px}.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px}.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}.field{flex:1;display:flex}.fl{font-weight:700;margin-right:5px}.fv{color:#334185;font-weight:700}.checks-row{display:flex;gap:15px;font-size:11px;margin-bottom:8px}.ci{display:flex;align-items:center;gap:6px}.ck{font-size:14px;color:#1e3a8a;font-weight:bold}.obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px}.obs{font-size:10px;line-height:1.4;color:#334155}.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}.sb{text-align:center;width:60%}.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}.footer{text-align:center;font-size:10px;color:#64748b;margin-top:20px;border-top:1px dashed #cbd5e1;padding-top:8px}</style></head><body><div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div><h2>Relatório e Termo de Entrega</h2></div><div class="meta-row"><div>' + (d.temGarantia ? '<span class="garantia-badge">GARANTIA</span>' : '') + '</div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>' + dataExibicao + '</u></div></div><div class="section-title">Dados do Cliente</div><div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">' + (os.clienteNome||'\u2014') + '</span></div></div><div class="fields-row"><div class="field"><span class="fl">CPF:</span> <span class="fv">' + (os.clienteCpf||'\u2014') + '</span></div><div class="field"><span class="fl">Cel.:</span> <span class="fv">' + (os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014') + '</span></div></div><div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">' + enderecoF + '</span></div><div class="section-title" style="margin-top:8px;">Dados do Veículo</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Modelo:</span> <span class="fv">' + (os.modeloVeiculo||'\u2014') + '</span></div><div class="field"><span class="fl">Cor:</span> <span class="fv">' + (os.corVeiculo||'\u2014') + '</span></div></div><div class="section-title" style="margin-top:8px;">Taxa de Entrega</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Valor:</span> <span class="fv">' + (d.taxaEntrega||'R$ 0,00') + '</span></div></div><div class="section-title" style="margin-top:8px;">Itens Entregues</div><div class="checks-row"><div class="ci"><span class="ck">' + ck(d.deixouChave) + '</span> ' + lChave + '</div><div class="ci"><span class="ck">' + ck(d.deixouControle) + '</span> ' + lControle + '</div><div class="ci"><span class="ck">' + ck(d.deixouCarregador) + '</span> Carregador</div><div class="ci"><span class="ck">' + ck(d.deixouDocumento) + '</span> Documentos</div></div><div class="section-title" style="margin-top:8px;">Descrição da Manutenção</div><div class="obs-container"><div class="obs">' + descHtml + '</div>' + fotosHtml + '</div>' + termoTexto + '<div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div><div class="sb"><div class="sl sn">' + (os.mecanico||'\u2014') + '</div><div style="font-weight:700">Responsável pela Entrega</div></div></div><div class="footer">Supra Bike CNPJ 07.870.286.0001-05  - Estr. Real de Mauá N 739. Magé, RJ.</div></body></html>';
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -572,7 +586,8 @@ const Utils = (() => {
     doc.text(linesTermo, ml, y);
 
     y += (linesTermo.length * 3.5) + 12;
-    h.drawAssinaturas(pw, y, os.mecanico, 'Motorista Responsável');
+    h.drawAssinaturas(pw, y, os.mecanico, 'Responsável pela Retirada');
+    h.drawFooter(pw);
 
     doc.save('Termo_Retirada_OS_' + os.id + '.pdf');
   }
@@ -598,7 +613,7 @@ const Utils = (() => {
 
     const declaraTexto = '<div style="margin-top:14px;margin-bottom:14px;padding:8px 10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:4px;font-size:10px;line-height:1.4;color:#334155;"><p style="margin-bottom:4px;">Declaro estar ciente e de acordo com a retirada do meu veículo pela Supra Bike para realização de inspeção técnica, diagnóstico e dos serviços de manutenção que se fizerem necessários.</p><p style="margin-bottom:4px;">Autorizo a equipe técnica da Supra Bike a executar os procedimentos necessários para avaliação e manutenção do veículo, conforme as condições identificadas durante a análise.</p><p style="font-weight:700;color:#0f172a;margin-bottom:0;">Ao prosseguir, confirmo que li, compreendi e aceito os termos acima.</p></div>';
 
-    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Retirada_OS_' + os.id + '</title><style>@page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px;max-width:800px;margin:0 auto}.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}h2{font-size:13px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px}.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}.field{flex:1;display:flex}.fl{font-weight:700;margin-right:5px}.fv{color:#334185;font-weight:700}.checks-row{display:flex;gap:15px;font-size:11px;margin-bottom:8px}.ci{display:flex;align-items:center;gap:6px}.ck{font-size:14px;color:#1e3a8a;font-weight:bold}.obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px}.obs{font-size:10px;line-height:1.4;color:#334155}.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}.sb{text-align:center;width:60%}.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}</style></head><body><div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div><h2>Relatório e Termo de Retirada</h2></div><div class="section-title">Dados do Cliente</div><div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">' + (os.clienteNome||'\u2014') + '</span></div></div><div class="fields-row"><div class="field"><span class="fl">CPF:</span> <span class="fv">' + (os.clienteCpf||'\u2014') + '</span></div><div class="field"><span class="fl">Cel.:</span> <span class="fv">' + (os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014') + '</span></div></div><div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">' + enderecoF + '</span></div><div class="section-title" style="margin-top:8px;">Dados do Veículo</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Modelo:</span> <span class="fv">' + (os.modeloVeiculo||'\u2014') + '</span></div><div class="field"><span class="fl">Cor:</span> <span class="fv">' + (os.corVeiculo||'\u2014') + '</span></div></div><div class="section-title" style="margin-top:8px;">Taxa de Retirada</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Valor:</span> <span class="fv">' + (d.valorRetirada||'R$ 0,00') + '</span></div></div><div class="section-title" style="margin-top:8px;">Itens Retirados</div><div class="checks-row"><div class="ci"><span class="ck">' + ck(d.deixouChave) + '</span> ' + lChave + '</div><div class="ci"><span class="ck">' + ck(d.deixouControle) + '</span> ' + lControle + '</div><div class="ci"><span class="ck">' + ck(d.deixouCarregador) + '</span> Carregador</div><div class="ci"><span class="ck">' + ck(d.deixouDocumento) + '</span> Documentos</div></div><div class="section-title" style="margin-top:8px;">Relato do Cliente</div><div class="obs-container"><div class="obs">' + descHtml + '</div>' + fotosHtml + '</div>' + declaraTexto + '<div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div><div class="sb"><div class="sl sn">' + (os.mecanico||'\u2014') + '</div><div style="font-weight:700">Motorista Responsável</div></div></div></body></html>';
+    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Termo_Retirada_OS_' + os.id + '</title><style>@page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px;max-width:800px;margin:0 auto}.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}h2{font-size:13px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px}.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}.field{flex:1;display:flex}.fl{font-weight:700;margin-right:5px}.fv{color:#334185;font-weight:700}.checks-row{display:flex;gap:15px;font-size:11px;margin-bottom:8px}.ci{display:flex;align-items:center;gap:6px}.ck{font-size:14px;color:#1e3a8a;font-weight:bold}.obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px}.obs{font-size:10px;line-height:1.4;color:#334155}.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}.sb{text-align:center;width:60%}.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}.footer{text-align:center;font-size:10px;color:#64748b;margin-top:20px;border-top:1px dashed #cbd5e1;padding-top:8px}</style></head><body><div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div><h2>Relatório e Termo de Retirada</h2></div><div class="section-title">Dados do Cliente</div><div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">' + (os.clienteNome||'\u2014') + '</span></div></div><div class="fields-row"><div class="field"><span class="fl">CPF:</span> <span class="fv">' + (os.clienteCpf||'\u2014') + '</span></div><div class="field"><span class="fl">Cel.:</span> <span class="fv">' + (os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014') + '</span></div></div><div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">' + enderecoF + '</span></div><div class="section-title" style="margin-top:8px;">Dados do Veículo</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Modelo:</span> <span class="fv">' + (os.modeloVeiculo||'\u2014') + '</span></div><div class="field"><span class="fl">Cor:</span> <span class="fv">' + (os.corVeiculo||'\u2014') + '</span></div></div><div class="section-title" style="margin-top:8px;">Taxa de Retirada</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Valor:</span> <span class="fv">' + (d.valorRetirada||'R$ 0,00') + '</span></div></div><div class="section-title" style="margin-top:8px;">Itens Retirados</div><div class="checks-row"><div class="ci"><span class="ck">' + ck(d.deixouChave) + '</span> ' + lChave + '</div><div class="ci"><span class="ck">' + ck(d.deixouControle) + '</span> ' + lControle + '</div><div class="ci"><span class="ck">' + ck(d.deixouCarregador) + '</span> Carregador</div><div class="ci"><span class="ck">' + ck(d.deixouDocumento) + '</span> Documentos</div></div><div class="section-title" style="margin-top:8px;">Relato do Cliente</div><div class="obs-container"><div class="obs">' + descHtml + '</div>' + fotosHtml + '</div>' + declaraTexto + '<div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div><div class="sb"><div class="sl sn">' + (os.mecanico||'\u2014') + '</div><div style="font-weight:700">Responsável pela Retirada</div></div></div><div class="footer">Supra Bike CNPJ 07.870.286.0001-05  - Estr. Real de Mauá N 739. Magé, RJ.</div></body></html>';
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -622,21 +637,19 @@ const Utils = (() => {
     const pw = 210, ml = 15, cw = 180;
     const h = _pdfHelpers(doc, ml, cw);
 
-    // === CABEÇALHO com nº da OS ===
+    // === CABEÇALHO ===
     h.drawHeader(pw);
     doc.setFontSize(14); doc.setTextColor(0);
     doc.text('ORDEM DE SERVIÇO', pw / 2, 24, { align: 'center' });
 
-    // Nº da OS e Data
-    doc.setFillColor(30, 58, 138);
-    doc.rect(ml, 29, cw, 8, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255);
-    doc.text('OS: ' + (os.id || '—'), ml + 4, 34.5);
+    // Data
+    let y = 33;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(0);
     const dataCriacao = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : d.dataGeracao;
-    doc.text('Data: ' + dataCriacao, ml + cw - 4, 34.5, { align: 'right' });
+    doc.text('Data:  ' + dataCriacao, ml + cw - 32, y);
 
     // === DADOS DO CLIENTE ===
-    let y = 42;
+    y = 38;
     h.drawSectionHeader('DADOS DO CLIENTE', y);
     y += 12; h.field('Nome:', os.clienteNome || '', ml + 2, ml + cw - 2, y);
     y += 6; h.field('CPF:', os.clienteCpf || '', ml + 2, ml + cw * 0.48, y);
@@ -648,87 +661,41 @@ const Utils = (() => {
     y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.48, y);
     h.field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
 
-    // === TABELA DE SERVIÇOS ===
-    y += 8; h.drawSectionHeader('SERVIÇOS', y);
-    y += 8;
+    // === DESCRIÇÃO DA MANUTENÇÃO ===
+    y += 8; h.drawSectionHeader('DESCRIÇÃO DA MANUTENÇÃO', y);
+    y += 6;
+    const bsY = y, bH = 76;
+    doc.setDrawColor(180); doc.setFillColor(255); doc.rect(ml, bsY, cw, bH);
 
-    // Cabeçalho da tabela
-    doc.setFillColor(240, 245, 250);
-    doc.rect(ml, y - 4, cw, 6, 'F');
-    doc.setDrawColor(180); doc.setLineWidth(0.2);
-    doc.rect(ml, y - 4, cw, 6);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(30, 58, 138);
-    doc.text('Nº', ml + 4, y - 0.5);
-    doc.text('DESCRIÇÃO', ml + 14, y - 0.5);
-    doc.text('VALOR', ml + cw - 4, y - 0.5, { align: 'right' });
-    y += 4;
-
-    // Linhas da tabela
+    let cY = bsY + 4.5;
     const servicos = d.servicos || [];
     if (servicos.length > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('SERVIÇOS EXECUTADOS:', ml + 3, cY); cY += 4.5;
       servicos.forEach((s, idx) => {
-        doc.setDrawColor(220); doc.rect(ml, y - 3.5, cw, 5.5);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 133);
-        doc.text(String(idx + 1), ml + 4, y);
-        const descTruncada = (s.descricao || 'Serviço').substring(0, 70);
-        doc.text(descTruncada, ml + 14, y);
-        doc.text(formatarMoeda(s.valor || 0), ml + cw - 4, y, { align: 'right' });
-        y += 5.5;
+        doc.text((idx + 1) + '. ' + (s.descricao || 'Serviço'), ml + 3, cY);
+        doc.text('(' + formatarMoeda(s.valor || 0) + ')', ml + 50, cY);
+        cY += 4.5;
       });
-    } else {
-      doc.setDrawColor(220); doc.rect(ml, y - 3.5, cw, 5.5);
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); doc.setTextColor(150);
-      doc.text('Nenhum serviço cadastrado', ml + 14, y);
-      y += 5.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(239, 68, 68);
+      doc.text('VALOR TOTAL: ' + formatarMoeda(os.valorTotal || 0), ml + cw - 3, cY - 4.5, { align: 'right' });
+      cY += 1.5;
     }
-
-    // Linha TOTAL
-    doc.setFillColor(30, 58, 138); doc.rect(ml, y - 3.5, cw, 6, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255);
-    doc.text('TOTAL:', ml + 14, y);
-    doc.text(formatarMoeda(os.valorTotal || 0), ml + cw - 4, y, { align: 'right' });
-    y += 8;
-
-    // === PAGAMENTO E STATUS ===
-    h.drawSectionHeader('PAGAMENTO E STATUS', y);
-    y += 12;
-    h.field('Pagamento:', traduzirPagamento(os.formaPagamento) || 'Não informado', ml + 2, ml + cw * 0.48, y);
-    h.field('Situação:', traduzirStatusPagamento(os.statusPagamento) || 'Não informado', ml + cw * 0.52, ml + cw - 2, y);
-
-    // === INFORMAÇÕES DA OS ===
-    y += 8; h.drawSectionHeader('INFORMAÇÕES DA OS', y);
-    y += 12;
-    h.field('Status:', traduzirStatus(os.status) || '', ml + 2, ml + cw * 0.33, y);
-    h.field('Técnico:', os.mecanico || 'Não atribuído', ml + cw * 0.35, ml + cw - 2, y);
-
-    y += 6;
-    const dataInicio = os.horaInicio ? new Date(os.horaInicio).toLocaleDateString('pt-BR') + ' ' + new Date(os.horaInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
-    const dataConclusao = os.horaFim ? new Date(os.horaFim).toLocaleDateString('pt-BR') + ' ' + new Date(os.horaFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
-    h.field('Início:', dataInicio, ml + 2, ml + cw * 0.48, y);
-    h.field('Conclusão:', dataConclusao, ml + cw * 0.52, ml + cw - 2, y);
-
-    // === OBSERVAÇÕES ===
     if (d.observacoes) {
-      y += 8; h.drawSectionHeader('OBSERVAÇÕES', y);
-      y += 8;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('OBSERVAÇÕES:', ml + 3, cY); cY += 4.5;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 133);
-      const obsLines = doc.splitTextToSize(d.observacoes, cw - 6);
-      doc.text(obsLines, ml + 3, y);
-      y += obsLines.length * 4;
+      doc.text(doc.splitTextToSize(d.observacoes, cw - 6), ml + 3, cY);
     }
 
-    // === FOTOS ===
-    if (d.fotos && d.fotos.length > 0) {
-      y += 4;
-      // Verificar se precisa nova página
-      if (y > 240) { doc.addPage(); y = 20; }
-      h.drawFotos(d.fotos, y);
-      y += 28;
-    }
+    h.drawFotos(d.fotos, bsY + bH - 25);
 
     // === ASSINATURAS ===
-    if (y > 250) { doc.addPage(); y = 30; } else { y += 8; }
+    y = bsY + bH + 12;
+    if (y > 250) { doc.addPage(); y = 30; }
     h.drawAssinaturas(pw, y, os.mecanico, 'Técnico Responsável');
+    h.drawFooter(pw);
 
     doc.save('Ordem_Servico_OS_' + os.id + '.pdf');
   }
@@ -738,24 +705,22 @@ const Utils = (() => {
     const enderecoF = os.clienteEndereco || d.endereco || 'Não cadastrado';
     const servicos = d.servicos || [];
 
-    let servicosHtml = '';
+    let descHtml = '';
     if (servicos.length > 0) {
-      servicos.forEach((s, i) => { servicosHtml += '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:center;font-size:10px;">' + (i+1) + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;font-size:10px;color:#334185;">' + escapeHtml(s.descricao||'Serviço') + '</td><td style="padding:4px 8px;border:1px solid #e2e8f0;text-align:right;font-size:10px;color:#334185;">' + formatarMoeda(s.valor||0) + '</td></tr>'; });
-    } else {
-      servicosHtml = '<tr><td colspan="3" style="padding:8px;border:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-style:italic;font-size:10px;">Nenhum serviço cadastrado</td></tr>';
-    }
+      descHtml += '<strong style="color:#1e3a8a;">SERVIÇOS EXECUTADOS:</strong><br>';
+      servicos.forEach((s, i) => { descHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span>' + (i+1) + '. ' + escapeHtml(s.descricao||'Serviço') + ' (' + formatarMoeda(s.valor||0) + ')</span></div>'; });
+      descHtml += '<div style="text-align:right;margin-top:4px;"><strong style="color:#ef4444;font-size:12px;">VALOR TOTAL: ' + formatarMoeda(os.valorTotal||0) + '</strong></div>';
+      if (d.observacoes) descHtml += '<br><strong style="color:#1e3a8a;">OBSERVAÇÕES:</strong><br>' + escapeHtml(d.observacoes).replace(/\n/g,'<br>');
+    } else { descHtml = d.observacoes ? escapeHtml(d.observacoes).replace(/\n/g,'<br>') : 'Nenhuma manutenção cadastrada.'; }
 
     let fotosHtml = '';
     if (d.fotos && d.fotos.length > 0) {
-      fotosHtml = '<div class="section-title" style="margin-top:8px;">Fotos</div><div style="display:flex;gap:10px;margin-top:8px;">';
+      fotosHtml = '<div style="display:flex;gap:10px;margin-top:15px;border-top:1px solid #ddd;padding-top:10px;">';
       for (let i = 0; i < 5; i++) { fotosHtml += d.fotos[i] ? '<div style="width:70px;height:50px;border:1px solid #cbd5e1;border-radius:4px;overflow:hidden;"><img src="' + d.fotos[i] + '" style="width:100%;height:100%;object-fit:cover;"></div>' : ''; }
       fotosHtml += '</div>';
     }
 
-    const dataInicio = os.horaInicio ? new Date(os.horaInicio).toLocaleDateString('pt-BR') + ' ' + new Date(os.horaInicio).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
-    const dataConclusao = os.horaFim ? new Date(os.horaFim).toLocaleDateString('pt-BR') + ' ' + new Date(os.horaFim).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
-
-    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Ordem_Servico_OS_' + os.id + '</title><style>@page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px;max-width:800px;margin:0 auto}.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:0}.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}h2{font-size:14px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}.os-bar{background:#1e3a8a;color:#fff;padding:6px 12px;font-weight:800;font-size:12px;display:flex;justify-content:space-between;margin-bottom:10px;border-radius:3px}.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px;margin-top:8px}.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}.field{flex:1;display:flex}.fl{font-weight:700;margin-right:5px}.fv{color:#334185;font-weight:700}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#f0f5fa;color:#1e3a8a;font-size:9px;padding:4px 8px;border:1px solid #e2e8f0;text-align:left}td{font-size:10px;color:#334185}.total-row td{background:#1e3a8a;color:#fff;font-weight:800;font-size:11px;padding:5px 8px}.obs{font-size:10px;line-height:1.4;color:#334155;border:1px solid #cbd5e1;border-radius:4px;padding:8px;margin-bottom:8px}.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}.sb{text-align:center;width:60%}.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}</style></head><body><div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div><h2>Ordem de Serviço</h2></div><div class="os-bar"><span>OS: ' + (os.id||'—') + '</span><span>Data: ' + dataCriacao + '</span></div><div class="section-title">Dados do Cliente</div><div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">' + (os.clienteNome||'\u2014') + '</span></div></div><div class="fields-row"><div class="field"><span class="fl">CPF:</span> <span class="fv">' + (os.clienteCpf||'\u2014') + '</span></div><div class="field"><span class="fl">Cel.:</span> <span class="fv">' + (os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014') + '</span></div></div><div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">' + enderecoF + '</span></div><div class="section-title">Dados do Veículo</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Modelo:</span> <span class="fv">' + (os.modeloVeiculo||'\u2014') + '</span></div><div class="field"><span class="fl">Cor:</span> <span class="fv">' + (os.corVeiculo||'\u2014') + '</span></div></div><div class="section-title">Serviços</div><table><thead><tr><th style="width:30px;text-align:center;">Nº</th><th>Descrição</th><th style="width:80px;text-align:right;">Valor</th></tr></thead><tbody>' + servicosHtml + '<tr class="total-row"><td colspan="2" style="border:1px solid #1e3a8a;">TOTAL</td><td style="text-align:right;border:1px solid #1e3a8a;">' + formatarMoeda(os.valorTotal||0) + '</td></tr></tbody></table><div class="section-title">Pagamento e Status</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Pagamento:</span> <span class="fv">' + (traduzirPagamento(os.formaPagamento)||'Não informado') + '</span></div><div class="field"><span class="fl">Situação:</span> <span class="fv">' + (traduzirStatusPagamento(os.statusPagamento)||'Não informado') + '</span></div></div><div class="section-title">Informações da OS</div><div class="fields-row"><div class="field"><span class="fl">Status:</span> <span class="fv">' + (traduzirStatus(os.status)||'') + '</span></div><div class="field"><span class="fl">Técnico:</span> <span class="fv">' + (os.mecanico||'Não atribuído') + '</span></div></div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Início:</span> <span class="fv">' + dataInicio + '</span></div><div class="field"><span class="fl">Conclusão:</span> <span class="fv">' + dataConclusao + '</span></div></div>' + (d.observacoes ? '<div class="section-title">Observações</div><div class="obs">' + escapeHtml(d.observacoes).replace(/\n/g,'<br>') + '</div>' : '') + fotosHtml + '<div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div><div class="sb"><div class="sl sn">' + (os.mecanico||'\u2014') + '</div><div style="font-weight:700">Técnico Responsável</div></div></div></body></html>';
+    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Ordem_Servico_OS_' + os.id + '</title><style>@page{size:A4 portrait;margin:12mm 15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#0f172a;background:#fff;padding:20px;font-size:12px;max-width:800px;margin:0 auto}.header{text-align:center;border-bottom:2px solid #ef4444;padding-bottom:8px;margin-bottom:10px}.brand{font-size:26px;font-weight:800;letter-spacing:1px}.red{color:#ef4444}.blue{color:#1e3a8a}h2{font-size:14px;font-weight:800;text-transform:uppercase;color:#1e293b;margin-top:4px}.meta-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.section-title{font-weight:800;font-size:10px;text-transform:uppercase;color:#000;background:#f0f5f0;border:1px solid #cbd5e1;padding:4px 8px;margin-bottom:6px;border-radius:3px}.fields-row{display:flex;gap:20px;margin-bottom:6px;font-size:11px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}.field{flex:1;display:flex}.fl{font-weight:700;margin-right:5px}.fv{color:#334185;font-weight:700}.obs-container{border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px;background:#fff;min-height:80px;margin-bottom:8px}.obs{font-size:10px;line-height:1.4;color:#334155}.sigs{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:30px;font-size:11px}.sb{text-align:center;width:60%}.sl{border-bottom:1px solid #94a3b8;height:20px;margin-bottom:3px}.sn{font-weight:700;line-height:20px;color:#0f172a}.footer{text-align:center;font-size:10px;color:#64748b;margin-top:20px;border-top:1px dashed #cbd5e1;padding-top:8px}</style></head><body><div class="header"><div class="brand"><span class="red">SUPRA</span> <span class="blue">BIKE</span></div><h2>Ordem de Serviço</h2></div><div class="meta-row"><div></div><div style="font-size:11px;font-weight:600;color:#475569">Data: <u>' + dataCriacao + '</u></div></div><div class="section-title">Dados do Cliente</div><div class="fields-row"><div class="field"><span class="fl">Nome:</span> <span class="fv">' + (os.clienteNome||'\u2014') + '</span></div></div><div class="fields-row"><div class="field"><span class="fl">CPF:</span> <span class="fv">' + (os.clienteCpf||'\u2014') + '</span></div><div class="field"><span class="fl">Cel.:</span> <span class="fv">' + (os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '\u2014') + '</span></div></div><div class="fields-row" style="border:none;"><span class="fl">Endereço:</span> <span class="fv">' + enderecoF + '</span></div><div class="section-title" style="margin-top:8px;">Dados do Veículo</div><div class="fields-row" style="border:none;"><div class="field"><span class="fl">Modelo:</span> <span class="fv">' + (os.modeloVeiculo||'\u2014') + '</span></div><div class="field"><span class="fl">Cor:</span> <span class="fv">' + (os.corVeiculo||'\u2014') + '</span></div></div><div class="section-title" style="margin-top:8px;">Descrição da Manutenção</div><div class="obs-container"><div class="obs">' + descHtml + '</div>' + fotosHtml + '</div><div class="sigs"><div class="sb"><div class="sl"></div><div style="font-weight:700">Assinatura do Cliente</div></div><div class="sb"><div class="sl sn">' + (os.mecanico||'\u2014') + '</div><div style="font-weight:700">Técnico Responsável</div></div></div><div class="footer">Supra Bike CNPJ 07.870.286.0001-05  - Estr. Real de Mauá N 739. Magé, RJ.</div></body></html>';
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -794,8 +759,8 @@ const Utils = (() => {
     comprimirFotoBase64, removerAcentos, escapeHtml,
     gerarMensagemWhatsApp, gerarLinkWhatsApp, abrirInstagram,
     gerarPDFEntrega,
-    gerarPDFRetirada: gerarPDFEntrega,
-    gerarPDFTermoRetirada: gerarPDFEntrega,
+    gerarPDFRetirada: gerarPDFRetiradaDoc,
+    gerarPDFTermoRetirada: gerarPDFRetiradaDoc,
     gerarPDFRetiradaDoc,
     gerarPDFOrdemServico,
     hashSenha, gerarId, debounce

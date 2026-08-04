@@ -822,7 +822,7 @@ const App = (() => {
       ordensRetirada.forEach(os => {
         const dataStr = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : '';
         htmlResult += `
-          <div class="os-card" style="margin-bottom:var(--space-md); border-left:4px solid #f59e0b; padding:var(--space-md); background:var(--bg-surface); border-radius:var(--radius-lg); border:1px solid var(--glass-border); border-left:4px solid #f59e0b;">
+          <div class="os-card os-card-retirada" data-id="${os.id}" style="cursor:pointer; margin-bottom:var(--space-md); border-left:4px solid #f59e0b; padding:var(--space-md); background:var(--bg-surface); border-radius:var(--radius-lg); border:1px solid var(--glass-border); border-left:4px solid #f59e0b;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--space-xs);">
               <div>
                 <div style="font-weight:800; font-size:var(--font-md); color:#f59e0b;">${os.id}</div>
@@ -863,6 +863,15 @@ const App = (() => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           Utils.gerarPDFRetiradaDoc(btn.dataset.id);
+        });
+      });
+
+      // Click on card body → edit retirada
+      container.querySelectorAll('.os-card-retirada').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          const os = Storage.getOrdemById(card.dataset.id);
+          if (os) openModalNovaOrdemRetirada(os);
         });
       });
 
@@ -1282,7 +1291,7 @@ const App = (() => {
     }
   }
 
-  function openModalNovaOrdemRetirada() {
+  function openModalNovaOrdemRetirada(existingOS = null) {
     const opcoesModelo = Storage.getOpcaoByCampo('modelo');
     const itensModelo = opcoesModelo ? [...opcoesModelo.itens] : [];
     itensModelo.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
@@ -1392,13 +1401,13 @@ const App = (() => {
       </form>
     `;
 
-    openModal('Nova Ordem de Retirada', bodyHtml, () => {
+    openModal(existingOS ? `Editar ${existingOS.id}` : 'Nova Ordem de Retirada', bodyHtml, () => {
       const form = document.getElementById('form-nova-retirada');
       if (!form.checkValidity()) { form.reportValidity(); return false; }
 
-      const novaOrdem = {
+      const dados = {
         tipo: 'retirada',
-        status: 'retirada_pendente',
+        status: existingOS ? existingOS.status : 'retirada_pendente',
         clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
         clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
         clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
@@ -1416,23 +1425,52 @@ const App = (() => {
         deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
         deixouDocumento: document.getElementById('retirada-edit-documento').checked,
         observacoes: document.getElementById('retirada-edit-obs').value,
-        servicos: [{ descricao: 'Ordem de Retirada', valor: 0 }],
-        valorTotal: 0,
-        formaPagamento: ['pendente'],
-        statusPagamento: 'pendente',
-        prioridade: 'normal',
-        atendente: currentUser ? currentUser.nome : 'Sistema',
-        criadoPor: currentUser ? currentUser.nome : 'Sistema',
-        criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString()
       };
 
-      const saved = Storage.saveOrdem(novaOrdem);
-      showToast(`Ordem de Retirada ${saved.id} registrada! Veja na aba Retirada em Serviços.`, 'success');
+      if (existingOS) {
+        Storage.updateOrdem(existingOS.id, dados);
+        showToast(`Ordem ${existingOS.id} atualizada!`, 'success');
+      } else {
+        dados.servicos = [{ descricao: 'Ordem de Retirada', valor: 0 }];
+        dados.valorTotal = 0;
+        dados.formaPagamento = ['pendente'];
+        dados.statusPagamento = 'pendente';
+        dados.prioridade = 'normal';
+        dados.atendente = currentUser ? currentUser.nome : 'Sistema';
+        dados.criadoPor = currentUser ? currentUser.nome : 'Sistema';
+        dados.criadoEm = new Date().toISOString();
+        const saved = Storage.saveOrdem(dados);
+        showToast(`Ordem de Retirada ${saved.id} registrada! Veja na aba Retirada em Serviços.`, 'success');
+      }
       renderListaOS('aguardando');
       updateNavBadges();
       return true;
     });
+
+    // Pre-fill fields if editing
+    if (existingOS) {
+      setTimeout(() => {
+        const el = (id) => document.getElementById(id);
+        if (el('retirada-edit-nome')) el('retirada-edit-nome').value = existingOS.clienteNome || '';
+        if (el('retirada-edit-cpf')) el('retirada-edit-cpf').value = existingOS.clienteCpf || '';
+        if (el('retirada-edit-telefone')) el('retirada-edit-telefone').value = existingOS.clienteTelefone || '';
+        if (el('retirada-edit-endereco')) el('retirada-edit-endereco').value = existingOS.clienteEndereco || '';
+        if (el('retirada-edit-modelo')) el('retirada-edit-modelo').value = existingOS.modeloVeiculo || '';
+        if (el('retirada-edit-cor')) el('retirada-edit-cor').value = existingOS.corVeiculo || '';
+        if (el('retirada-edit-mecanico')) el('retirada-edit-mecanico').value = existingOS.mecanico || '';
+        if (el('retirada-edit-garantia')) el('retirada-edit-garantia').checked = !!existingOS.temGarantia;
+        if (el('retirada-edit-taxa')) el('retirada-edit-taxa').value = existingOS.valorRetirada || 'R$ 0,00';
+        if (el('retirada-edit-taxa-entrega')) el('retirada-edit-taxa-entrega').value = existingOS.taxaEntrega || 'R$ 0,00';
+        if (el('retirada-edit-chave')) el('retirada-edit-chave').checked = !!existingOS.deixouChave;
+        if (el('retirada-edit-qtd-chave')) el('retirada-edit-qtd-chave').value = existingOS.qtdChave || '';
+        if (el('retirada-edit-controle')) el('retirada-edit-controle').checked = !!existingOS.deixouControle;
+        if (el('retirada-edit-qtd-controle')) el('retirada-edit-qtd-controle').value = existingOS.qtdControle || '';
+        if (el('retirada-edit-carregador')) el('retirada-edit-carregador').checked = !!existingOS.deixouCarregador;
+        if (el('retirada-edit-documento')) el('retirada-edit-documento').checked = !!existingOS.deixouDocumento;
+        if (el('retirada-edit-obs')) el('retirada-edit-obs').value = existingOS.observacoes || '';
+      }, 50);
+    }
   }
 
   function updateNavBadges() {
@@ -1449,7 +1487,6 @@ const App = (() => {
     setBadge('badge-concluidos', concluido);
 
     // Update subtab badges inside Serviços page
-    setSubtabBadge('subtab-servicos-badge', normalAguardando);
     setSubtabBadge('subtab-retirada-badge', retiradaAguardando);
   }
 
