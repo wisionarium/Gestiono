@@ -1437,13 +1437,31 @@ const App = (() => {
 
   function updateNavBadges() {
     const ordens = Storage.getOrdens();
-    const aguardando = ordens.filter(o => o.status === 'aguardando').length;
+    const normalAguardando = ordens.filter(o => o.status === 'aguardando' && o.tipo !== 'retirada' && o.status !== 'retirada_pendente').length;
+    const retiradaAguardando = ordens.filter(o => (o.tipo === 'retirada' || o.status === 'retirada_pendente') && o.status !== 'convertida').length;
+    const totalAguardando = normalAguardando + retiradaAguardando;
+
     const andamento = ordens.filter(o => o.status === 'em_andamento').length;
     const concluido = ordens.filter(o => o.status === 'concluido').length;
 
-    setBadge('badge-servicos', aguardando);
+    setBadge('badge-servicos', totalAguardando);
     setBadge('badge-andamento', andamento);
     setBadge('badge-concluidos', concluido);
+
+    // Update subtab badges inside Serviços page
+    setSubtabBadge('subtab-servicos-badge', normalAguardando);
+    setSubtabBadge('subtab-retirada-badge', retiradaAguardando);
+  }
+
+  function setSubtabBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = count;
+      el.style.display = 'inline-block';
+    } else {
+      el.style.display = 'none';
+    }
   }
 
   function setBadge(id, count) {
