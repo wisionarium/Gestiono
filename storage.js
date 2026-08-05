@@ -89,13 +89,13 @@ const Storage = (() => {
       {
         id: 'role_mecanico',
         nome: 'Mecânico',
-        permissoes: ['assumir_servico', 'concluir_servico'],
+        permissoes: ['assumir_servico', 'concluir_servico', 'enviar_whatsapp'],
         criadoEm: new Date().toISOString()
       },
       {
         id: 'role_motorista',
         nome: 'Motorista',
-        permissoes: ['assumir_servico', 'concluir_servico'],
+        permissoes: ['assumir_servico', 'concluir_servico', 'enviar_whatsapp'],
         criadoEm: new Date().toISOString()
       }
     ];

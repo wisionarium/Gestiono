@@ -2121,7 +2121,7 @@ const App = (() => {
       (isAdminMaster || os.mecanico === currentUser.nome);
     const canEditar = temPermissao('editar_os') && (os.status === 'aguardando' || isAdminMaster);
     const canExcluir = temPermissao('excluir_os') || isAdminMaster;
-    const canWhatsApp = temPermissao('enviar_whatsapp');
+    const canWhatsApp = true; // Sempre ativo em todas as OS
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
 
     if (canAssumir) {
@@ -2151,9 +2151,9 @@ const App = (() => {
         </button>`;
     }
     if (canWhatsApp) {
-      actionsHtml += `<button class="btn btn-whatsapp btn-block" id="btn-detail-whatsapp">
+      actionsHtml += `<button class="btn btn-whatsapp btn-block" id="btn-detail-whatsapp" style="background:#25D366; border-color:#25D366; color:#fff; font-weight:700;">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6-4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-        Enviar WhatsApp</button>`;
+        Enviar WhatsApp ao Cliente</button>`;
     }
     if (os.status === 'concluido') {
       actionsHtml += `
@@ -2194,7 +2194,13 @@ const App = (() => {
         
         <div class="os-ticket-section">
           <div class="os-ticket-row"><strong>Cliente:</strong> <span>${os.clienteNome}</span></div>
-          <div class="os-ticket-row"><strong>Telefone:</strong> <span>${telMostrar}</span></div>
+          <div class="os-ticket-row">
+            <strong>Telefone:</strong> 
+            <span style="display:inline-flex; align-items:center; gap:6px;">
+              ${telMostrar}
+              ${os.clienteTelefone ? `<button type="button" class="btn btn-whatsapp btn-xs" id="btn-ticket-wa-icon" style="padding:2px 8px; font-size:10px; font-weight:700; background:#25D366; border-color:#25D366; color:#fff; border-radius:12px; cursor:pointer;" title="Enviar WhatsApp ao Cliente">💬 WhatsApp</button>` : ''}
+            </span>
+          </div>
           <div class="os-ticket-row"><strong>Veículo:</strong> <span>${os.modeloVeiculo || '—'} (${os.corVeiculo || '—'})</span></div>
           ${os.temDataEntrega && os.dataEntrega ? `<div class="os-ticket-row" style="color:#38bdf8; font-weight:700;"><strong>Data de Entrega:</strong> <span>${Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega)?.textoCompleto || os.dataEntrega}</span></div>` : ''}
         </div>
@@ -2305,6 +2311,12 @@ const App = (() => {
 
     const btnWhatsApp = document.getElementById('btn-detail-whatsapp');
     if (btnWhatsApp) btnWhatsApp.addEventListener('click', () => {
+      openModalEnviarWhatsApp(os);
+    });
+
+    const btnTicketWa = document.getElementById('btn-ticket-wa-icon');
+    if (btnTicketWa) btnTicketWa.addEventListener('click', (e) => {
+      e.stopPropagation();
       openModalEnviarWhatsApp(os);
     });
 
