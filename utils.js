@@ -88,7 +88,16 @@ const Utils = (() => {
   }
 
   function traduzirRole(role) {
-    const map = { 'admin': 'Admin Master', 'atendente': 'Atendente', 'mecanico': 'Mecânico' };
+    const map = { 
+      'admin': 'Admin Master', 
+      'role_admin': 'Admin Master', 
+      'atendente': 'Atendente', 
+      'role_atendente': 'Atendente', 
+      'mecanico': 'Mecânico', 
+      'role_mecanico': 'Mecânico', 
+      'motorista': 'Motorista', 
+      'role_motorista': 'Motorista' 
+    };
     return map[role] || role;
   }
 

@@ -1115,12 +1115,35 @@ const App = (() => {
     itensCor.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
 
     const usuarios = Storage.getUsuarios();
-    const tecnicos = usuarios.filter(u => u.exibirNaDelegacao !== false);
-    tecnicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+    const cargos = Storage.getCargos();
+
+    let filteredUsers = [];
+    if (targetType === 'retirada') {
+      filteredUsers = usuarios.filter(u => {
+        if (u.exibirNaDelegacao === false) return false;
+        const cargo = cargos.find(c => c.id === u.role);
+        const cargoNome = (cargo ? cargo.nome : (u.role || '')).toLowerCase();
+        return u.role === 'role_motorista' || u.role === 'motorista' || cargoNome.includes('motorista');
+      });
+      if (filteredUsers.length === 0) {
+        filteredUsers = usuarios.filter(u => u.exibirNaDelegacao !== false);
+      }
+    } else {
+      filteredUsers = usuarios.filter(u => {
+        if (u.exibirNaDelegacao === false) return false;
+        const cargo = cargos.find(c => c.id === u.role);
+        const cargoNome = (cargo ? cargo.nome : (u.role || '')).toLowerCase();
+        return u.role === 'role_mecanico' || u.role === 'mecanico' || cargoNome.includes('mecanic') || cargoNome.includes('mecânic');
+      });
+      if (filteredUsers.length === 0) {
+        filteredUsers = usuarios.filter(u => u.exibirNaDelegacao !== false);
+      }
+    }
+    filteredUsers.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
 
     const modelsHtml = itensModelo.map(m => `<option value="${m}" ${os.modeloVeiculo === m ? 'selected' : ''}>${m}</option>`).join('');
     const colorsHtml = itensCor.map(c => `<option value="${c}" ${os.corVeiculo === c ? 'selected' : ''}>${c}</option>`).join('');
-    const techHtml = tecnicos.map(t => `<option value="${t.nome}" ${os.mecanico === t.nome ? 'selected' : ''}>${t.nome}</option>`).join('');
+    const techHtml = filteredUsers.map(t => `<option value="${t.nome}" ${os.mecanico === t.nome ? 'selected' : ''}>${t.nome}</option>`).join('');
 
     let modalTitle = `Editor — Ordem de Serviço (${os.id})`;
     let actionBtnText = '📑 Salvar & Baixar Ordem de Serviço (PDF)';
@@ -1301,12 +1324,21 @@ const App = (() => {
     itensCor.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
 
     const usuarios = Storage.getUsuarios();
-    const tecnicos = usuarios.filter(u => u.exibirNaDelegacao !== false);
-    tecnicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+    const cargos = Storage.getCargos();
+    let motoristas = usuarios.filter(u => {
+      if (u.exibirNaDelegacao === false) return false;
+      const cargo = cargos.find(c => c.id === u.role);
+      const cargoNome = (cargo ? cargo.nome : (u.role || '')).toLowerCase();
+      return u.role === 'role_motorista' || u.role === 'motorista' || cargoNome.includes('motorista');
+    });
+    if (motoristas.length === 0) {
+      motoristas = usuarios.filter(u => u.exibirNaDelegacao !== false);
+    }
+    motoristas.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
 
     const modelsHtml = itensModelo.map(m => `<option value="${m}">${m}</option>`).join('');
     const colorsHtml = itensCor.map(c => `<option value="${c}">${c}</option>`).join('');
-    const techHtml = tecnicos.map(t => `<option value="${t.nome}">${t.nome}</option>`).join('');
+    const techHtml = motoristas.map(t => `<option value="${t.nome}">${t.nome}</option>`).join('');
 
     const bodyHtml = `
       <form id="form-nova-retirada">
@@ -1620,7 +1652,7 @@ const App = (() => {
     const os = Storage.getOrdemById(id);
     if (!os || os.status !== 'aguardando') return;
     Storage.updateOrdem(id, { status: 'em_andamento', mecanico: currentUser.nome, horaInicio: new Date().toISOString() });
-    Storage.addHistorico(id, `Serviço assumido por ${currentUser.nome}`, currentUser.nome);
+    Storage.addHistorico(id, 'Serviço Assumido', currentUser.nome);
     showToast('Serviço assumido!', 'success');
     renderListaOS('aguardando');
     renderListaOS('em_andamento');
@@ -1633,7 +1665,7 @@ const App = (() => {
     const horaFim = new Date().toISOString();
     const tempoTotal = Utils.calcularTempoTotal(os.horaInicio, horaFim);
     Storage.updateOrdem(id, { status: 'concluido', horaFim, tempoTotal });
-    Storage.addHistorico(id, `Serviço concluído por ${currentUser.nome} (${tempoTotal})`, currentUser.nome);
+    Storage.addHistorico(id, `Serviço Concluído (${tempoTotal})`, currentUser.nome);
     showToast(`Serviço concluído! Tempo: ${tempoTotal}`, 'success');
     renderListaOS('em_andamento');
     renderListaOS('concluido');
@@ -2203,11 +2235,13 @@ const App = (() => {
       <div class="os-detail-section">
         <div class="os-detail-section-title">Histórico da OS</div>
         <div class="timeline">
-          ${(os.historico || []).map(h => `
+          ${[...(os.historico || [])]
+            .sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0))
+            .map(h => `
             <div class="timeline-item">
               <div class="timeline-item-time">${Utils.formatarDataHora(h.timestamp)}</div>
-              <div class="timeline-item-text">${h.acao}</div>
-              <div class="timeline-item-user">por ${h.usuario}</div>
+              <div class="timeline-item-text">${Utils.escapeHtml(h.acao)}</div>
+              <div class="timeline-item-user">por ${Utils.escapeHtml(h.usuario || 'Sistema')}</div>
             </div>`).join('')}
         </div>
       </div>
@@ -3427,25 +3461,23 @@ const App = (() => {
     const usuarios = Storage.getUsuarios();
     const cargos = Storage.getCargos();
 
-    // Filtra funcionários visíveis para delegação
-    const tecnicos = usuarios.filter(u => {
+    // Filtra apenas mecânicos visíveis para delegação de serviços
+    let mecanicos = usuarios.filter(u => {
       if (u.exibirNaDelegacao === false) return false;
-      if (u.isInterno) return true;
-      if (u.usuario === 'admin') return true;
       const cargo = cargos.find(c => c.id === u.role);
-      return cargo && (cargo.permissoes.includes('assumir_servico') || cargo.permissoes.includes('concluir_servico') || cargo.permissoes.includes('delegar_servico'));
+      const cargoNome = (cargo ? cargo.nome : (u.role || '')).toLowerCase();
+      return u.role === 'role_mecanico' || u.role === 'mecanico' || cargoNome.includes('mecanic') || cargoNome.includes('mecânic');
     });
 
-    if (tecnicos.length === 0) {
-      showToast('Nenhum funcionário disponível na lista de delegação!', 'error');
-      return;
+    if (mecanicos.length === 0) {
+      mecanicos = usuarios.filter(u => u.exibirNaDelegacao !== false);
     }
 
-    tecnicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+    mecanicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
 
-    const optionsHtml = tecnicos.map(t => {
+    const optionsHtml = mecanicos.map(t => {
       const cargo = cargos.find(c => c.id === t.role);
-      const cargoNome = t.isInterno ? 'Interno' : (cargo ? cargo.nome : Utils.traduzirRole(t.role));
+      const cargoNome = cargo ? cargo.nome : Utils.traduzirRole(t.role);
       return `<option value="${t.nome}">${t.nome} (${cargoNome})</option>`;
     }).join('');
 

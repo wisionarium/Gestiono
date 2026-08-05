@@ -91,6 +91,12 @@ const Storage = (() => {
         nome: 'Mecânico',
         permissoes: ['assumir_servico', 'concluir_servico'],
         criadoEm: new Date().toISOString()
+      },
+      {
+        id: 'role_motorista',
+        nome: 'Motorista',
+        permissoes: ['assumir_servico', 'concluir_servico'],
+        criadoEm: new Date().toISOString()
       }
     ];
     localStorage.setItem(KEYS.CARGOS, JSON.stringify(cargosIniciais));
@@ -426,7 +432,31 @@ const Storage = (() => {
   // ---------- ORDENS DE SERVIÇO ----------
 
   function getOrdens() {
-    return getData(KEYS.ORDENS);
+    const ordens = getData(KEYS.ORDENS) || [];
+    let updated = false;
+    ordens.forEach(os => {
+      if (!os.historico) os.historico = [];
+      if (os.historico.length === 0) {
+        os.historico.push({
+          acao: 'OS Criada',
+          usuario: os.criadoPor || os.atendente || 'Sistema',
+          timestamp: os.criadoEm || new Date().toISOString()
+        });
+        updated = true;
+      }
+      if (os.mecanico && !os.historico.some(h => (h.acao || '').includes('Assumido') || (h.acao || '').includes('delegado'))) {
+        os.historico.push({
+          acao: 'Serviço Assumido',
+          usuario: os.mecanico,
+          timestamp: os.horaInicio || os.criadoEm || new Date().toISOString()
+        });
+        updated = true;
+      }
+    });
+    if (updated) {
+      setData(KEYS.ORDENS, ordens);
+    }
+    return ordens;
   }
 
   function getOrdemById(id) {
@@ -441,11 +471,23 @@ const Storage = (() => {
     ordem.criadoEm = ordem.criadoEm || new Date().toISOString();
     ordem.atualizadoEm = new Date().toISOString();
     ordem.historico = ordem.historico || [];
-    ordem.historico.push({
-      acao: 'OS Criada',
-      usuario: ordem.atendente,
-      timestamp: new Date().toISOString()
-    });
+
+    if (!ordem.historico.some(h => h.acao === 'OS Criada')) {
+      ordem.historico.push({
+        acao: 'OS Criada',
+        usuario: ordem.criadoPor || ordem.atendente || 'Sistema',
+        timestamp: ordem.criadoEm
+      });
+    }
+
+    if (ordem.mecanico && !ordem.historico.some(h => (h.acao || '').includes('Assumido') || (h.acao || '').includes('delegado'))) {
+      ordem.historico.push({
+        acao: 'Serviço Assumido',
+        usuario: ordem.mecanico,
+        timestamp: ordem.horaInicio || new Date().toISOString()
+      });
+    }
+
     ordens.push(ordem);
     setData(KEYS.ORDENS, ordens);
     syncToSupabase(KEYS.ORDENS, ordem);
@@ -456,7 +498,22 @@ const Storage = (() => {
     const ordens = getOrdens();
     const idx = ordens.findIndex(os => os.id === id);
     if (idx === -1) return null;
+    const oldMecanico = ordens[idx].mecanico;
+
     ordens[idx] = { ...ordens[idx], ...updates, atualizadoEm: new Date().toISOString() };
+    if (!ordens[idx].historico) ordens[idx].historico = [];
+
+    if (updates.mecanico && updates.mecanico !== oldMecanico) {
+      const jaExiste = ordens[idx].historico.some(h => (h.acao || '').includes('Assumido') && h.usuario === updates.mecanico);
+      if (!jaExiste) {
+        ordens[idx].historico.push({
+          acao: 'Serviço Assumido',
+          usuario: updates.mecanico,
+          timestamp: updates.horaInicio || new Date().toISOString()
+        });
+      }
+    }
+
     setData(KEYS.ORDENS, ordens);
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
     return ordens[idx];
@@ -467,9 +524,16 @@ const Storage = (() => {
     const idx = ordens.findIndex(os => os.id === id);
     if (idx === -1) return;
     if (!ordens[idx].historico) ordens[idx].historico = [];
-    ordens[idx].historico.push({ acao, usuario, timestamp: new Date().toISOString() });
+    
+    // Evita duplicata exata de ação imediata
+    const last = ordens[idx].historico[ordens[idx].historico.length - 1];
+    if (!last || last.acao !== acao || last.usuario !== usuario) {
+      ordens[idx].historico.push({ acao, usuario, timestamp: new Date().toISOString() });
+    }
+    
     ordens[idx].atualizadoEm = new Date().toISOString();
     setData(KEYS.ORDENS, ordens);
+    syncToSupabase(KEYS.ORDENS, ordens[idx]);
   }
 
   function deleteOrdem(id) {
@@ -724,7 +788,17 @@ const Storage = (() => {
   // ---------- CARGOS / PERMISSÕES ----------
 
   function getCargos() {
-    return getData(KEYS.CARGOS);
+    const cargos = getData(KEYS.CARGOS) || [];
+    if (!cargos.some(c => c.id === 'role_motorista' || (c.nome && c.nome.toLowerCase() === 'motorista'))) {
+      cargos.push({
+        id: 'role_motorista',
+        nome: 'Motorista',
+        permissoes: ['assumir_servico', 'concluir_servico'],
+        criadoEm: new Date().toISOString()
+      });
+      setData(KEYS.CARGOS, cargos);
+    }
+    return cargos;
   }
 
   function getCargoById(id) {
