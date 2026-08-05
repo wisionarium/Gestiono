@@ -1010,6 +1010,14 @@ const App = (() => {
     container.querySelectorAll('.btn-concluir').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); concluirServico(btn.dataset.id); });
     });
+
+    container.querySelectorAll('.btn-pdf-os-card').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); Utils.gerarPDFOrdemServico(btn.dataset.id); });
+    });
+
+    container.querySelectorAll('.btn-wa-os-card').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); openModalEnviarWhatsApp(btn.dataset.id); });
+    });
   }
 
   // ---------- GERENCIADOR DE PDFS ----------
@@ -1572,8 +1580,20 @@ const App = (() => {
         Delegar
       </button>`;
     }
+    if (os.status === 'em_andamento') {
+      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-pdf-os-card" data-id="${os.id}" title="Baixar Ordem de Serviço (PDF)" style="font-weight:700; margin-left:4px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+        PDF
+      </button>`;
+      if (temPermissao('enviar_whatsapp')) {
+        actionsHtml += `<button class="btn btn-whatsapp btn-xs os-card-action-btn btn-wa-os-card" data-id="${os.id}" title="Enviar via WhatsApp" style="font-weight:700; background:#25D366; border-color:#25D366; color:#fff; margin-left:4px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6-4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          WhatsApp
+        </button>`;
+      }
+    }
     if (canConcluir) {
-      actionsHtml += `<button class="btn btn-success btn-xs os-card-action-btn btn-concluir" data-id="${os.id}">
+      actionsHtml += `<button class="btn btn-success btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Concluir
       </button>`;
@@ -2101,7 +2121,7 @@ const App = (() => {
       (isAdminMaster || os.mecanico === currentUser.nome);
     const canEditar = temPermissao('editar_os') && (os.status === 'aguardando' || isAdminMaster);
     const canExcluir = temPermissao('excluir_os') || isAdminMaster;
-    const canWhatsApp = temPermissao('enviar_whatsapp') && os.status === 'concluido';
+    const canWhatsApp = temPermissao('enviar_whatsapp');
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
 
     if (canAssumir) {
@@ -2123,6 +2143,12 @@ const App = (() => {
       actionsHtml += `<button class="btn btn-success btn-block" id="btn-detail-concluir">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Concluir Serviço</button>`;
+    }
+    if (os.status === 'em_andamento' || os.status === 'aguardando') {
+      actionsHtml += `
+        <button class="btn btn-primary btn-block" id="btn-detail-pdf-os-andamento" style="background:#2563eb; border-color:#2563eb; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+          📑 Baixar Ordem de Serviço (PDF)
+        </button>`;
     }
     if (canWhatsApp) {
       actionsHtml += `<button class="btn btn-whatsapp btn-block" id="btn-detail-whatsapp">
@@ -2294,6 +2320,11 @@ const App = (() => {
 
     const btnPdfOS = document.getElementById('btn-detail-pdf-os');
     if (btnPdfOS) btnPdfOS.addEventListener('click', () => {
+      Utils.gerarPDFOrdemServico(os);
+    });
+
+    const btnPdfAndamento = document.getElementById('btn-detail-pdf-os-andamento');
+    if (btnPdfAndamento) btnPdfAndamento.addEventListener('click', () => {
       Utils.gerarPDFOrdemServico(os);
     });
 
@@ -3072,7 +3103,9 @@ const App = (() => {
     }, 100);
   }
 
-  function openModalEnviarWhatsApp(os) {
+  function openModalEnviarWhatsApp(osInput) {
+    const os = (typeof osInput === 'string' || typeof osInput === 'number') ? Storage.getOrdemById(osInput) : osInput;
+    if (!os) return;
     const templates = Storage.getTemplatesWhatsApp();
     if (!templates.length) {
       showToast('Nenhum modelo de WhatsApp encontrado!', 'error');
