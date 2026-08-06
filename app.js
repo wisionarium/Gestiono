@@ -599,6 +599,10 @@ const App = (() => {
 
   // ---------- HOME DASHBOARD ----------
 
+  function updateDashboard() {
+    renderDashboard();
+  }
+
   function renderDashboard() {
     if (!currentUser) return;
     

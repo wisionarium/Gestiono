@@ -6,6 +6,8 @@
 -- 1. Tabela de Ordens de Serviço
 CREATE TABLE IF NOT EXISTS public.ordens_servico (
   id TEXT PRIMARY KEY,
+  tipo TEXT DEFAULT 'os',
+  relato_cliente TEXT,
   cliente_nome TEXT NOT NULL,
   cliente_telefone TEXT,
   cliente_cpf TEXT,
@@ -29,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.ordens_servico (
   fotos JSONB DEFAULT '[]'::jsonb,
   campos_personalizados JSONB DEFAULT '{}'::jsonb,
   atendente TEXT,
+  criado_por TEXT,
   mecanico TEXT,
   editado_por TEXT,
   editado_em TIMESTAMP WITH TIME ZONE,
@@ -36,8 +39,19 @@ CREATE TABLE IF NOT EXISTS public.ordens_servico (
   hora_fim TIMESTAMP WITH TIME ZONE,
   tempo_total TEXT,
   historico JSONB DEFAULT '[]'::jsonb,
+  deletado BOOLEAN DEFAULT false,
+  deletado_em TIMESTAMP WITH TIME ZONE,
+  deletado_por TEXT,
   criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- Garantir colunas adicionadas em tabelas já existentes
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'os';
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS relato_cliente TEXT;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS criado_por TEXT;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS deletado BOOLEAN DEFAULT false;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS deletado_em TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS deletado_por TEXT;
 
 -- 2. Tabela de Usuários (Funcionários)
 CREATE TABLE IF NOT EXISTS public.usuarios (

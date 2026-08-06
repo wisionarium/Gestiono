@@ -160,6 +160,8 @@ const Storage = (() => {
         ordens.forEach(o => {
           supabaseMap.set(o.id, {
             id: o.id,
+            tipo: o.tipo || 'os',
+            relatoCliente: o.relato_cliente || '',
             clienteNome: o.cliente_nome,
             clienteTelefone: o.cliente_telefone,
             clienteCpf: o.cliente_cpf || '',
@@ -183,6 +185,7 @@ const Storage = (() => {
             fotos: o.fotos || [],
             camposPersonalizados: o.campos_personalizados || {},
             atendente: o.atendente,
+            criadoPor: o.criado_por || o.atendente || 'Sistema',
             mecanico: o.mecanico,
             editadoPor: o.editado_por,
             editadoEm: o.editado_em,
@@ -200,8 +203,18 @@ const Storage = (() => {
         // Preserva ordens locais que ainda não sincronizaram com o Supabase
         const localOrdens = getData(KEYS.ORDENS) || [];
         localOrdens.forEach(localO => {
-          if (localO && localO.id && !supabaseMap.has(localO.id)) {
-            supabaseMap.set(localO.id, localO);
+          if (localO && localO.id) {
+            const remoteO = supabaseMap.get(localO.id);
+            if (!remoteO) {
+              supabaseMap.set(localO.id, localO);
+            } else {
+              // Se a ordem foi marcada como deletada localmente, preserva o estado deletado
+              if (localO.deletado) {
+                remoteO.deletado = true;
+                remoteO.deletadoEm = localO.deletadoEm || remoteO.deletadoEm;
+                remoteO.deletadoPor = localO.deletadoPor || remoteO.deletadoPor;
+              }
+            }
           }
         });
 
@@ -300,6 +313,8 @@ const Storage = (() => {
         const o = dataItem;
         const payload = {
           id: o.id,
+          tipo: o.tipo || 'os',
+          relato_cliente: o.relatoCliente || null,
           cliente_nome: o.clienteNome || 'Cliente',
           cliente_telefone: o.clienteTelefone || '',
           cliente_cpf: o.clienteCpf || '',
@@ -323,6 +338,7 @@ const Storage = (() => {
           fotos: o.fotos || [],
           campos_personalizados: o.camposPersonalizados || {},
           atendente: o.atendente || '',
+          criado_por: o.criadoPor || o.atendente || 'Sistema',
           mecanico: o.mecanico || null,
           editado_por: o.editadoPor || null,
           editado_em: o.editadoEm || null,
@@ -335,7 +351,18 @@ const Storage = (() => {
           deletado_por: o.deletadoPor || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
-        await client.from('ordens_servico').upsert(payload);
+        const { error } = await client.from('ordens_servico').upsert(payload);
+        if (error) {
+          console.warn('Sincronização com aviso no Supabase, tentando payload legado:', error.message);
+          // Se a tabela remota no Supabase ainda não tiver as colunas novas, tenta com o formato legado sem falhar
+          delete payload.deletado;
+          delete payload.deletado_em;
+          delete payload.deletado_por;
+          delete payload.tipo;
+          delete payload.relato_cliente;
+          delete payload.criado_por;
+          await client.from('ordens_servico').upsert(payload);
+        }
       } else if (key === KEYS.USUARIOS) {
         const u = dataItem;
         const payload = {
