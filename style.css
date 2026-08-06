@@ -2224,10 +2224,42 @@ html {
   padding: var(--space-md) !important;
 }
 
-#page-home .section-divider {
-  width: 100% !important;
-  text-align: center !important;
-  justify-content: center !important;
+}
+
+/* ---------- BANDEJA DE HISTÓRICO SUBTABS ---------- */
+.tray-subtabs-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: var(--glass-border, #e2e8f0);
+  padding: 6px;
+  border-radius: 16px;
+}
+
+.tray-tab-btn {
+  padding: 12px 4px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tray-tab-btn.active {
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #0f172a);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.tray-tab-btn[data-tray-tab="apagados"].active {
+  color: #ef4444;
 }
 
 /* ---------- MINIATURAS DE FOTOS & AVATARES DE FUNCIONÁRIOS ---------- */
