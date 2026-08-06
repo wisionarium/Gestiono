@@ -182,12 +182,20 @@ const App = (() => {
     // Home navigation links
     const btnHomeNovoOrcamento = document.getElementById('home-btn-novo-orcamento');
     if (btnHomeNovoOrcamento) {
-      btnHomeNovoOrcamento.addEventListener('click', () => navigateTo('nova-os'));
+      btnHomeNovoOrcamento.addEventListener('click', () => {
+        isVisitaTecnicaForm = false;
+        navigateTo('nova-os');
+      });
     }
 
     const btnHomeOrdemRetirada = document.getElementById('home-btn-ordem-retirada');
     if (btnHomeOrdemRetirada) {
       btnHomeOrdemRetirada.addEventListener('click', () => openModalNovaOrdemRetirada());
+    }
+
+    const btnHomeVisitaTecnica = document.getElementById('home-btn-visita-tecnica');
+    if (btnHomeVisitaTecnica) {
+      btnHomeVisitaTecnica.addEventListener('click', () => openModalNovaVisitaTecnica());
     }
 
     const cardHomeSemana = document.getElementById('home-card-estatisticas-semana');
@@ -1716,8 +1724,7 @@ const App = (() => {
   function renderOSCard(os) {
     const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
-    const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento' && 
-      (isAdminMaster || os.mecanico === currentUser.nome);
+    const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento';
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
 
     let fotosBadgeHtml = '';
@@ -1746,12 +1753,6 @@ const App = (() => {
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
         PDF
       </button>`;
-      if (temPermissao('enviar_whatsapp')) {
-        actionsHtml += `<button class="btn btn-whatsapp btn-xs os-card-action-btn btn-wa-os-card" data-id="${os.id}" title="Enviar via WhatsApp" style="font-weight:700; background:#25D366; border-color:#25D366; color:#fff; margin-left:4px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6-4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-          WhatsApp
-        </button>`;
-      }
     }
     if (canConcluir) {
       actionsHtml += `<button class="btn btn-success btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px;">
@@ -1862,20 +1863,40 @@ const App = (() => {
     renderNovaOS(osRetirada, true);
   }
 
+  let isVisitaTecnicaForm = false;
+
   function openNovaOS() {
+    isVisitaTecnicaForm = false;
     editingOS = null;
     origemRetiradaId = null;
     navigateTo('nova-os');
   }
 
-  function renderNovaOS(osData, isConversaoRetirada = false) {
+  function openModalNovaVisitaTecnica() {
+    isVisitaTecnicaForm = true;
+    editingOS = null;
+    origemRetiradaId = null;
+    navigateTo('nova-os');
+    renderNovaOS(null, false, true);
+  }
+
+  function renderNovaOS(osData, isConversaoRetirada = false, isVisitaTecnica = false) {
     const form = document.getElementById('form-nova-os');
     const campos = Storage.getCamposAtivos();
     const opcoes = Storage.getOpcoes();
 
+    if (isVisitaTecnica) isVisitaTecnicaForm = true;
+
     form.reset();
     document.getElementById('servico-items').innerHTML = '';
-    addServicoItem();
+    if (isVisitaTecnicaForm) {
+      document.getElementById('nova-os-title').textContent = 'Ordem de Serviço - Visita Técnica';
+      document.getElementById('servico-items').innerHTML = `<div style="padding:10px; background:rgba(139,92,246,0.1); border:1px dashed #8b5cf6; border-radius:var(--radius-md); font-size:var(--font-xs); color:var(--text-primary); font-weight:700; text-align:center; margin-bottom:8px;">
+        📋 Visita Técnica: A tabela de serviços fica em branco para preenchimento manual no documento impresso.
+      </div>`;
+    } else {
+      addServicoItem();
+    }
 
     const checkEntrega = document.getElementById('os-check-data-entrega');
     const containerEntrega = document.getElementById('container-data-entrega');
@@ -2116,7 +2137,7 @@ const App = (() => {
       if (desc) servicos.push({ descricao: desc, valor });
     });
 
-    if (servicos.length === 0) {
+    if (servicos.length === 0 && !isVisitaTecnicaForm) {
       showToast('Adicione pelo menos um serviço', 'error');
       return;
     }
@@ -2174,6 +2195,7 @@ const App = (() => {
     const elEndereco = document.getElementById('os-endereco');
     const elCpf = document.getElementById('os-cpf');
     const osData = {
+      tipo: isVisitaTecnicaForm ? 'visita_tecnica' : (editingOS ? (editingOS.tipo || 'os') : 'os'),
       clienteNome: document.getElementById('os-cliente-nome').value.trim(),
       clienteTelefone: document.getElementById('os-telefone').value.trim(),
       clienteCpf: elCpf ? elCpf.value.trim() : '',
@@ -2278,8 +2300,7 @@ const App = (() => {
     let actionsHtml = '';
     const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
-    const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento' && 
-      (isAdminMaster || os.mecanico === currentUser.nome);
+    const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento';
     const canEditar = temPermissao('editar_os') && (os.status === 'aguardando' || isAdminMaster);
     const canExcluir = temPermissao('excluir_os') || isAdminMaster;
     const canWhatsApp = true; // Sempre ativo em todas as OS

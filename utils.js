@@ -693,6 +693,14 @@ const Utils = (() => {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(239, 68, 68);
       doc.text('VALOR TOTAL: ' + formatarMoeda(os.valorTotal || 0), ml + cw - 3, cY - 4.5, { align: 'right' });
       cY += 2;
+    } else {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('SERVIÇOS (PREENCHIMENTO MANUAL - VISITA TÉCNICA):', ml + 3, cY); cY += 7;
+      for (let i = 1; i <= 5; i++) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(180);
+        doc.text(i + '. ____________________________________________________________________________________', ml + 3, cY);
+        cY += 5.5;
+      }
     }
     if (d.observacoes) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
