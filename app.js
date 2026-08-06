@@ -2059,7 +2059,7 @@ const App = (() => {
       return;
     }
 
-    // Group by section
+    // Group by section and prioritize Acessórios and Garantia
     const sections = {};
     campos.forEach(campo => {
       const sec = campo.secao || 'Outros';
@@ -2067,8 +2067,19 @@ const App = (() => {
       sections[sec].push(campo);
     });
 
+    const priorityOrder = ['Acessórios', 'Garantia'];
+    const sortedSecKeys = Object.keys(sections).sort((a, b) => {
+      const idxA = priorityOrder.indexOf(a);
+      const idxB = priorityOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+
     let html = '';
-    Object.entries(sections).forEach(([secName, secCampos]) => {
+    sortedSecKeys.forEach(secName => {
+      const secCampos = sections[secName];
       html += `
         <div class="collapsible-section">
           <div class="collapsible-header" onclick="this.parentElement.classList.toggle('collapsed')">

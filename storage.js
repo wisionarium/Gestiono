@@ -753,7 +753,7 @@ const Storage = (() => {
     const unique = [];
     let hasChanges = false;
 
-    // Garante que os campos essenciais existam
+    // Garante que os campos essenciais existam e estejam na seção correta
     ESSENTIAL_CAMPOS.forEach(ess => {
       const essClean = ess.nome.toLowerCase().replace(/[^a-z]/g, '');
       const found = list.find(c => (c.nome || '').toLowerCase().replace(/[^a-z]/g, '').includes(essClean));
@@ -761,6 +761,10 @@ const Storage = (() => {
         list.push({ ...ess, criadoEm: new Date().toISOString() });
         hasChanges = true;
       } else {
+        if (found.secao !== ess.secao) {
+          found.secao = ess.secao;
+          hasChanges = true;
+        }
         if (ess.tipo === 'sim_nao_quantidade' && found.tipo !== 'sim_nao_quantidade') {
           found.tipo = 'sim_nao_quantidade';
           hasChanges = true;
