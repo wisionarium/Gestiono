@@ -1908,6 +1908,7 @@ const App = (() => {
     populateOpcaoSelect('os-modelo', 'modelo', 'Selecione o modelo...');
     populateOpcaoSelect('os-cor', 'cor', 'Selecione a cor...');
     populateMotoristasSelect('os-motorista-entrega', osData ? (osData.motoristaEntrega || '') : '');
+    populateMecanicosSelect('os-mecanico', osData ? (osData.mecanico || '') : '');
 
     // Reset payment checkboxes
     document.querySelectorAll('.payment-check').forEach(cb => cb.checked = false);
@@ -2050,6 +2051,28 @@ const App = (() => {
 
     select.innerHTML = '<option value="">Selecione o motorista (opcional)...</option>' +
       motoristas.map(u => `<option value="${u.nome}" ${u.nome === selectedValue ? 'selected' : ''}>${u.nome}</option>`).join('');
+  }
+
+  function populateMecanicosSelect(selectId, selectedValue = '') {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const usuarios = Storage.getUsuarios();
+    const cargos = Storage.getCargos();
+
+    let mecanicos = usuarios.filter(u => {
+      if (u.exibirNaDelegacao === false) return false;
+      const cargo = cargos.find(c => c.id === u.role);
+      const cargoNome = (cargo ? cargo.nome : (u.role || '')).toLowerCase();
+      return u.role === 'role_mecanico' || u.role === 'mecanico' || cargoNome.includes('mecanic') || cargoNome.includes('mecânic') || cargoNome.includes('tecnico') || cargoNome.includes('técnico');
+    });
+
+    if (mecanicos.length === 0) {
+      mecanicos = usuarios.filter(u => u.exibirNaDelegacao !== false);
+    }
+    mecanicos.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+
+    select.innerHTML = '<option value="">Selecione o mecânico (opcional)...</option>' +
+      mecanicos.map(u => `<option value="${u.nome}" ${u.nome === selectedValue ? 'selected' : ''}>${u.nome}</option>`).join('');
   }
 
   function renderCamposPersonalizados(campos) {
@@ -2216,6 +2239,9 @@ const App = (() => {
     const elMotoristaEntrega = document.getElementById('os-motorista-entrega');
     const motoristaEntrega = (temDataEntrega && elMotoristaEntrega) ? elMotoristaEntrega.value : null;
 
+    const elMecanico = document.getElementById('os-mecanico');
+    const mecanico = (elMecanico && elMecanico.value) ? elMecanico.value : (editingOS ? editingOS.mecanico : null);
+
     const checkFotos = document.getElementById('os-check-fotos');
     const temFotos = checkFotos ? checkFotos.checked : false;
     const fotos = temFotos ? [...fotosAnexadas] : [];
@@ -2246,7 +2272,7 @@ const App = (() => {
       prioridade: document.getElementById('os-prioridade').value,
       status: editingOS ? editingOS.status : 'aguardando',
       atendente: editingOS ? editingOS.atendente : currentUser.nome,
-      mecanico: editingOS ? editingOS.mecanico : null,
+      mecanico,
       observacoes: document.getElementById('os-observacoes').value.trim(),
       camposPersonalizados,
       horaInicio: editingOS ? editingOS.horaInicio : null,
