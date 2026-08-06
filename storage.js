@@ -158,9 +158,18 @@ const Storage = (() => {
       if (ordens) {
         const supabaseMap = new Map();
         ordens.forEach(o => {
+          let tipoFinal = o.tipo;
+          if (!tipoFinal) {
+            if (o.status === 'convertida' || o.relato_cliente || (o.id && o.id.startsWith('RET-'))) {
+              tipoFinal = 'retirada';
+            } else {
+              tipoFinal = 'os';
+            }
+          }
+
           supabaseMap.set(o.id, {
             id: o.id,
-            tipo: o.tipo || 'os',
+            tipo: tipoFinal,
             relatoCliente: o.relato_cliente || '',
             clienteNome: o.cliente_nome,
             clienteTelefone: o.cliente_telefone,
