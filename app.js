@@ -654,7 +654,164 @@ const App = (() => {
     const countPendentesEl = document.getElementById('home-count-pendentes');
     if (countPendentesEl) countPendentesEl.textContent = pendentesCount;
 
+    // Renderiza a Bandeja de Histórico da Home
+    renderTrayHistorico(currentTrayTab);
+    initTrayHistoricoEvents();
+  }
 
+  let currentTrayTab = 'servicos';
+
+  function renderTrayHistorico(activeTab = 'servicos') {
+    currentTrayTab = activeTab;
+    const container = document.getElementById('tray-content-list');
+    if (!container) return;
+
+    const allActive = Storage.getOrdens();
+    const activeServicos = allActive.filter(o => o.status === 'aguardando' || o.status === 'em_andamento');
+    const activeConcluidos = allActive.filter(o => o.status === 'concluido');
+    const ordensApagadas = Storage.getOrdensApagadas();
+
+    // Update counts
+    const elCntServ = document.getElementById('tray-count-servicos');
+    if (elCntServ) elCntServ.textContent = activeServicos.length;
+
+    const elCntConc = document.getElementById('tray-count-concluidos');
+    if (elCntConc) elCntConc.textContent = activeConcluidos.length;
+
+    const elCntApag = document.getElementById('tray-count-apagados');
+    if (elCntApag) elCntApag.textContent = ordensApagadas.length;
+
+    // Filter by search query
+    const searchInput = document.getElementById('tray-search-input');
+    const qClean = searchInput && searchInput.value ? Utils.removerAcentos(searchInput.value.trim().toLowerCase()) : '';
+
+    let listToRender = [];
+    if (activeTab === 'servicos') {
+      listToRender = activeServicos;
+    } else if (activeTab === 'concluidos') {
+      listToRender = activeConcluidos;
+    } else if (activeTab === 'apagados') {
+      listToRender = ordensApagadas;
+    }
+
+    if (qClean) {
+      listToRender = listToRender.filter(o =>
+        Utils.removerAcentos(o.id || '').toLowerCase().includes(qClean) ||
+        Utils.removerAcentos(o.clienteNome || '').toLowerCase().includes(qClean) ||
+        Utils.removerAcentos(o.clienteTelefone || '').toLowerCase().includes(qClean) ||
+        Utils.removerAcentos(o.modeloVeiculo || '').toLowerCase().includes(qClean)
+      );
+    }
+
+    listToRender.sort((a, b) => new Date(b.atualizadoEm || b.criadoEm || 0) - new Date(a.atualizadoEm || a.criadoEm || 0));
+
+    if (listToRender.length === 0) {
+      container.innerHTML = `<div style="text-align:center; padding:24px 10px; color:var(--text-tertiary); font-size:var(--font-xs);">
+        Nenhuma Ordem de Serviço encontrada nesta sub-aba.
+      </div>`;
+      return;
+    }
+
+    const html = listToRender.map(o => {
+      const isApagado = !!o.deletado;
+      let statusBadge = '';
+      if (isApagado) {
+        statusBadge = `<span class="badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-weight:700;">APAGADA</span>`;
+      } else {
+        statusBadge = `<span class="badge badge-status" data-status="${o.status}">${Utils.traduzirStatus(o.status)}</span>`;
+      }
+
+      let actionsTrayHtml = '';
+      if (isApagado) {
+        actionsTrayHtml = `
+          <button class="btn btn-secondary btn-xs btn-tray-restaurar" data-id="${o.id}" style="font-weight:700; background:rgba(34,197,94,0.15); border-color:rgba(34,197,94,0.3); color:#22c55e;">
+            🔄 Restaurar
+          </button>
+          <button class="btn btn-danger btn-xs btn-tray-excluir-perm" data-id="${o.id}" style="font-weight:700;">
+            🗑️ Excluir Definitivamente
+          </button>`;
+      } else {
+        actionsTrayHtml = `
+          <button class="btn btn-secondary btn-xs btn-tray-detalhes" data-id="${o.id}" style="font-weight:700;">
+            👁️ Ver Detalhes
+          </button>`;
+        if (o.status === 'concluido') {
+          actionsTrayHtml += `
+            <button class="btn btn-primary btn-xs btn-tray-pdf" data-id="${o.id}" style="font-weight:700; background:#2563eb; border-color:#2563eb;">
+              📑 PDF
+            </button>`;
+        }
+      }
+
+      const infoSub = isApagado 
+        ? `Apagado em: ${Utils.formatarDataHora(o.deletadoEm)} por ${o.deletadoPor || 'Sistema'}`
+        : `${o.modeloVeiculo || 'Veículo'} • Data: ${Utils.formatarData(o.dataServico)}`;
+
+      return `
+        <div style="background:var(--bg-secondary); border:1px solid var(--glass-border); border-radius:var(--radius-md); padding:10px 14px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:var(--font-xs); font-weight:800; color:var(--accent);">${o.id}</span>
+            ${statusBadge}
+          </div>
+          <div style="font-size:var(--font-sm); font-weight:700; color:var(--text-primary);">${Utils.escapeHtml(o.clienteNome || 'Cliente')}</div>
+          <div style="font-size:9px; color:var(--text-tertiary);">${Utils.escapeHtml(infoSub)}</div>
+          <div style="display:flex; justify-flex-end; gap:6px; margin-top:4px;">
+            ${actionsTrayHtml}
+          </div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = html;
+
+    container.querySelectorAll('.btn-tray-detalhes').forEach(btn => {
+      btn.addEventListener('click', () => openOSDetail(btn.dataset.id));
+    });
+
+    container.querySelectorAll('.btn-tray-pdf').forEach(btn => {
+      btn.addEventListener('click', () => Utils.gerarPDFOrdemServico(btn.dataset.id));
+    });
+
+    container.querySelectorAll('.btn-tray-restaurar').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        if (confirm(`Deseja restaurar a Ordem de Serviço ${id} de volta ao sistema?`)) {
+          Storage.restaurarOrdem(id, currentUser ? currentUser.nome : 'Sistema');
+          showToast(`OS ${id} restaurada com sucesso!`, 'success');
+          updateDashboard();
+          renderTrayHistorico(currentTrayTab);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-tray-excluir-perm').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        if (confirm(`⚠️ ATENÇÃO: Tem certeza que deseja EXCLUIR DEFINITIVAMENTE a Ordem de Serviço ${id}?\n\nEsta ação NÃO poderá ser desfeita!`)) {
+          Storage.deleteOrdemPermanente(id);
+          showToast(`OS ${id} excluída permanentemente.`, 'info');
+          renderTrayHistorico(currentTrayTab);
+        }
+      });
+    });
+  }
+
+  function initTrayHistoricoEvents() {
+    const tabs = document.querySelectorAll('[data-tray-tab]');
+    tabs.forEach(tabBtn => {
+      tabBtn.onclick = () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tabBtn.classList.add('active');
+        currentTrayTab = tabBtn.dataset.trayTab;
+        renderTrayHistorico(currentTrayTab);
+      };
+    });
+
+    const searchInput = document.getElementById('tray-search-input');
+    if (searchInput) {
+      searchInput.oninput = () => {
+        renderTrayHistorico(currentTrayTab);
+      };
+    }
   }
 
   function updateHeaderTitle(page) {
@@ -2342,17 +2499,19 @@ const App = (() => {
 
     const btnExcluir = document.getElementById('btn-detail-excluir');
     if (btnExcluir) btnExcluir.addEventListener('click', () => {
-      if (confirm('Tem certeza que deseja excluir esta OS?')) {
+      if (confirm(`Tem certeza que deseja apagar a Ordem de Serviço ${os.id}?\n\nEla será movida para a lixeira (Apagados) na página Início.`)) {
         const targetPage = {
           'aguardando': 'servicos',
           'em_andamento': 'andamento',
           'concluido': 'concluidos'
         }[os.status] || 'servicos';
 
-        Storage.deleteOrdem(os.id);
-        showToast('OS excluída', 'info');
+        Storage.deleteOrdem(os.id, currentUser ? currentUser.nome : 'Sistema');
+        showToast(`OS ${os.id} movida para a lixeira (Apagados)`, 'info');
+        closeModal();
         document.getElementById('btn-back').style.display = 'none';
         navigateTo(targetPage);
+        updateDashboard();
       }
     });
   }

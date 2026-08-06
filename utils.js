@@ -5,7 +5,17 @@
 const Utils = (() => {
 
   function gerarCodigoOS(ordensExistentes) {
-    const seq = String(ordensExistentes.length + 1).padStart(4, '0');
+    let maxSeq = 0;
+    (ordensExistentes || []).forEach(o => {
+      if (o && o.id && typeof o.id === 'string') {
+        const match = o.id.match(/\d+/);
+        if (match) {
+          const num = parseInt(match[0], 10);
+          if (!isNaN(num) && num > maxSeq) maxSeq = num;
+        }
+      }
+    });
+    const seq = String(maxSeq + 1).padStart(4, '0');
     return `SB-${seq}`;
   }
 

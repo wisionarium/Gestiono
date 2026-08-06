@@ -156,41 +156,57 @@ const Storage = (() => {
       // 1. Ordens
       const { data: ordens } = await client.from('ordens_servico').select('*');
       if (ordens) {
-        const formatted = ordens.map(o => ({
-          id: o.id,
-          clienteNome: o.cliente_nome,
-          clienteTelefone: o.cliente_telefone,
-          clienteCpf: o.cliente_cpf || '',
-          clienteEndereco: o.cliente_endereco || '',
-          modeloVeiculo: o.modelo_veiculo,
-          corVeiculo: o.cor_veiculo,
-          servicos: o.servicos || [],
-          valorTotal: Number(o.valor_total || 0),
-          valorEntrada: Number(o.valor_entrada || 0),
-          valorRestante: Number(o.valor_restante || 0),
-          formaPagamento: o.forma_pagamento || [],
-          statusPagamento: o.status_pagamento,
-          status: o.status,
-          prioridade: o.prioridade,
-          observacoes: o.observacoes,
-          dataServico: o.data_servico,
-          temDataEntrega: o.tem_data_entrega,
-          dataEntrega: o.data_entrega,
-          horaEntrega: o.hora_entrega,
-          temFotos: o.tem_fotos,
-          fotos: o.fotos || [],
-          camposPersonalizados: o.campos_personalizados || {},
-          atendente: o.atendente,
-          mecanico: o.mecanico,
-          editadoPor: o.editado_por,
-          editadoEm: o.editado_em,
-          horaInicio: o.hora_inicio,
-          horaFim: o.hora_fim,
-          tempoTotal: o.tempo_total,
-          historico: o.historico || [],
-          criadoEm: o.criado_em
-        }));
-        localStorage.setItem(KEYS.ORDENS, JSON.stringify(formatted));
+        const supabaseMap = new Map();
+        ordens.forEach(o => {
+          supabaseMap.set(o.id, {
+            id: o.id,
+            clienteNome: o.cliente_nome,
+            clienteTelefone: o.cliente_telefone,
+            clienteCpf: o.cliente_cpf || '',
+            clienteEndereco: o.cliente_endereco || '',
+            modeloVeiculo: o.modelo_veiculo,
+            corVeiculo: o.cor_veiculo,
+            servicos: o.servicos || [],
+            valorTotal: Number(o.valor_total || 0),
+            valorEntrada: Number(o.valor_entrada || 0),
+            valorRestante: Number(o.valor_restante || 0),
+            formaPagamento: o.forma_pagamento || [],
+            statusPagamento: o.status_pagamento,
+            status: o.status,
+            prioridade: o.prioridade,
+            observacoes: o.observacoes,
+            dataServico: o.data_servico,
+            temDataEntrega: o.tem_data_entrega,
+            dataEntrega: o.data_entrega,
+            horaEntrega: o.hora_entrega,
+            temFotos: o.tem_fotos,
+            fotos: o.fotos || [],
+            camposPersonalizados: o.campos_personalizados || {},
+            atendente: o.atendente,
+            mecanico: o.mecanico,
+            editadoPor: o.editado_por,
+            editadoEm: o.editado_em,
+            horaInicio: o.hora_inicio,
+            horaFim: o.hora_fim,
+            tempoTotal: o.tempo_total,
+            historico: o.historico || [],
+            criadoEm: o.criado_em,
+            deletado: !!o.deletado,
+            deletadoEm: o.deletado_em || null,
+            deletadoPor: o.deletado_por || null
+          });
+        });
+
+        // Preserva ordens locais que ainda não sincronizaram com o Supabase
+        const localOrdens = getData(KEYS.ORDENS) || [];
+        localOrdens.forEach(localO => {
+          if (localO && localO.id && !supabaseMap.has(localO.id)) {
+            supabaseMap.set(localO.id, localO);
+          }
+        });
+
+        const merged = Array.from(supabaseMap.values());
+        localStorage.setItem(KEYS.ORDENS, JSON.stringify(merged));
       }
 
       // 2. Usuarios
@@ -313,7 +329,10 @@ const Storage = (() => {
           hora_inicio: o.horaInicio || null,
           hora_fim: o.horaFim || null,
           tempo_total: o.tempoTotal || null,
-          historico: o.historico || []
+          historico: o.historico || [],
+          deletado: !!o.deletado,
+          deletado_em: o.deletadoEm || null,
+          deletado_por: o.deletadoPor || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
         await client.from('ordens_servico').upsert(payload);
@@ -431,7 +450,7 @@ const Storage = (() => {
 
   // ---------- ORDENS DE SERVIÇO ----------
 
-  function getOrdens() {
+  function getAllOrdens() {
     const ordens = getData(KEYS.ORDENS) || [];
     let updated = false;
     ordens.forEach(os => {
@@ -459,18 +478,27 @@ const Storage = (() => {
     return ordens;
   }
 
+  function getOrdens() {
+    return getAllOrdens().filter(os => !os.deletado);
+  }
+
+  function getOrdensApagadas() {
+    return getAllOrdens().filter(os => !!os.deletado);
+  }
+
   function getOrdemById(id) {
-    return getOrdens().find(os => os.id === id) || null;
+    return getAllOrdens().find(os => os.id === id) || null;
   }
 
   function saveOrdem(ordem) {
-    const ordens = getOrdens();
+    const ordens = getAllOrdens();
     if (!ordem.id) {
       ordem.id = Utils.gerarCodigoOS(ordens);
     }
     ordem.criadoEm = ordem.criadoEm || new Date().toISOString();
     ordem.atualizadoEm = new Date().toISOString();
     ordem.historico = ordem.historico || [];
+    ordem.deletado = false;
 
     if (!ordem.historico.some(h => h.acao === 'OS Criada')) {
       ordem.historico.push({
@@ -488,14 +516,20 @@ const Storage = (() => {
       });
     }
 
-    ordens.push(ordem);
+    const idx = ordens.findIndex(o => o.id === ordem.id);
+    if (idx !== -1) {
+      ordens[idx] = { ...ordens[idx], ...ordem };
+    } else {
+      ordens.push(ordem);
+    }
+
     setData(KEYS.ORDENS, ordens);
     syncToSupabase(KEYS.ORDENS, ordem);
     return ordem;
   }
 
   function updateOrdem(id, updates) {
-    const ordens = getOrdens();
+    const ordens = getAllOrdens();
     const idx = ordens.findIndex(os => os.id === id);
     if (idx === -1) return null;
     const oldMecanico = ordens[idx].mecanico;
@@ -520,7 +554,7 @@ const Storage = (() => {
   }
 
   function addHistorico(id, acao, usuario) {
-    const ordens = getOrdens();
+    const ordens = getAllOrdens();
     const idx = ordens.findIndex(os => os.id === id);
     if (idx === -1) return;
     if (!ordens[idx].historico) ordens[idx].historico = [];
@@ -536,8 +570,44 @@ const Storage = (() => {
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
   }
 
-  function deleteOrdem(id) {
-    const ordens = getOrdens().filter(os => os.id !== id);
+  function deleteOrdem(id, usuarioLogado = null) {
+    const ordens = getAllOrdens();
+    const idx = ordens.findIndex(os => os.id === id);
+    if (idx === -1) return;
+    const userNome = usuarioLogado || (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : 'Sistema');
+    ordens[idx].deletado = true;
+    ordens[idx].deletadoEm = new Date().toISOString();
+    ordens[idx].deletadoPor = userNome;
+    if (!ordens[idx].historico) ordens[idx].historico = [];
+    ordens[idx].historico.push({
+      acao: 'OS Apagada (enviada para a lixeira)',
+      usuario: userNome,
+      timestamp: ordens[idx].deletadoEm
+    });
+    setData(KEYS.ORDENS, ordens);
+    syncToSupabase(KEYS.ORDENS, ordens[idx]);
+  }
+
+  function restaurarOrdem(id, usuarioLogado = null) {
+    const ordens = getAllOrdens();
+    const idx = ordens.findIndex(os => os.id === id);
+    if (idx === -1) return;
+    const userNome = usuarioLogado || (typeof currentUser !== 'undefined' && currentUser ? currentUser.nome : 'Sistema');
+    ordens[idx].deletado = false;
+    delete ordens[idx].deletadoEm;
+    delete ordens[idx].deletadoPor;
+    if (!ordens[idx].historico) ordens[idx].historico = [];
+    ordens[idx].historico.push({
+      acao: 'OS Restaurada da lixeira',
+      usuario: userNome,
+      timestamp: new Date().toISOString()
+    });
+    setData(KEYS.ORDENS, ordens);
+    syncToSupabase(KEYS.ORDENS, ordens[idx]);
+  }
+
+  function deleteOrdemPermanente(id) {
+    const ordens = getAllOrdens().filter(os => os.id !== id);
     setData(KEYS.ORDENS, ordens);
     deleteFromSupabase('ordens_servico', id);
   }
@@ -913,12 +983,16 @@ const Storage = (() => {
     getTema,
     saveTema,
     // Ordens
+    getAllOrdens,
     getOrdens,
+    getOrdensApagadas,
     getOrdemById,
     saveOrdem,
     updateOrdem,
     addHistorico,
     deleteOrdem,
+    restaurarOrdem,
+    deleteOrdemPermanente,
     getOrdensByStatus,
     // Usuários
     getUsuarios,

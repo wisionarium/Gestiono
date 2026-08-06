@@ -176,6 +176,41 @@
             <div class="home-resumo-val val-purple" id="home-count-pendentes">0</div>
           </div>
 
+          <!-- BANDEJA DE HISTÓRICO -->
+          <div class="home-historico-tray" style="margin-top:var(--space-xl); background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:var(--space-lg); box-shadow:var(--shadow-md);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+              <div>
+                <div style="font-size:1.1rem; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Bandeja de Histórico
+                </div>
+                <div style="font-size:var(--font-xs); color:var(--text-secondary); margin-top:2px;">Registro geral de serviços, concluídos e lixeira de apagados</div>
+              </div>
+            </div>
+
+            <!-- Sub-abas da Bandeja -->
+            <div class="subtabs-bar" style="margin-bottom:14px; background:rgba(0,0,0,0.15); padding:4px; border-radius:var(--radius-md); display:flex; gap:6px;">
+              <button class="subtab-btn active" id="tray-tab-servicos" data-tray-tab="servicos" style="flex:1; text-align:center;">
+                ⚡ Serviços (<span id="tray-count-servicos">0</span>)
+              </button>
+              <button class="subtab-btn" id="tray-tab-concluidos" data-tray-tab="concluidos" style="flex:1; text-align:center;">
+                ✅ Concluídos (<span id="tray-count-concluidos">0</span>)
+              </button>
+              <button class="subtab-btn" id="tray-tab-apagados" data-tray-tab="apagados" style="flex:1; text-align:center; color:#ef4444;">
+                🗑️ Apagados (<span id="tray-count-apagados">0</span>)
+              </button>
+            </div>
+
+            <!-- Busca na Bandeja -->
+            <div style="margin-bottom:12px;">
+              <input type="text" class="form-input" id="tray-search-input" placeholder="Buscar por código, cliente, veículo..." style="font-size:var(--font-xs); padding:8px 12px; width:100%;">
+            </div>
+
+            <!-- Conteúdo da Bandeja -->
+            <div id="tray-content-list" style="display:flex; flex-direction:column; gap:10px; max-height:450px; overflow-y:auto; padding-right:4px;">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
 
         </div>
 
