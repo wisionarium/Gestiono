@@ -3053,8 +3053,13 @@ const App = (() => {
     container.innerHTML = Object.entries(sections).map(([secName, secCampos]) => `
       <div class="collapsible-section">
         <div class="collapsible-header" onclick="this.parentElement.classList.toggle('collapsed')">
-          <span>${secName} <small style="color:var(--text-tertiary)">(${secCampos.length})</small></span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"/></svg>
+          <div style="display:flex; align-items:center; gap:8px; width:100%;">
+            <span>${secName} <small style="color:var(--text-tertiary)">(${secCampos.length})</small></span>
+            <button type="button" class="btn btn-primary btn-xs btn-add-campo-secao" data-secao="${Utils.escapeHtml(secName)}" style="margin-left:auto; font-size:11px; padding:3px 10px; border-radius:var(--radius-full);">
+              + Adicionar Item
+            </button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
         </div>
         <div class="collapsible-body">
           ${secCampos.map(c => `
@@ -3064,7 +3069,7 @@ const App = (() => {
                 <div class="admin-item-meta">${c.tipo === 'sim_nao' ? 'Sim/Não' : c.tipo === 'sim_nao_quantidade' ? 'Sim/Não + Qtd' : 'Texto'} · ${c.ativo ? '✅ Ativo' : '❌ Inativo'}</div>
               </div>
               <div class="admin-item-actions">
-                <button class="btn btn-blue btn-xs btn-edit-campo" data-id="${c.id}" title="Editar nome do campo">
+                <button class="btn btn-blue btn-xs btn-edit-campo" data-id="${c.id}" title="Editar este campo">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                 </button>
                 <button class="btn btn-secondary btn-xs btn-toggle-campo" data-id="${c.id}">${c.ativo ? 'Desativar' : 'Ativar'}</button>
@@ -3075,6 +3080,13 @@ const App = (() => {
             </div>`).join('')}
         </div>
       </div>`).join('');
+
+    container.querySelectorAll('.btn-add-campo-secao').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModalNovoCampo(btn.dataset.secao);
+      });
+    });
 
     container.querySelectorAll('.btn-edit-campo').forEach(btn => {
       btn.addEventListener('click', () => {

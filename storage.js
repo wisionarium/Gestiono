@@ -744,6 +744,7 @@ const Storage = (() => {
     { id: 'campo_deixou_chave', nome: 'Deixou chave?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
     { id: 'campo_deixou_carregador', nome: 'Deixou carregador?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
     { id: 'campo_deixou_nfc', nome: 'Deixou Cartão NFC?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
+    { id: 'campo_deixou_controle', nome: 'Deixou controle?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
     { id: 'campo_esta_na_garantia', nome: 'Esta na garantia?', tipo: 'sim_nao', secao: 'Garantia', ativo: true }
   ];
 
