@@ -1907,6 +1907,7 @@ const App = (() => {
     // Populate configurable selects
     populateOpcaoSelect('os-modelo', 'modelo', 'Selecione o modelo...');
     populateOpcaoSelect('os-cor', 'cor', 'Selecione a cor...');
+    populateMotoristasSelect('os-motorista-entrega', osData ? (osData.motoristaEntrega || '') : '');
 
     // Reset payment checkboxes
     document.querySelectorAll('.payment-check').forEach(cb => cb.checked = false);
@@ -2030,11 +2031,25 @@ const App = (() => {
     const itens = opcao ? [...opcao.itens] : [];
     itens.sort((a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' }));
 
-    // Keep as text input if no options configured, otherwise use select
     if (select.tagName === 'SELECT') {
       select.innerHTML = `<option value="">${placeholder}</option>` +
         itens.map(item => `<option value="${item}">${item}</option>`).join('');
     }
+  }
+
+  function populateMotoristasSelect(selectId, selectedValue = '') {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const usuarios = Storage.getUsuarios().filter(u => u.exibirNaDelegacao !== false);
+    const motoristas = usuarios.filter(u => {
+      const roleLower = (u.role || '').toLowerCase();
+      const cargoObj = Storage.getCargoById(u.role);
+      const cargoNomeLower = cargoObj ? cargoObj.nome.toLowerCase() : '';
+      return roleLower.includes('motorista') || cargoNomeLower.includes('motorista');
+    });
+
+    select.innerHTML = '<option value="">Selecione o motorista (opcional)...</option>' +
+      motoristas.map(u => `<option value="${u.nome}" ${u.nome === selectedValue ? 'selected' : ''}>${u.nome}</option>`).join('');
   }
 
   function renderCamposPersonalizados(campos) {
@@ -2187,6 +2202,8 @@ const App = (() => {
     const temDataEntrega = document.getElementById('os-check-data-entrega').checked;
     const dataEntrega = temDataEntrega ? document.getElementById('os-data-entrega').value : null;
     const horaEntrega = temDataEntrega ? document.getElementById('os-hora-entrega').value : null;
+    const elMotoristaEntrega = document.getElementById('os-motorista-entrega');
+    const motoristaEntrega = (temDataEntrega && elMotoristaEntrega) ? elMotoristaEntrega.value : null;
 
     const checkFotos = document.getElementById('os-check-fotos');
     const temFotos = checkFotos ? checkFotos.checked : false;
@@ -2212,6 +2229,7 @@ const App = (() => {
       temDataEntrega,
       dataEntrega,
       horaEntrega,
+      motoristaEntrega,
       temFotos,
       fotos,
       prioridade: document.getElementById('os-prioridade').value,
@@ -2385,6 +2403,7 @@ const App = (() => {
           </div>
           <div class="os-ticket-row"><strong>Veículo:</strong> <span>${os.modeloVeiculo || '—'} (${os.corVeiculo || '—'})</span></div>
           ${os.temDataEntrega && os.dataEntrega ? `<div class="os-ticket-row" style="color:#38bdf8; font-weight:700;"><strong>Data de Entrega:</strong> <span>${Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega)?.textoCompleto || os.dataEntrega}</span></div>` : ''}
+          ${os.motoristaEntrega ? `<div class="os-ticket-row" style="color:#a78bfa; font-weight:700;"><strong>Resp. pela Entrega:</strong> <span>🚚 ${os.motoristaEntrega}</span></div>` : ''}
         </div>
         
         <div class="os-ticket-divider"></div>
@@ -3048,15 +3067,7 @@ const App = (() => {
 
     container.querySelectorAll('.btn-edit-campo').forEach(btn => {
       btn.addEventListener('click', () => {
-        const campos = Storage.getCampos();
-        const c = campos.find(x => x.id === btn.dataset.id);
-        if (!c) return;
-        const novoNome = prompt('Editar nome do campo:', c.nome);
-        if (novoNome && novoNome.trim() && novoNome.trim() !== c.nome) {
-          Storage.updateCampo(c.id, { nome: novoNome.trim() });
-          showToast('Campo atualizado!', 'success');
-          renderCamposAdmin();
-        }
+        openModalEditarCampo(btn.dataset.id);
       });
     });
 
@@ -3881,9 +3892,9 @@ const App = (() => {
   function openModalNovoCampo() {
     openModal('Novo Campo Personalizado', `
       <form id="form-novo-campo">
-        <div class="form-group"><label class="form-label required">Seção / Grupo</label><input type="text" class="form-input" id="new-campo-secao" required placeholder="Ex: Checklist, Veículo, Extras"></div>
+        <div class="form-group"><label class="form-label required">Seção / Grupo</label><input type="text" class="form-input" id="new-campo-secao" required placeholder="Ex: Checklist, Acessórios, Garantia"></div>
         <div class="form-group"><label class="form-label required">Nome do Campo</label><input type="text" class="form-input" id="new-campo-nome" required placeholder="Ex: Cliente deixou carregador?"></div>
-        <div class="form-group"><label class="form-label required">Tipo</label><select class="form-select" id="new-campo-tipo" required><option value="sim_nao">Sim / Não</option><option value="sim_nao_quantidade">Sim / Não + Quantidade</option><option value="texto">Texto Livre</option></select></div>
+        <div class="form-group"><label class="form-label required">Tipo</label><select class="form-select" id="new-campo-tipo" required><option value="sim_nao_quantidade">Sim / Não + Quantidade</option><option value="sim_nao">Sim / Não</option><option value="texto">Texto Livre</option></select></div>
       </form>`, () => {
       const form = document.getElementById('form-novo-campo');
       if (!form.checkValidity()) { form.reportValidity(); return false; }
@@ -3893,6 +3904,43 @@ const App = (() => {
         secao: document.getElementById('new-campo-secao').value.trim()
       });
       showToast('Campo criado!', 'success');
+      renderCamposAdmin();
+      return true;
+    });
+  }
+
+  function openModalEditarCampo(campoId) {
+    const campos = Storage.getCampos();
+    const c = campos.find(x => x.id === campoId);
+    if (!c) return;
+
+    openModal('Editar Campo Personalizado', `
+      <form id="form-edit-campo">
+        <div class="form-group">
+          <label class="form-label required">Seção / Grupo</label>
+          <input type="text" class="form-input" id="edit-campo-secao" value="${Utils.escapeHtml(c.secao || 'Outros')}" required placeholder="Ex: Checklist, Acessórios, Garantia">
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Nome do Campo</label>
+          <input type="text" class="form-input" id="edit-campo-nome" value="${Utils.escapeHtml(c.nome)}" required placeholder="Ex: Deixou chave?">
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Tipo</label>
+          <select class="form-select" id="edit-campo-tipo" required>
+            <option value="sim_nao_quantidade" ${c.tipo === 'sim_nao_quantidade' ? 'selected' : ''}>Sim / Não + Quantidade</option>
+            <option value="sim_nao" ${c.tipo === 'sim_nao' ? 'selected' : ''}>Sim / Não</option>
+            <option value="texto" ${c.tipo === 'texto' ? 'selected' : ''}>Texto Livre</option>
+          </select>
+        </div>
+      </form>`, () => {
+      const form = document.getElementById('form-edit-campo');
+      if (!form.checkValidity()) { form.reportValidity(); return false; }
+      Storage.updateCampo(c.id, {
+        nome: document.getElementById('edit-campo-nome').value.trim(),
+        tipo: document.getElementById('edit-campo-tipo').value,
+        secao: document.getElementById('edit-campo-secao').value.trim()
+      });
+      showToast('Campo atualizado!', 'success');
       renderCamposAdmin();
       return true;
     });
@@ -3976,6 +4024,8 @@ const App = (() => {
     openModalNovoUsuario,
     openModalNovoCargo,
     openModalNovoCampo,
+    openModalEditarCampo,
+    openModalNovaVisitaTecnica,
     openModalNovaOpcao,
     openModalTermosEPolitica
   };

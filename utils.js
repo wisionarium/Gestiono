@@ -274,31 +274,47 @@ const Utils = (() => {
     let temGarantia = !!os.temGarantia, endereco = os.clienteEndereco || '', valorRetirada = os.valorRetirada || 'R$ 0,00', taxaEntrega = os.taxaEntrega || os.levar || 'R$ 0,00';
     let deixouChave = !!os.deixouChave, deixouCarregador = !!os.deixouCarregador, deixouControle = !!os.deixouControle, deixouDocumento = !!os.deixouDocumento;
     let qtdChave = os.qtdChave || '', qtdControle = os.qtdControle || '';
+    let motoristaEntrega = os.motoristaEntrega || null;
+    let checklistItems = [];
 
     for (const [campoId, val] of Object.entries(campos)) {
       const cDef = camposDef.find(c => c.id === campoId);
       if (!cDef) continue;
-      const name = cDef.nome.toLowerCase();
-      if (!temGarantia && (name.includes('garantia') || name.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) temGarantia = true;
-      if (!endereco && (name.includes('endere') || name.includes('rua') || name.includes('bairro') || name.includes('cidade'))) { if (val.valor && typeof val.valor === 'string') endereco = val.valor; }
-      if ((!valorRetirada || valorRetirada === 'R$ 0,00') && (name.includes('retirada') || name.includes('taxa'))) {
+      const name = cDef.nome;
+      const nameLower = name.toLowerCase();
+
+      if (!temGarantia && (nameLower.includes('garantia') || nameLower.includes('warranty')) && (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim')) temGarantia = true;
+      if (!endereco && (nameLower.includes('endere') || nameLower.includes('rua') || nameLower.includes('bairro') || nameLower.includes('cidade'))) { if (val.valor && typeof val.valor === 'string') endereco = val.valor; }
+      if ((!valorRetirada || valorRetirada === 'R$ 0,00') && (nameLower.includes('retirada') || nameLower.includes('taxa'))) {
         if (val.valor != null) {
           if (typeof val.valor === 'number') valorRetirada = formatarMoeda(val.valor);
           else if (typeof val.valor === 'string' && val.valor.trim() && !['true','false'].includes(val.valor.toLowerCase())) valorRetirada = val.valor;
         }
       }
-      if ((!taxaEntrega || taxaEntrega === 'R$ 0,00') && (name.includes('entrega') || name.includes('levar') || name.includes('trazer'))) {
+      if ((!taxaEntrega || taxaEntrega === 'R$ 0,00') && (nameLower.includes('entrega') || nameLower.includes('levar') || nameLower.includes('trazer'))) {
         if (val.valor != null) {
           if (typeof val.valor === 'number') taxaEntrega = formatarMoeda(val.valor);
           else if (typeof val.valor === 'string' && val.valor.trim() && !['true','false'].includes(val.valor.toLowerCase())) taxaEntrega = val.valor;
         }
       }
-      if (!deixouChave && name.includes('chave')) deixouChave = !!val.valor;
-      if (!deixouCarregador && name.includes('carregador')) deixouCarregador = !!val.valor;
-      if (!deixouControle && (name.includes('controle') || name.includes('nfc') || name.includes('tag'))) deixouControle = !!val.valor;
-      if (!deixouDocumento && (name.includes('documento') || name.includes('doc'))) deixouDocumento = !!val.valor;
-      if (!qtdChave && name.includes('chave') && val.quantidade) qtdChave = val.quantidade;
-      if (!qtdControle && (name.includes('controle') || name.includes('nfc') || name.includes('tag')) && val.quantidade) qtdControle = val.quantidade;
+      if (!deixouChave && nameLower.includes('chave')) deixouChave = !!val.valor;
+      if (!deixouCarregador && nameLower.includes('carregador')) deixouCarregador = !!val.valor;
+      if (!deixouControle && (nameLower.includes('controle') || nameLower.includes('nfc') || nameLower.includes('tag'))) deixouControle = !!val.valor;
+      if (!deixouDocumento && (nameLower.includes('documento') || nameLower.includes('doc'))) deixouDocumento = !!val.valor;
+      if (!qtdChave && nameLower.includes('chave') && val.quantidade) qtdChave = val.quantidade;
+      if (!qtdControle && (nameLower.includes('controle') || nameLower.includes('nfc') || nameLower.includes('tag')) && val.quantidade) qtdControle = val.quantidade;
+
+      if (val.valor === true || val.valor === 'Sim' || String(val.valor).toLowerCase() === 'sim') {
+        let txt = `${name}: SIM`;
+        if (val.quantidade !== undefined && val.quantidade > 0) {
+          txt += ` [Qtd: ${val.quantidade}]`;
+        }
+        checklistItems.push(txt);
+      } else if (val.valor === false || val.valor === 'Não' || String(val.valor).toLowerCase() === 'não') {
+        checklistItems.push(`${name}: NÃO`);
+      } else if (val.valor && typeof val.valor === 'string' && val.valor.trim() && !['true','false'].includes(val.valor.toLowerCase())) {
+        checklistItems.push(`${name}: ${val.valor}`);
+      }
     }
 
     const dataGeracao = new Date().toLocaleDateString('pt-BR');
@@ -306,7 +322,7 @@ const Utils = (() => {
     const observacoes = os.observacoes || '';
     const fotos = (os.temFotos && Array.isArray(os.fotos)) ? os.fotos : ((Array.isArray(os.fotos)) ? os.fotos : []);
 
-    return { os, dataBag: { temGarantia, endereco, valorRetirada, taxaEntrega, deixouChave, deixouCarregador, deixouControle, deixouDocumento, qtdChave, qtdControle, dataGeracao, servicos, observacoes, fotos } };
+    return { os, dataBag: { temGarantia, motoristaEntrega, checklistItems, endereco, valorRetirada, taxaEntrega, deixouChave, deixouCarregador, deixouControle, deixouDocumento, qtdChave, qtdControle, dataGeracao, servicos, observacoes, fotos } };
   }
 
   // =============================================
@@ -423,12 +439,16 @@ const Utils = (() => {
 
     // Dados do Veículo
     y = 68; h.drawSectionHeader('DADOS DO VEÍCULO', y);
-    y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.48, y);
-    h.field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
+    y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.45, y);
+    h.field('Cor:', os.corVeiculo || '', ml + cw * 0.48, ml + cw * 0.70, y);
+    h.field('Garantia:', d.temGarantia ? 'SIM ✅' : 'NÃO', ml + cw * 0.73, ml + cw - 2, y);
 
     // Taxa de Entrega
     y = 88; h.drawSectionHeader('TAXA DE ENTREGA', y);
-    y += 12; h.field('Valor:', d.taxaEntrega || 'R$ 0,00', ml + 2, ml + cw - 2, y);
+    y += 12; h.field('Valor:', d.taxaEntrega || 'R$ 0,00', ml + 2, ml + cw * 0.48, y);
+    if (d.motoristaEntrega) {
+      h.field('Resp. Entrega:', d.motoristaEntrega, ml + cw * 0.52, ml + cw - 2, y);
+    }
 
     // Itens Entregues
     y = 108; h.drawSectionHeader('ITENS ENTREGUES', y);
@@ -552,8 +572,9 @@ const Utils = (() => {
 
     // Dados do Veículo
     y = 68; h.drawSectionHeader('DADOS DO VEÍCULO', y);
-    y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.48, y);
-    h.field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
+    y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.45, y);
+    h.field('Cor:', os.corVeiculo || '', ml + cw * 0.48, ml + cw * 0.70, y);
+    h.field('Garantia:', d.temGarantia ? 'SIM ✅' : 'NÃO', ml + cw * 0.73, ml + cw - 2, y);
 
     // Taxa de Retirada
     y = 88; h.drawSectionHeader('TAXA DE RETIRADA', y);
@@ -651,8 +672,14 @@ const Utils = (() => {
 
     // === DADOS DO VEÍCULO ===
     y += 8; h.drawSectionHeader('DADOS DO VEÍCULO', y);
-    y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.48, y);
-    h.field('Cor:', os.corVeiculo || '', ml + cw * 0.52, ml + cw - 2, y);
+    y += 12; h.field('Modelo:', os.modeloVeiculo || '', ml + 2, ml + cw * 0.45, y);
+    h.field('Cor:', os.corVeiculo || '', ml + cw * 0.48, ml + cw * 0.70, y);
+    h.field('Garantia:', d.temGarantia ? 'SIM ✅' : 'NÃO', ml + cw * 0.73, ml + cw - 2, y);
+
+    if (d.motoristaEntrega) {
+      y += 6;
+      h.field('Responsável pela entrega:', d.motoristaEntrega, ml + 2, ml + cw - 2, y);
+    }
 
     // === DESCRIÇÃO DA MANUTENÇÃO ===
     y += 8; h.drawSectionHeader('DESCRIÇÃO DA MANUTENÇÃO', y);
@@ -664,12 +691,17 @@ const Utils = (() => {
     if (d.observacoes) {
       obsLines = doc.splitTextToSize('OBSERVAÇÕES: ' + d.observacoes, cw - 6);
     }
+    let chkLines = [];
+    if (d.checklistItems && d.checklistItems.length > 0) {
+      chkLines = doc.splitTextToSize('CHECKLIST & ACESSÓRIOS: ' + d.checklistItems.join('  •  '), cw - 6);
+    }
 
     const validFotos = (d.fotos && Array.isArray(d.fotos)) ? d.fotos.filter(f => f && f.length > 10) : [];
     const hasFotos = validFotos.length > 0;
 
     let contentH = 8;
     if (servicos.length > 0) contentH += 5 + (servicos.length * 4.5) + 3;
+    if (chkLines.length > 0) contentH += (chkLines.length * 4) + 3;
     if (obsLines.length > 0) contentH += (obsLines.length * 4.5) + 3;
 
     let bH = Math.max(contentH, 38);
@@ -701,6 +733,11 @@ const Utils = (() => {
         doc.text(i + '. ____________________________________________________________________________________', ml + 3, cY);
         cY += 5.5;
       }
+    }
+    if (chkLines.length > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text(chkLines, ml + 3, cY);
+      cY += (chkLines.length * 4.5);
     }
     if (d.observacoes) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);

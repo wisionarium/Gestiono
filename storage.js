@@ -190,6 +190,7 @@ const Storage = (() => {
             temDataEntrega: o.tem_data_entrega,
             dataEntrega: o.data_entrega,
             horaEntrega: o.hora_entrega,
+            motoristaEntrega: o.motorista_entrega || null,
             temFotos: o.tem_fotos,
             fotos: o.fotos || [],
             camposPersonalizados: o.campos_personalizados || {},
@@ -343,6 +344,7 @@ const Storage = (() => {
           tem_data_entrega: !!o.temDataEntrega,
           data_entrega: o.dataEntrega || null,
           hora_entrega: o.horaEntrega || null,
+          motorista_entrega: o.motoristaEntrega || null,
           tem_fotos: !!o.temFotos,
           fotos: o.fotos || [],
           campos_personalizados: o.camposPersonalizados || {},
@@ -738,11 +740,33 @@ const Storage = (() => {
 
   // ---------- CAMPOS PERSONALIZADOS ----------
 
+  const ESSENTIAL_CAMPOS = [
+    { id: 'campo_deixou_chave', nome: 'Deixou chave?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
+    { id: 'campo_deixou_carregador', nome: 'Deixou carregador?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
+    { id: 'campo_deixou_nfc', nome: 'Deixou Cartão NFC?', tipo: 'sim_nao_quantidade', secao: 'Acessórios', ativo: true },
+    { id: 'campo_esta_na_garantia', nome: 'Esta na garantia?', tipo: 'sim_nao', secao: 'Garantia', ativo: true }
+  ];
+
   function getCampos() {
-    const list = getData(KEYS.CAMPOS);
+    let list = getData(KEYS.CAMPOS) || [];
     const seen = new Set();
     const unique = [];
-    let hasDuplicates = false;
+    let hasChanges = false;
+
+    // Garante que os campos essenciais existam
+    ESSENTIAL_CAMPOS.forEach(ess => {
+      const essClean = ess.nome.toLowerCase().replace(/[^a-z]/g, '');
+      const found = list.find(c => (c.nome || '').toLowerCase().replace(/[^a-z]/g, '').includes(essClean));
+      if (!found) {
+        list.push({ ...ess, criadoEm: new Date().toISOString() });
+        hasChanges = true;
+      } else {
+        if (ess.tipo === 'sim_nao_quantidade' && found.tipo !== 'sim_nao_quantidade') {
+          found.tipo = 'sim_nao_quantidade';
+          hasChanges = true;
+        }
+      }
+    });
 
     list.forEach(c => {
       const key = `${c.nome.trim().toLowerCase()}_${(c.secao || 'Outros').trim().toLowerCase()}`;
@@ -750,15 +774,14 @@ const Storage = (() => {
         seen.add(key);
         unique.push(c);
       } else {
-        hasDuplicates = true;
-        // Clean up from database in background
+        hasChanges = true;
         if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.isConnected()) {
           deleteFromSupabase('campos_personalizados', c.id);
         }
       }
     });
 
-    if (hasDuplicates) {
+    if (hasChanges) {
       setData(KEYS.CAMPOS, unique);
     }
 
