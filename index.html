@@ -108,117 +108,86 @@
             <div class="page-subtitle" style="font-size:var(--font-sm); color:var(--text-secondary);">Dashboard operacional dos serviços</div>
           </div>
 
-          <!-- Main Action Buttons: NOVO ORÇAMENTO & ORDEM DE RETIRADA -->
-          <div style="width:100%; margin-bottom:var(--space-xl); display:flex; flex-direction:column; gap:12px;">
-            <button class="btn-novo-orcamento-large" id="home-btn-novo-orcamento">
+          <div style="width:100%; margin-bottom:var(--space-md); display:flex; flex-direction:column; gap:10px;">
+            <!-- NOVO ORÇAMENTO (Solid Blue + White Text/Icon) -->
+            <button class="btn-novo-orcamento-large" id="home-btn-novo-orcamento" style="background:#2563eb; color:#ffffff; height:58px; border-radius:16px;">
               <div class="novo-orcamento-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 40 40" fill="none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 40 40" fill="none">
                   <path d="M8 5C8 3.89543 8.89543 3 10 3H26L34 11V35C34 36.1046 33.1046 37 32 37H10C8.89543 37 8 36.1046 8 35V5Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                   <path d="M26 3V11H34" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                  <path d="M14 9.5C14 8.7 14.7 8 15.5 8H17C17.8 8 18.5 8.7 18.5 9.5C18.5 10.3 17.8 11 17 11H15.5C14.7 11 14 11.7 14 12.5C14 13.3 14.7 14 15.5 14H17C17.8 14 18.5 13.3 18.5 12.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <line x1="16.25" y1="7" x2="16.25" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/>
                   <line x1="13" y1="18" x2="27" y2="18" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
                   <line x1="13" y1="22" x2="25" y2="22" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
                   <line x1="13" y1="26" x2="21" y2="26" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-                  <g transform="rotate(-40 28 28)">
-                    <rect x="22" y="25" width="14" height="6" rx="1" fill="#1b74ff" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M22 25 L17 28 L22 31 Z" fill="white" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-                    <line x1="26" y1="25" x2="26" y2="31" stroke="white" stroke-width="1.5"/>
-                  </g>
                 </svg>
               </div>
-              <span>NOVO ORÇAMENTO</span>
+              <span style="color:#ffffff; font-weight:800; font-size:1.05rem;">NOVO ORÇAMENTO</span>
             </button>
 
-            <button class="btn-novo-orcamento-large" id="home-btn-ordem-retirada" style="background:#f59e0b; border-color:#f59e0b; box-shadow:0 6px 20px rgba(245, 158, 11, 0.35);">
-              <div class="novo-orcamento-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-              </div>
-              <span>ORDEM DE RETIRADA</span>
-            </button>
-
-            <button class="btn-novo-orcamento-large" id="home-btn-visita-tecnica" style="background:#8b5cf6; border-color:#8b5cf6; box-shadow:0 6px 20px rgba(139, 92, 246, 0.35);">
-              <div class="novo-orcamento-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="m9 14 2 2 4-4"/></svg>
-              </div>
-              <span>VISITA TÉCNICA</span>
-            </button>
-          </div>
-
-          <!-- ESTATÍSTICA DA SEMANA Card (with white border container and white borders around blocks) -->
-          <div class="home-stats-card">
-            <div class="home-stats-header">
-              <span>ESTATÍSTICA DA SEMANA</span>
-            </div>
-            <div class="home-stats-divider"></div>
-            
-            <div class="home-stats-grid">
-              <!-- A FAZER (Solid Orange + White Border) -->
-              <button type="button" class="home-stat-block block-afazer" id="home-stat-afazer" title="Ver serviços a fazer">
-                <div class="home-stat-number" id="home-semana-aguardando">0</div>
-                <div class="home-stat-label">A FAZER</div>
-              </button>
-
-              <!-- EM ANDAMENTO (Solid Amber/Yellow + White Border) -->
-              <button type="button" class="home-stat-block block-andamento" id="home-stat-andamento" title="Ver serviços em andamento">
-                <div class="home-stat-number" id="home-semana-andamento">0</div>
-                <div class="home-stat-label">EM ANDAMENTO</div>
-              </button>
-
-              <!-- CONCLUÍDOS (Solid Green + White Border) -->
-              <button type="button" class="home-stat-block block-concluidos" id="home-stat-concluidos" title="Ver serviços concluídos">
-                <div class="home-stat-number" id="home-semana-concluido">0</div>
-                <div class="home-stat-label">CONCLUÍDOS</div>
-              </button>
-            </div>
-          </div>
-
-          <!-- RESUMO GERAL Section -->
-          <div class="home-resumo-section-title">RESUMO GERAL</div>
-          
-          <!-- Serviços Pendentes -->
-          <div class="dashboard-card home-resumo-card" id="home-card-pendentes" style="cursor:pointer;">
-            <div class="home-resumo-title">Serviços Pendentes</div>
-            <div class="home-resumo-sub">Total de OS em aberto na oficina</div>
-            <div class="home-resumo-val val-purple" id="home-count-pendentes">0</div>
-          </div>
-
-          <!-- BANDEJA DE HISTÓRICO -->
-          <div class="home-historico-tray" style="margin-top:var(--space-xl); background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:var(--space-lg); box-shadow:var(--shadow-md);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-              <div>
-                <div style="font-size:1.1rem; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  Histórico
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <!-- RETIRADA (Solid Orange + White Text/Icon) -->
+              <button class="btn-novo-orcamento-large" id="home-btn-ordem-retirada" style="background:#f59e0b; color:#ffffff; height:54px; padding:12px 10px; border-radius:14px;">
+                <div class="novo-orcamento-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                 </div>
-                <div style="font-size:var(--font-xs); color:var(--text-secondary); margin-top:2px;">Registro geral de serviços, concluídos e lixeira de apagados</div>
-              </div>
-            </div>
-
-            <!-- Sub-abas da Bandeja: Design com Botões Separados -->
-            <div class="tray-subtabs-container">
-              <button type="button" class="tray-tab-btn active" id="tray-tab-servicos" data-tray-tab="servicos">
-                SERVIÇOS
+                <span style="color:#ffffff; font-weight:800; font-size:13px;">RETIRADA</span>
               </button>
-              <button type="button" class="tray-tab-btn" id="tray-tab-concluidos" data-tray-tab="concluidos">
-                CONCLUÍDOS
-              </button>
-              <button type="button" class="tray-tab-btn" id="tray-tab-apagados" data-tray-tab="apagados">
-                APAGADOS
-              </button>
-            </div>
 
-            <!-- Busca na Bandeja -->
-            <div style="margin-bottom:12px;">
-              <input type="text" class="form-input" id="tray-search-input" placeholder="Buscar por código, cliente, veículo..." style="font-size:var(--font-xs); padding:8px 12px; width:100%;">
-            </div>
-
-            <!-- Conteúdo da Bandeja -->
-            <div id="tray-content-list" style="display:flex; flex-direction:column; gap:10px; max-height:450px; overflow-y:auto; padding-right:4px;">
-              <!-- Renderizado via JS -->
+              <!-- VISITA TÉCNICA (Solid Blue + White Text/Icon) -->
+              <button class="btn-novo-orcamento-large" id="home-btn-visita-tecnica" style="background:#2563eb; color:#ffffff; height:54px; padding:12px 10px; border-radius:14px;">
+                <div class="novo-orcamento-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="m9 14 2 2 4-4"/></svg>
+                </div>
+                <span style="color:#ffffff; font-weight:800; font-size:13px;">VISITA TÉCNICA</span>
+              </button>
             </div>
           </div>
 
+          <!-- BANDEJA DE HISTÓRICO (EXPANDÍVEL / ACCORDION - MESMA LARGURA DO BOTÃO DE ORÇAMENTO) -->
+          <div class="home-historico-tray" id="home-historico-tray" style="width:100%; margin-top:var(--space-md); background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:16px; box-shadow:var(--shadow-sm); overflow:hidden;">
+            <!-- CABEÇALHO CLICÁVEL DA BANDEJA -->
+            <div id="tray-header-toggle" style="display:flex; justify-content:space-between; align-items:center; padding:16px 18px; cursor:pointer; user-select:none; background:var(--bg-surface);">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:38px; height:38px; border-radius:12px; background:rgba(37,99,235,0.1); display:flex; align-items:center; justify-content:center; color:#2563eb;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:1.05rem; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                    Histórico
+                  </div>
+                  <div style="font-size:11px; color:var(--text-secondary); margin-top:1px;">Toque para abrir serviços, concluídos e lixeira</div>
+                </div>
+              </div>
+              <div id="tray-chevron" style="transition:transform 0.3s ease; color:var(--text-secondary);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+
+            <!-- CORPO EXPANDÍVEL DA BANDEJA -->
+            <div id="tray-body-content" style="display:none; padding:0 14px 14px 14px; border-top:1px solid var(--glass-border);">
+              <!-- Sub-abas da Bandeja: Grid 3 Colunas com letras bem legíveis -->
+              <div class="tray-subtabs-container" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin:12px 0 10px 0; background:var(--bg-secondary); padding:4px; border-radius:12px;">
+                <button type="button" class="tray-tab-btn active" id="tray-tab-servicos" data-tray-tab="servicos" style="padding:10px 2px; font-size:11px; font-weight:800; border-radius:8px; border:none; text-align:center;">
+                  SERVIÇOS
+                </button>
+                <button type="button" class="tray-tab-btn" id="tray-tab-concluidos" data-tray-tab="concluidos" style="padding:10px 2px; font-size:11px; font-weight:800; border-radius:8px; border:none; text-align:center;">
+                  CONCLUÍDOS
+                </button>
+                <button type="button" class="tray-tab-btn" id="tray-tab-apagados" data-tray-tab="apagados" style="padding:10px 2px; font-size:11px; font-weight:800; border-radius:8px; border:none; text-align:center;">
+                  APAGADOS
+                </button>
+              </div>
+
+              <!-- Busca na Bandeja -->
+              <div style="margin-bottom:10px;">
+                <input type="text" class="form-input" id="tray-search-input" placeholder="Buscar por código, cliente, veículo..." style="font-size:12px; padding:10px 12px; width:100%; border-radius:10px;">
+              </div>
+
+              <!-- Conteúdo da Bandeja -->
+              <div id="tray-content-list" style="display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:4px;">
+                <!-- Renderizado via JS -->
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ===== NOVA OS PAGE ===== -->
@@ -314,28 +283,6 @@
             <!-- Pagamento -->
             <div class="section-divider">Pagamento & Agendamento</div>
 
-            <div class="form-group">
-              <label class="form-label required">Forma de Pagamento</label>
-              <div class="payment-grid">
-                <label class="payment-option">
-                  <input type="checkbox" class="payment-check" value="pix">
-                  <span class="payment-label">💠 Pix</span>
-                </label>
-                <label class="payment-option">
-                  <input type="checkbox" class="payment-check" value="dinheiro">
-                  <span class="payment-label">💵 Dinheiro</span>
-                </label>
-                <label class="payment-option">
-                  <input type="checkbox" class="payment-check" value="credito">
-                  <span class="payment-label">💳 Crédito</span>
-                </label>
-                <label class="payment-option">
-                  <input type="checkbox" class="payment-check" value="debito">
-                  <span class="payment-label">💳 Débito</span>
-                </label>
-              </div>
-            </div>
-
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label required" for="os-status-pagamento">Status Pagamento</label>
@@ -351,6 +298,31 @@
                   <option value="normal">Normal</option>
                   <option value="urgente">🔴 Urgente</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Forma de Pagamento — exibida apenas quando não é Pendente -->
+            <div id="container-forma-pagamento" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">Forma de Pagamento</label>
+                <div class="payment-grid">
+                  <label class="payment-option">
+                    <input type="checkbox" class="payment-check" value="pix">
+                    <span class="payment-label">💠 Pix</span>
+                  </label>
+                  <label class="payment-option">
+                    <input type="checkbox" class="payment-check" value="dinheiro">
+                    <span class="payment-label">💵 Dinheiro</span>
+                  </label>
+                  <label class="payment-option">
+                    <input type="checkbox" class="payment-check" value="credito">
+                    <span class="payment-label">💳 Crédito</span>
+                  </label>
+                  <label class="payment-option">
+                    <input type="checkbox" class="payment-check" value="debito">
+                    <span class="payment-label">💳 Débito</span>
+                  </label>
+                </div>
               </div>
             </div>
 

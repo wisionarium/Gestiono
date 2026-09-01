@@ -3,7 +3,7 @@
 // Cache offline e suporte PWA completo
 // ============================================
 
-const CACHE_NAME = 'boa-gestao-v13';
+const CACHE_NAME = 'boa-gestao-v14';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -22,10 +22,11 @@ const ASSETS_TO_CACHE = [
 
 // Instalação do Service Worker
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -44,33 +45,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Estratégia Stale-While-Revalidate (Cache primeiro, atualiza em background)
+// Estratégia Network-First com fallback para cache (Garante atualizações imediatas no dev/produção)
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições de API remota (ex: Supabase) ou chamadas não-GET
   if (event.request.url.includes('supabase.co') || event.request.method !== 'GET') {
     return;
   }
 
-  // Ignora requisições que não sejam http ou https (ex: chrome-extension ou rotas locais especiais)
   if (!event.request.url.startsWith('http')) {
     return;
   }
 
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
-          }
-          return networkResponse;
-        }).catch(() => {
-          // Ignora falhas silenciosas de rede em background
-        });
-
-        // Retorna a resposta em cache se existir, senão espera a rede
-        return cachedResponse || fetchPromise;
-      });
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });

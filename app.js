@@ -635,48 +635,6 @@ const App = (() => {
       btnHomeNovoOrcamento.style.display = temPermissao('criar_os') ? 'flex' : 'none';
     }
 
-    const ordens = Storage.getOrdens();
-    
-    // Contagem de Estatísticas da Semana Atual
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() + diffToMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-
-    const ordensDaSemana = ordens.filter(o => {
-      if (!o.criadoEm) return false;
-      const dataCriacao = new Date(o.criadoEm);
-      return dataCriacao >= startOfWeek && dataCriacao <= endOfWeek;
-    });
-
-    const semanaAguardando = ordensDaSemana.filter(o => o.status === 'aguardando').length;
-    const semanaAndamento = ordensDaSemana.filter(o => o.status === 'em_andamento').length;
-    const semanaConcluido = ordensDaSemana.filter(o => o.status === 'concluido').length;
-
-    const elSemAguardando = document.getElementById('home-semana-aguardando');
-    if (elSemAguardando) elSemAguardando.textContent = semanaAguardando;
-
-    const elSemAndamento = document.getElementById('home-semana-andamento');
-    if (elSemAndamento) elSemAndamento.textContent = semanaAndamento;
-
-    const elSemConcluido = document.getElementById('home-semana-concluido');
-    if (elSemConcluido) elSemConcluido.textContent = semanaConcluido;
-
-    // Status counts gerais
-    const countAguardando = ordens.filter(o => o.status === 'aguardando').length;
-    const countAndamento = ordens.filter(o => o.status === 'em_andamento').length;
-
-    // Pendentes gerais = aguardando + em_andamento
-    const pendentesCount = countAguardando + countAndamento;
-    const countPendentesEl = document.getElementById('home-count-pendentes');
-    if (countPendentesEl) countPendentesEl.textContent = pendentesCount;
-
     // Renderiza a Bandeja de Histórico da Home
     renderTrayHistorico(currentTrayTab);
     initTrayHistoricoEvents();
@@ -819,6 +777,20 @@ const App = (() => {
   }
 
   function initTrayHistoricoEvents() {
+    const headerToggle = document.getElementById('tray-header-toggle');
+    const bodyContent = document.getElementById('tray-body-content');
+    const chevron = document.getElementById('tray-chevron');
+
+    if (headerToggle && bodyContent) {
+      headerToggle.onclick = () => {
+        const isHidden = bodyContent.style.display === 'none' || !bodyContent.style.display;
+        bodyContent.style.display = isHidden ? 'block' : 'none';
+        if (chevron) {
+          chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+      };
+    }
+
     const tabs = document.querySelectorAll('[data-tray-tab]');
     tabs.forEach(tabBtn => {
       tabBtn.onclick = () => {
@@ -1019,14 +991,14 @@ const App = (() => {
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-              <button class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; padding:10px;">
-                ✅ Confirmar Serviço
-              </button>
               <button class="btn btn-secondary btn-sm btn-coletar-assinatura-retirada" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
                 ✍️ Assinar Cliente
               </button>
               <button class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
                 📄 Baixar PDF
+              </button>
+              <button class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; padding:10px; margin-top:2px;">
+                ✅ Concluir Retirada
               </button>
               <button class="btn btn-danger btn-sm btn-excluir-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.3); color:#ef4444; padding:8px; border-radius:8px; font-size:12px;">
                 🗑️ Excluir Ordem de Retirada
@@ -2103,8 +2075,17 @@ const App = (() => {
   function confirmarRetiradaParaServico(retiradaId) {
     const osRetirada = Storage.getOrdemById(retiradaId);
     if (!osRetirada) return;
-    navigateTo('nova-os');
-    renderNovaOS(osRetirada, true);
+    // Marca a retirada como convertida
+    Storage.updateOrdem(retiradaId, { status: 'convertida', atualizadoEm: new Date().toISOString() });
+    showToast(`Retirada ${retiradaId} concluída! Vá em Serviços para abrir a OS.`, 'success');
+    renderListaOS('aguardando');
+    updateNavBadges();
+    // Navega para a aba Serviços (subtab normal)
+    navigateTo('servicos');
+    setTimeout(() => {
+      const subtabServicos = document.getElementById('subtab-servicos');
+      if (subtabServicos) subtabServicos.click();
+    }, 100);
   }
 
   let isVisitaTecnicaForm = false;
@@ -2161,6 +2142,21 @@ const App = (() => {
     const inputEntradaReset = document.getElementById('os-valor-entrada');
     if (inputEntradaReset) inputEntradaReset.value = '';
     document.getElementById('os-status-pagamento').value = 'pendente';
+
+    // Setup payment container toggle: show/hide forma de pagamento based on status
+    const statusPagSelect = document.getElementById('os-status-pagamento');
+    const containerFormaPag = document.getElementById('container-forma-pagamento');
+    const atualizarVisibilidadeForma = () => {
+      const val = statusPagSelect ? statusPagSelect.value : 'pendente';
+      if (containerFormaPag) containerFormaPag.style.display = (val === 'pendente') ? 'none' : 'block';
+    };
+    if (statusPagSelect) {
+      statusPagSelect.removeEventListener('change', statusPagSelect._pagHandler);
+      statusPagSelect._pagHandler = atualizarVisibilidadeForma;
+      statusPagSelect.addEventListener('change', statusPagSelect._pagHandler);
+    }
+    atualizarVisibilidadeForma();
+
     atualizarCalculoPagamentoParcial();
 
     // Render custom fields
@@ -2193,6 +2189,7 @@ const App = (() => {
       document.getElementById('os-modelo').value = osData.modeloVeiculo || '';
       document.getElementById('os-cor').value = osData.corVeiculo || '';
       document.getElementById('os-status-pagamento').value = osData.statusPagamento || 'pendente';
+      atualizarVisibilidadeForma();
       if (osData.statusPagamento === 'parcial' && inputEntradaReset) {
         inputEntradaReset.value = osData.valorEntrada || '';
       }
@@ -2238,6 +2235,8 @@ const App = (() => {
         const cb = document.querySelector(`.payment-check[value="${f}"]`);
         if (cb) cb.checked = true;
       });
+      // Update visibility after restoring
+      atualizarVisibilidadeForma();
 
       // Restore services
       document.getElementById('servico-items').innerHTML = '';
@@ -2435,15 +2434,18 @@ const App = (() => {
       return;
     }
 
-    // Collect payment methods
+    // Collect payment methods — only required if status is not pendente
+    const statusPagamentoVal = document.getElementById('os-status-pagamento').value;
     const formasPagamento = [];
     document.querySelectorAll('.payment-check:checked').forEach(cb => {
       formasPagamento.push(cb.value);
     });
-    if (formasPagamento.length === 0) {
+    if (formasPagamento.length === 0 && statusPagamentoVal !== 'pendente') {
       showToast('Selecione pelo menos uma forma de pagamento', 'error');
       return;
     }
+    // Se pendente sem forma selecionada, usa ['pendente'] como placeholder
+    if (formasPagamento.length === 0) formasPagamento.push('pendente');
 
     const valorTotal = servicos.reduce((sum, s) => sum + s.valor, 0);
 

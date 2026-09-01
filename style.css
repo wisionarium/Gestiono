@@ -2515,28 +2515,42 @@ html {
 
 .btn-novo-orcamento-large {
   width: 100%;
-  height: 64px;
-  background: #1b74ff !important; /* Flat solid vivid blue from Img 2 */
+  height: 58px;
+  background: #2563eb !important;
   border: none;
   border-radius: 16px;
-  color: #ffffff;
+  color: #ffffff !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 14px;
-  font-size: 1.15rem;
+  gap: 10px;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.5px;
   cursor: pointer;
-  box-shadow: none !important; /* Clean design - NO GLOW / NO NEON DROP SHADOW */
+  box-shadow: none !important;
   transition: transform 0.15s ease, opacity 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-#home-btn-ordem-retirada,
-.btn-ordem-retirada-large {
+.btn-novo-orcamento-large span {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+.btn-novo-orcamento-large svg {
+  stroke: #ffffff !important;
+}
+
+#home-btn-ordem-retirada {
   background: #f59e0b !important; /* Solid Orange for Retirada */
+  color: #ffffff !important;
+}
+
+#home-btn-visita-tecnica {
+  background: #2563eb !important; /* Solid Blue for Visita Técnica */
+  color: #ffffff !important;
 }
 
 .btn-novo-orcamento-large:hover,

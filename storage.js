@@ -216,16 +216,16 @@ const Storage = (() => {
           });
         });
 
-        // Carrega a lista de IDs excluídos permanentemente
+        // Carrega a lista de IDs excluídos permanentemente (nunca devem voltar)
         let deletedPermIds = [];
         try {
           deletedPermIds = JSON.parse(localStorage.getItem('os_deleted_permanently_ids') || '[]');
         } catch(e) { deletedPermIds = []; }
 
-        // Remove do mapa remoto qualquer ID marcado como excluído permanentemente
+        // Remove do mapa remoto qualquer ID marcado como excluído permanentemente localmente
         deletedPermIds.forEach(delId => supabaseMap.delete(delId));
 
-        // Preserva APENAS rascunhos criados offline que ainda não possuem ID registrado no Supabase
+        // Preserva APENAS rascunhos offline ainda não sincronizados
         const localOrdens = getData(KEYS.ORDENS) || [];
         localOrdens.forEach(localO => {
           if (localO && localO.id && !deletedPermIds.includes(localO.id)) {
@@ -239,6 +239,18 @@ const Storage = (() => {
             }
           }
         });
+
+        // Registra também como deletedPermIds qualquer ID excluído pelo usuário
+        // que ainda não estava na lista (garantia dupla)
+        localOrdens.forEach(localO => {
+          if (localO && localO.id && localO.deletado && !deletedPermIds.includes(localO.id)) {
+            deletedPermIds.push(localO.id);
+            supabaseMap.delete(localO.id);
+          }
+        });
+        try {
+          localStorage.setItem('os_deleted_permanently_ids', JSON.stringify(deletedPermIds));
+        } catch(e) {}
 
         const merged = Array.from(supabaseMap.values());
         localStorage.setItem(KEYS.ORDENS, JSON.stringify(merged));
