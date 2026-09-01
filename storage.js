@@ -206,24 +206,36 @@ const Storage = (() => {
             criadoEm: o.criado_em,
             deletado: !!o.deletado,
             deletadoEm: o.deletado_em || null,
-            deletadoPor: o.deletado_por || null
+            deletadoPor: o.deletado_por || null,
+            assinaturaCliente: o.assinatura_cliente || null,
+            dataAssinatura: o.data_assinatura || null,
+            assinanteNome: o.assinante_nome || null,
+            assinaturaMotorista: o.assinatura_motorista || null,
+            dataAssinaturaMotorista: o.data_assinatura_motorista || null,
+            assinanteMotoristaNome: o.assinante_motorista_nome || null
           });
         });
 
-        // Preserva ordens locais que ainda não sincronizaram com o Supabase
+        // Carrega a lista de IDs excluídos permanentemente
+        let deletedPermIds = [];
+        try {
+          deletedPermIds = JSON.parse(localStorage.getItem('os_deleted_permanently_ids') || '[]');
+        } catch(e) { deletedPermIds = []; }
+
+        // Remove do mapa remoto qualquer ID marcado como excluído permanentemente
+        deletedPermIds.forEach(delId => supabaseMap.delete(delId));
+
+        // Preserva APENAS rascunhos criados offline que ainda não possuem ID registrado no Supabase
         const localOrdens = getData(KEYS.ORDENS) || [];
         localOrdens.forEach(localO => {
-          if (localO && localO.id) {
+          if (localO && localO.id && !deletedPermIds.includes(localO.id)) {
             const remoteO = supabaseMap.get(localO.id);
-            if (!remoteO) {
+            if (!remoteO && localO._isOfflineDraft === true) {
               supabaseMap.set(localO.id, localO);
-            } else {
-              // Se a ordem foi marcada como deletada localmente, preserva o estado deletado
-              if (localO.deletado) {
-                remoteO.deletado = true;
-                remoteO.deletadoEm = localO.deletadoEm || remoteO.deletadoEm;
-                remoteO.deletadoPor = localO.deletadoPor || remoteO.deletadoPor;
-              }
+            } else if (remoteO && localO.deletado && !remoteO.deletado) {
+              remoteO.deletado = true;
+              remoteO.deletadoEm = localO.deletadoEm || remoteO.deletadoEm;
+              remoteO.deletadoPor = localO.deletadoPor || remoteO.deletadoPor;
             }
           }
         });
@@ -359,16 +371,18 @@ const Storage = (() => {
           historico: o.historico || [],
           deletado: !!o.deletado,
           deletado_em: o.deletadoEm || null,
-          deletado_por: o.deletadoPor || null
+          deletado_por: o.deletadoPor || null,
+          assinatura_cliente: o.assinaturaCliente || null,
+          data_assinatura: o.dataAssinatura || null,
+          assinante_nome: o.assinanteNome || null,
+          assinatura_motorista: o.assinaturaMotorista || null,
+          data_assinatura_motorista: o.dataAssinaturaMotorista || null,
+          assinante_motorista_nome: o.assinanteMotoristaNome || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
         const { error } = await client.from('ordens_servico').upsert(payload);
         if (error) {
-          console.warn('Sincronização com aviso no Supabase, tentando payload legado:', error.message);
-          // Se a tabela remota no Supabase ainda não tiver as colunas novas, tenta com o formato legado sem falhar
-          delete payload.deletado;
-          delete payload.deletado_em;
-          delete payload.deletado_por;
+          console.warn('Sincronização com aviso no Supabase, tentando payload secundário:', error.message);
           delete payload.tipo;
           delete payload.relato_cliente;
           delete payload.criado_por;
@@ -623,7 +637,18 @@ const Storage = (() => {
       timestamp: ordens[idx].deletadoEm
     });
     setData(KEYS.ORDENS, ordens);
+
+    // Registra ID para não ser ressuscitado
+    try {
+      let deletedPermIds = JSON.parse(localStorage.getItem('os_deleted_permanently_ids') || '[]');
+      if (!deletedPermIds.includes(id)) {
+        deletedPermIds.push(id);
+        localStorage.setItem('os_deleted_permanently_ids', JSON.stringify(deletedPermIds));
+      }
+    } catch(e) {}
+
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
+    deleteFromSupabase('ordens_servico', id);
   }
 
   function restaurarOrdem(id, usuarioLogado = null) {
@@ -647,6 +672,16 @@ const Storage = (() => {
   function deleteOrdemPermanente(id) {
     const ordens = getAllOrdens().filter(os => os.id !== id);
     setData(KEYS.ORDENS, ordens);
+
+    // Registra o ID como excluído permanentemente para não ser ressuscitado pelo sync
+    try {
+      let deletedPermIds = JSON.parse(localStorage.getItem('os_deleted_permanently_ids') || '[]');
+      if (!deletedPermIds.includes(id)) {
+        deletedPermIds.push(id);
+        localStorage.setItem('os_deleted_permanently_ids', JSON.stringify(deletedPermIds));
+      }
+    } catch(e) {}
+
     deleteFromSupabase('ordens_servico', id);
   }
 
@@ -936,7 +971,19 @@ const Storage = (() => {
   }
 
   function getCargoById(id) {
-    return getCargos().find(c => c.id === id) || null;
+    if (!id) return null;
+    const cargos = getCargos();
+    const cleanId = String(id).trim().toLowerCase();
+    const withoutPrefix = cleanId.replace(/^role_/, '');
+
+    return cargos.find(c => {
+      const cIdClean = (c.id || '').trim().toLowerCase();
+      const cNameClean = (c.nome || '').trim().toLowerCase();
+      return cIdClean === cleanId ||
+             cIdClean.replace(/^role_/, '') === withoutPrefix ||
+             cNameClean === cleanId ||
+             cNameClean === withoutPrefix;
+    }) || null;
   }
 
   function saveCargo(cargo) {

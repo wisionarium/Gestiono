@@ -48,10 +48,15 @@ CREATE TABLE IF NOT EXISTS public.ordens_servico (
 -- Garantir colunas adicionadas em tabelas já existentes
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'os';
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS relato_cliente TEXT;
-ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS criado_por TEXT;
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS deletado BOOLEAN DEFAULT false;
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS deletado_em TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS deletado_por TEXT;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS assinatura_cliente TEXT;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS data_assinatura TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS assinante_nome TEXT;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS assinatura_motorista TEXT;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS data_assinatura_motorista TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS assinante_motorista_nome TEXT;
 
 -- 2. Tabela de Usuários (Funcionários)
 CREATE TABLE IF NOT EXISTS public.usuarios (

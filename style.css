@@ -2987,3 +2987,222 @@ html {
 [data-theme="light"] .wisionarium-footer-logo {
   filter: invert(0.85) hue-rotate(190deg);
 }
+
+/* ---------- COMPONENTE DE ASSINATURA DIGITAL (TOUCHPAD / CANVAS) ---------- */
+.signature-box-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.signature-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: #ffffff;
+  border: 2px dashed #94a3b8;
+  border-radius: 12px;
+  overflow: hidden;
+  touch-action: none;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.signature-canvas-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  pointer-events: none;
+  text-align: center;
+  user-select: none;
+}
+
+.signature-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.signature-actions button {
+  flex: 1;
+}
+
+.signature-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.signature-preview-img {
+  max-height: 80px;
+  width: auto;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+.badge-assinatura-ok {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #15803d !important;
+  border: 1px solid rgba(34, 197, 94, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .badge-assinatura-ok {
+  color: #4ade80 !important;
+}
+
+/* ---------- BANDEJA DE AÇÕES MINIMALISTA (ACTION TRAY) ---------- */
+.action-tray-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.action-tray-header {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 2px;
+}
+
+.action-tray-hero-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-tray-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.action-tray-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-tray-btn:active {
+  transform: scale(0.97);
+  background: var(--bg-surface-hover);
+}
+
+.action-tray-btn-sig {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.action-tray-btn-wa {
+  border-color: rgba(37, 211, 102, 0.4);
+  color: #22c55e;
+  background: rgba(37, 211, 102, 0.08);
+}
+
+.action-tray-btn-pdf {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #3b82f6;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.action-tray-btn-edit {
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--text-primary);
+}
+
+.action-tray-more {
+  border-top: 1px dashed var(--glass-border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.action-tray-more-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 6px 0;
+  user-select: none;
+  list-style: none;
+}
+
+.action-tray-more-summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-tray-more[open] .action-tray-chevron {
+  transform: rotate(180deg);
+}
+
+.action-tray-chevron {
+  transition: transform 0.2s ease;
+}
+
+.action-tray-more-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+[data-theme="light"] .action-tray-container {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+

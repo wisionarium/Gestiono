@@ -92,6 +92,30 @@ const SupabaseConfig = (() => {
             if (callback) callback('configuracoes', payload);
           }
         )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'cargos' },
+          (payload) => {
+            console.log('⚡ Realtime: cargos alterados', payload);
+            if (callback) callback('cargos', payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'opcoes_listas' },
+          (payload) => {
+            console.log('⚡ Realtime: opcoes_listas alteradas', payload);
+            if (callback) callback('opcoes_listas', payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'campos_personalizados' },
+          (payload) => {
+            console.log('⚡ Realtime: campos_personalizados alterados', payload);
+            if (callback) callback('campos_personalizados', payload);
+          }
+        )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('📡 Supabase Realtime conectado com sucesso!');

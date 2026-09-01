@@ -73,8 +73,19 @@ const App = (() => {
           Storage.syncFromSupabase().then(() => {
             currentUser = Storage.getUsuarioLogado();
             if (currentUser) {
+              updateNavBadges();
               renderDashboard();
               renderCurrentList();
+              if (typeof currentPage !== 'undefined' && currentPage === 'os-detail' && currentOSId) {
+                const updatedOS = Storage.getOrdemById(currentOSId);
+                if (updatedOS) renderOSDetail(updatedOS);
+              }
+              if (typeof currentPage !== 'undefined' && currentPage === 'admin' && typeof renderAdmin === 'function') {
+                renderAdmin();
+              }
+              if (typeof currentPage !== 'undefined' && currentPage === 'pdfs' && typeof renderListaPDFs === 'function') {
+                renderListaPDFs();
+              }
             }
           });
         }
@@ -1000,7 +1011,7 @@ const App = (() => {
                   🛵 ${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')} (${Utils.escapeHtml(os.corVeiculo || 'Cor')}) · 📅 ${dataStr}
                 </div>
               </div>
-              <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:10px; padding:3px 8px; font-weight:700;">Retirada em Espera</span>
+              ${os.assinaturaCliente ? `<span class="badge badge-assinatura-ok" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:10px; padding:3px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);" title="Assinado em ${new Date(os.dataAssinatura).toLocaleString('pt-BR')}">✅ Assinado</span>` : '<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:10px; padding:3px 8px; font-weight:700;">Retirada em Espera</span>'}
             </div>
 
             <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:var(--space-sm); border-top:1px dashed rgba(255,255,255,0.06); padding-top:6px;">
@@ -1008,11 +1019,17 @@ const App = (() => {
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-              <button class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <button class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; padding:10px;">
                 ✅ Confirmar Serviço
+              </button>
+              <button class="btn btn-secondary btn-sm btn-coletar-assinatura-retirada" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
+                ✍️ Assinar Cliente
               </button>
               <button class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
                 📄 Baixar PDF
+              </button>
+              <button class="btn btn-danger btn-sm btn-excluir-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.3); color:#ef4444; padding:8px; border-radius:8px; font-size:12px;">
+                🗑️ Excluir Ordem de Retirada
               </button>
             </div>
           </div>
@@ -1020,6 +1037,13 @@ const App = (() => {
       });
 
       container.innerHTML = htmlResult;
+
+      container.querySelectorAll('.btn-coletar-assinatura-retirada').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openModalColetarAssinatura(btn.dataset.id);
+        });
+      });
 
       container.querySelectorAll('.btn-confirmar-retirada').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1032,6 +1056,18 @@ const App = (() => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           Utils.gerarPDFRetiradaDoc(btn.dataset.id);
+        });
+      });
+
+      container.querySelectorAll('.btn-excluir-retirada-card').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Tem certeza que deseja excluir a Ordem de Retirada ${btn.dataset.id}?`)) {
+            Storage.deleteOrdem(btn.dataset.id, currentUser ? currentUser.nome : 'Sistema');
+            showToast(`Ordem ${btn.dataset.id} excluída com sucesso!`, 'info');
+            renderListaOS('aguardando');
+            updateDashboard();
+          }
         });
       });
 
@@ -1186,6 +1222,10 @@ const App = (() => {
 
     container.querySelectorAll('.btn-wa-os-card').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); openModalEnviarWhatsApp(btn.dataset.id); });
+    });
+
+    container.querySelectorAll('.btn-coletar-assinatura').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); openModalColetarAssinatura(btn.dataset.id); });
     });
   }
 
@@ -1607,6 +1647,14 @@ const App = (() => {
           <p style="margin-bottom:8px;">Autorizo a equipe técnica da Supra Bike a executar os procedimentos necessários para avaliação e manutenção do veículo, conforme as condições identificadas durante a análise.</p>
           <p style="font-weight:700; color:var(--text-primary); margin-bottom:0;">Ao prosseguir, confirmo que li, compreendi e aceito os termos acima.</p>
         </div>
+
+        ${existingOS ? `
+          <div style="margin-top:14px; padding-top:10px; border-top:1px dashed var(--glass-border);">
+            <button type="button" class="btn btn-danger btn-block" id="btn-modal-retirada-excluir" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#ef4444; font-weight:700; padding:10px;">
+              🗑️ Excluir Ordem de Retirada (${existingOS.id})
+            </button>
+          </div>
+        ` : ''}
       </form>
     `;
 
@@ -1678,6 +1726,19 @@ const App = (() => {
         if (el('retirada-edit-carregador')) el('retirada-edit-carregador').checked = !!existingOS.deixouCarregador;
         if (el('retirada-edit-documento')) el('retirada-edit-documento').checked = !!existingOS.deixouDocumento;
         if (el('retirada-edit-obs')) el('retirada-edit-obs').value = existingOS.observacoes || '';
+
+        const btnExcluirModal = el('btn-modal-retirada-excluir');
+        if (btnExcluirModal && existingOS) {
+          btnExcluirModal.onclick = () => {
+            if (confirm(`Tem certeza que deseja excluir a Ordem de Retirada ${existingOS.id}?`)) {
+              Storage.deleteOrdem(existingOS.id, currentUser ? currentUser.nome : 'Sistema');
+              showToast(`Ordem ${existingOS.id} excluída com sucesso!`, 'info');
+              closeModal();
+              renderListaOS('aguardando');
+              updateDashboard();
+            }
+          };
+        }
       }, 50);
     }
   }
@@ -1737,13 +1798,13 @@ const App = (() => {
 
     let actionsHtml = '';
     if (canAssumir) {
-      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-assumir" data-id="${os.id}">
+      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-assumir" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#ffffff;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
         Assumir
       </button>`;
     }
     if (canDelegar) {
-      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-delegar" data-id="${os.id}" style="background:var(--accent);border-color:var(--accent);color:#ffffff;margin-left:6px;">
+      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-delegar" data-id="${os.id}" style="margin-left:4px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
         Delegar
       </button>`;
@@ -1754,11 +1815,17 @@ const App = (() => {
         PDF
       </button>`;
     }
+    actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-coletar-assinatura" data-id="${os.id}" style="margin-left:4px;" title="Coletar Assinatura do Cliente">
+      ✍️ Assinar
+    </button>`;
     if (canConcluir) {
-      actionsHtml += `<button class="btn btn-success btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px;">
+      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px; background:#2563eb; border-color:#2563eb; color:#ffffff;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Concluir
       </button>`;
+    }
+    if (canExcluir) {
+      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-excluir-os-card" data-id="${os.id}" style="margin-left:4px; color:#ef4444; border-color:rgba(239,68,68,0.3);" title="Excluir OS">🗑️ Excluir</button>`;
     }
 
     const valorMostrar = temPermissao('ver_valores_cliente') ? Utils.formatarMoeda(os.valorTotal) : 'Restrito 🔒';
@@ -1797,6 +1864,7 @@ const App = (() => {
         <div class="os-card-header">
           <span class="os-card-code">${os.id}</span>
           <div class="os-card-badges">
+            ${os.assinaturaCliente ? `<span class="badge badge-assinatura-ok" title="Assinado em ${new Date(os.dataAssinatura).toLocaleString('pt-BR')}">✅ Assinado</span>` : ''}
             ${fotosBadgeHtml}
             ${os.prioridade === 'urgente' ? '<span class="badge badge-urgente">URGENTE</span>' : ''}
             <span class="badge badge-${os.statusPagamento}">${Utils.traduzirStatusPagamento(os.statusPagamento)}</span>
@@ -1829,6 +1897,182 @@ const App = (() => {
   }
 
   // ---------- AÇÕES DO SERVIÇO ----------
+
+  // ---------- ASSINATURA DIGITAL ----------
+
+  function isCanvasBlank(canvas) {
+    if (!canvas) return true;
+    const context = canvas.getContext('2d');
+    const pixelBuffer = new Uint32Array(
+      context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+    );
+    return !pixelBuffer.some(color => color !== 0);
+  }
+
+  function initSignatureCanvas() {
+    const canvas = document.getElementById('signature-canvas');
+    const wrapper = document.getElementById('sig-wrapper');
+    const hint = document.getElementById('sig-hint');
+    const btnClear = document.getElementById('btn-sig-clear');
+    if (!canvas || !wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    canvas.width = rect.width || 340;
+    canvas.height = rect.height || 180;
+
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function getPos(e) {
+      const r = canvas.getBoundingClientRect();
+      let clientX = e.clientX;
+      let clientY = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+      return {
+        x: clientX - r.left,
+        y: clientY - r.top
+      };
+    }
+
+    function startDrawing(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+      if (hint) hint.style.display = 'none';
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+      if (hint) hint.style.display = 'none';
+    }
+
+    function stopDrawing(e) {
+      if (isDrawing) {
+        isDrawing = false;
+      }
+    }
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseleave', stopDrawing);
+
+    canvas.addEventListener('touchstart', startDrawing, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDrawing);
+    canvas.addEventListener('touchcancel', stopDrawing);
+
+    if (btnClear) {
+      btnClear.addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (hint) hint.style.display = 'block';
+      });
+    }
+  }
+
+  function openModalColetarAssinatura(osId, targetRole = 'cliente') {
+    const os = Storage.getOrdemById(osId);
+    if (!os) return;
+
+    const isMotorista = targetRole === 'motorista';
+    const tituloModal = isMotorista ? `Coletar Assinatura do Motorista/Técnico — OS ${os.id}` : `Coletar Assinatura do Cliente — OS ${os.id}`;
+    const defaultNome = isMotorista ? (os.assinanteMotoristaNome || os.motoristaEntrega || os.mecanico || (currentUser ? currentUser.nome : '')) : (os.assinanteNome || os.clienteNome || '');
+
+    const termoTexto = isMotorista ?
+      "Declaro que realizei a inspeção/coleta do veículo e estou de acordo com o estado do bem e acessórios descritos no relatório de retirada." :
+      "Declaro estar ciente e de acordo com a retirada do meu veículo pela Supra Bike para realização de inspeção técnica, diagnóstico e dos serviços de manutenção que se fizerem necessários.\nAutorizo a equipe técnica a executar os procedimentos necessários.\nAo assinar abaixo, confirmo que li, compreendi e aceito os termos.";
+
+    const bodyHtml = `
+      <div style="font-size:12px; color:var(--text-secondary); line-height:1.4; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:10px 12px; border-radius:10px; margin-bottom:12px;">
+        <p style="margin-bottom:6px; font-weight:700; color:var(--text-primary);">📄 Relatório e Termo de Retirada (${os.id})</p>
+        <p style="font-size:11px; margin-bottom:4px;"><strong>${isMotorista ? 'Motorista/Técnico' : 'Cliente'}:</strong> ${Utils.escapeHtml(defaultNome || '—')} | <strong>Veículo:</strong> ${Utils.escapeHtml(os.modeloVeiculo || '—')}</p>
+        <p style="font-size:10px; opacity:0.85; margin-top:4px;">${termoTexto.replace(/\n/g, '<br>')}</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Nome do Assinante (${isMotorista ? 'Motorista / Técnico' : 'Cliente'})</label>
+        <input type="text" class="form-input" id="sig-input-nome" value="${Utils.escapeHtml(defaultNome)}" placeholder="Nome de quem está assinando">
+      </div>
+
+      <div class="signature-box-container">
+        <label class="form-label required">Assine com o dedo ou caneta na caixa abaixo:</label>
+        <div class="signature-canvas-wrapper" id="sig-wrapper">
+          <canvas id="signature-canvas" class="signature-canvas"></canvas>
+          <div id="sig-hint" class="signature-canvas-hint">✍️ Desenhe a assinatura aqui</div>
+        </div>
+        <div class="signature-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-sig-clear">🔄 Limpar Assinatura</button>
+        </div>
+      </div>
+    `;
+
+    openModal(tituloModal, bodyHtml, () => {
+      const inputNome = document.getElementById('sig-input-nome');
+      const nomeAssinante = inputNome ? inputNome.value.trim() : defaultNome;
+
+      const canvas = document.getElementById('signature-canvas');
+      if (!canvas || isCanvasBlank(canvas)) {
+        showToast('Por favor, faça a assinatura antes de salvar.', 'error');
+        return false;
+      }
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const dataAssinatura = new Date().toISOString();
+
+      if (isMotorista) {
+        Storage.updateOrdem(os.id, {
+          assinaturaMotorista: dataUrl,
+          dataAssinaturaMotorista: dataAssinatura,
+          assinanteMotoristaNome: nomeAssinante
+        });
+        const userNome = currentUser ? currentUser.nome : 'Motorista';
+        Storage.addHistorico(os.id, `Assinatura do motorista (${nomeAssinante}) coletada por ${userNome}`, userNome);
+        showToast('Assinatura do motorista salva com sucesso!', 'success');
+      } else {
+        Storage.updateOrdem(os.id, {
+          assinaturaCliente: dataUrl,
+          dataAssinatura: dataAssinatura,
+          assinanteNome: nomeAssinante
+        });
+        const userNome = currentUser ? currentUser.nome : 'Motorista';
+        Storage.addHistorico(os.id, `Assinatura do cliente coletada por ${userNome}`, userNome);
+        showToast('Assinatura do cliente salva com sucesso!', 'success');
+      }
+
+      renderListaOS('aguardando');
+      renderListaOS('em_andamento');
+      renderListaOS('concluido');
+      if (typeof currentPage !== 'undefined' && currentPage === 'os-detail' && currentOSId === os.id) {
+        const updatedOS = Storage.getOrdemById(os.id);
+        renderOSDetail(updatedOS);
+      }
+      return true;
+    });
+
+    setTimeout(() => {
+      initSignatureCanvas();
+    }, 50);
+  }
 
   function assumirServico(id) {
     const os = Storage.getOrdemById(id);
@@ -2351,64 +2595,94 @@ const App = (() => {
       }
     }
 
-    // Actions
-    let actionsHtml = '';
+    // Actions (Bandeja Minimalista de Ações)
     const isAdminMaster = currentUser && (currentUser.usuario === 'admin' || currentUser.role === 'role_admin' || currentUser.usuario === 'suprabikemarketing@gmail.com');
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
     const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento';
     const canEditar = temPermissao('editar_os') && (os.status === 'aguardando' || isAdminMaster);
     const canExcluir = temPermissao('excluir_os') || isAdminMaster;
-    const canWhatsApp = true; // Sempre ativo em todas as OS
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
 
-    if (canAssumir) {
-      actionsHtml += `<button class="btn btn-blue btn-block" id="btn-detail-assumir">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-        Assumir Serviço</button>`;
-    }
-    if (canDelegar) {
-      actionsHtml += `<button class="btn btn-blue btn-block" id="btn-detail-delegar" style="background:var(--accent);border-color:var(--accent)">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
-        Delegar Serviço</button>`;
-    }
-    if (canEditar) {
-      actionsHtml += `<button class="btn btn-secondary btn-block" id="btn-detail-editar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-        Editar OS</button>`;
-    }
+    let heroActionHtml = '';
     if (canConcluir) {
-      actionsHtml += `<button class="btn btn-success btn-block" id="btn-detail-concluir">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Concluir Serviço</button>`;
+      heroActionHtml = `<button class="btn btn-success action-tray-hero-btn" id="btn-detail-concluir" style="background:#22c55e; border-color:#22c55e;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Concluir Serviço
+      </button>`;
+    } else if (canAssumir) {
+      heroActionHtml = `<button class="btn btn-blue action-tray-hero-btn" id="btn-detail-assumir" style="background:#2563eb; border-color:#2563eb;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        Assumir Serviço
+      </button>`;
     }
-    if (os.status === 'em_andamento' || os.status === 'aguardando') {
-      actionsHtml += `
-        <button class="btn btn-primary btn-block" id="btn-detail-pdf-os-andamento" style="background:#2563eb; border-color:#2563eb; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
-          📑 Baixar Ordem de Serviço (PDF)
+
+    let quickGridHtml = `
+      <button type="button" class="action-tray-btn action-tray-btn-sig" id="btn-detail-coletar-assinatura">
+        ✍️ Assinar Cliente
+      </button>
+      <button type="button" class="action-tray-btn action-tray-btn-wa" id="btn-detail-whatsapp">
+        💬 WhatsApp
+      </button>
+      <button type="button" class="action-tray-btn action-tray-btn-pdf" id="btn-detail-pdf-os-andamento">
+        📑 PDF da OS
+      </button>
+      ${canEditar ? `
+        <button type="button" class="action-tray-btn action-tray-btn-edit" id="btn-detail-editar">
+          ✏️ Editar OS
+        </button>
+      ` : ''}
+    `;
+
+    let moreContentHtml = '';
+    moreContentHtml += `
+      <button type="button" class="btn btn-secondary btn-block btn-sm" id="btn-detail-coletar-assinatura-motorista" style="font-size:12px; font-weight:700; color:#3b82f6; border-color:rgba(59,130,246,0.3); background:rgba(59,130,246,0.06);">
+        ✍️ Assinatura Motorista
+      </button>`;
+    if (canDelegar) {
+      moreContentHtml += `
+        <button type="button" class="btn btn-secondary btn-block btn-sm" id="btn-detail-delegar" style="font-size:12px; font-weight:700;">
+          👤 Delegar Serviço a outro técnico
         </button>`;
     }
-    if (canWhatsApp) {
-      actionsHtml += `<button class="btn btn-whatsapp btn-block" id="btn-detail-whatsapp" style="background:#25D366; border-color:#25D366; color:#fff; font-weight:700;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6-4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-        Enviar WhatsApp ao Cliente</button>`;
+    if (os.status === 'concluido' || os.tipo === 'retirada' || os.status === 'retirada_pendente') {
+      moreContentHtml += `
+        <button type="button" class="btn btn-secondary btn-block btn-sm" id="btn-detail-pdf-retirada" style="font-size:12px; font-weight:700;">
+          📋 Baixar Termo de Retirada (PDF)
+        </button>`;
     }
     if (os.status === 'concluido') {
-      actionsHtml += `
-        <div style="margin-top:var(--space-sm); display:flex; flex-direction:column; gap:6px;">
-          <button class="btn btn-primary btn-block" id="btn-detail-pdf-entrega" style="background:#22c55e; border-color:#22c55e; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
-            📄 Baixar Termo de Entrega (PDF)
-          </button>
-          <button class="btn btn-primary btn-block" id="btn-detail-pdf-retirada" style="background:#f59e0b; border-color:#f59e0b; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
-            📋 Baixar Termo de Retirada (PDF)
-          </button>
-          <button class="btn btn-primary btn-block" id="btn-detail-pdf-os" style="background:#2563eb; border-color:#2563eb; color:white; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
-            📑 Baixar Ordem de Serviço (PDF)
-          </button>
-        </div>`;
+      moreContentHtml += `
+        <button type="button" class="btn btn-secondary btn-block btn-sm" id="btn-detail-pdf-entrega" style="font-size:12px; font-weight:700;">
+          📄 Baixar Termo de Entrega (PDF)
+        </button>`;
     }
     if (canExcluir) {
-      actionsHtml += `<button class="btn btn-danger btn-block btn-sm mt-md" id="btn-detail-excluir">Excluir OS</button>`;
+      moreContentHtml += `
+        <button type="button" class="btn btn-danger btn-block btn-sm" id="btn-detail-excluir" style="margin-top:6px; font-size:12px;">
+          🗑️ Excluir Ordem de Serviço
+        </button>`;
     }
+
+    let actionsHtml = `
+      <div class="action-tray-container">
+        <div class="action-tray-header">Ações do Serviço</div>
+        ${heroActionHtml}
+        <div class="action-tray-grid">
+          ${quickGridHtml}
+        </div>
+        ${moreContentHtml ? `
+          <details class="action-tray-more">
+            <summary class="action-tray-more-summary">
+              <span>⚙️ Mais Opções e PDFs</span>
+              <svg class="action-tray-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="action-tray-more-content">
+              ${moreContentHtml}
+            </div>
+          </details>
+        ` : ''}
+      </div>
+    `;
 
     const telMostrar = temPermissao('ver_valores_cliente') ? Utils.formatarTelefone(os.clienteTelefone) : '🔒 Restrito';
     const pagamentoStr = temPermissao('ver_valores_cliente') ? Utils.traduzirPagamento(os.formaPagamento) : '🔒 Restrito';
@@ -2502,6 +2776,28 @@ const App = (() => {
 
       ${camposHtml}
 
+      ${os.assinaturaCliente ? `
+        <div class="os-detail-section">
+          <div class="os-detail-section-title" style="color:#22c55e;">✅ Assinatura Digital do Cliente</div>
+          <div class="signature-preview-card">
+            <img src="${os.assinaturaCliente}" class="signature-preview-img" alt="Assinatura do Cliente">
+            <div style="font-size:11px; color:var(--text-secondary); text-align:center;">
+              Assinado em <strong>${Utils.formatarDataHora(os.dataAssinatura)}</strong> ${os.assinanteNome ? `por <strong>${Utils.escapeHtml(os.assinanteNome)}</strong>` : ''}
+            </div>
+          </div>
+        </div>` : ''}
+
+      ${os.assinaturaMotorista ? `
+        <div class="os-detail-section">
+          <div class="os-detail-section-title" style="color:#3b82f6;">✅ Assinatura Digital do Motorista / Técnico</div>
+          <div class="signature-preview-card" style="background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.3);">
+            <img src="${os.assinaturaMotorista}" class="signature-preview-img" alt="Assinatura do Motorista">
+            <div style="font-size:11px; color:var(--text-secondary); text-align:center;">
+              Assinado em <strong>${Utils.formatarDataHora(os.dataAssinaturaMotorista)}</strong> ${os.assinanteMotoristaNome ? `por <strong>${Utils.escapeHtml(os.assinanteMotoristaNome)}</strong>` : ''}
+            </div>
+          </div>
+        </div>` : ''}
+
       <div class="os-detail-section">
         <div class="os-detail-section-title">Histórico da OS</div>
         <div class="timeline">
@@ -2551,6 +2847,16 @@ const App = (() => {
     if (btnWhatsApp) btnWhatsApp.addEventListener('click', () => {
       openModalEnviarWhatsApp(os);
     });
+
+    const btnColetarAssinatura = document.getElementById('btn-detail-coletar-assinatura');
+    if (btnColetarAssinatura) {
+      btnColetarAssinatura.addEventListener('click', () => openModalColetarAssinatura(os.id, 'cliente'));
+    }
+
+    const btnColetarAssinaturaMot = document.getElementById('btn-detail-coletar-assinatura-motorista');
+    if (btnColetarAssinaturaMot) {
+      btnColetarAssinaturaMot.addEventListener('click', () => openModalColetarAssinatura(os.id, 'motorista'));
+    }
 
     const btnTicketWa = document.getElementById('btn-ticket-wa-icon');
     if (btnTicketWa) btnTicketWa.addEventListener('click', (e) => {
