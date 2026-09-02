@@ -10,6 +10,8 @@ const App = (() => {
   let currentOSId = null;
   let editingOS = null;
   let origemRetiradaId = null;
+  let currentMotoristaRetSubtab = 'pendentes';
+  let currentMotoristaEntSubtab = 'pendentes';
   let currentServicosSubtab = 'servicos';
   let fotosAnexadas = [];
   let deferredPwaPrompt = null;
@@ -212,6 +214,65 @@ const App = (() => {
       searchMotEnt.addEventListener('input', Utils.debounce(() => {
         renderMotoristaEntregas();
       }, 300));
+    }
+
+    // Sub-abas Motorista (Pendentes / Concluídas)
+    const btnRetPend = document.getElementById('motorista-ret-subtab-pendentes');
+    const btnRetConc = document.getElementById('motorista-ret-subtab-concluidas');
+    if (btnRetPend && btnRetConc) {
+      btnRetPend.addEventListener('click', () => {
+        currentMotoristaRetSubtab = 'pendentes';
+        btnRetPend.classList.add('active');
+        btnRetPend.style.background = '#ffffff';
+        btnRetPend.style.color = '#0f172a';
+        btnRetPend.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
+        btnRetConc.classList.remove('active');
+        btnRetConc.style.background = 'transparent';
+        btnRetConc.style.color = '#64748b';
+        btnRetConc.style.boxShadow = 'none';
+        renderMotoristaRetiradas();
+      });
+      btnRetConc.addEventListener('click', () => {
+        currentMotoristaRetSubtab = 'concluidas';
+        btnRetConc.classList.add('active');
+        btnRetConc.style.background = '#ffffff';
+        btnRetConc.style.color = '#0f172a';
+        btnRetConc.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
+        btnRetPend.classList.remove('active');
+        btnRetPend.style.background = 'transparent';
+        btnRetPend.style.color = '#64748b';
+        btnRetPend.style.boxShadow = 'none';
+        renderMotoristaRetiradas();
+      });
+    }
+
+    const btnEntPend = document.getElementById('motorista-ent-subtab-pendentes');
+    const btnEntConc = document.getElementById('motorista-ent-subtab-concluidas');
+    if (btnEntPend && btnEntConc) {
+      btnEntPend.addEventListener('click', () => {
+        currentMotoristaEntSubtab = 'pendentes';
+        btnEntPend.classList.add('active');
+        btnEntPend.style.background = '#ffffff';
+        btnEntPend.style.color = '#0f172a';
+        btnEntPend.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
+        btnEntConc.classList.remove('active');
+        btnEntConc.style.background = 'transparent';
+        btnEntConc.style.color = '#64748b';
+        btnEntConc.style.boxShadow = 'none';
+        renderMotoristaEntregas();
+      });
+      btnEntConc.addEventListener('click', () => {
+        currentMotoristaEntSubtab = 'concluidas';
+        btnEntConc.classList.add('active');
+        btnEntConc.style.background = '#ffffff';
+        btnEntConc.style.color = '#0f172a';
+        btnEntConc.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
+        btnEntPend.classList.remove('active');
+        btnEntPend.style.background = 'transparent';
+        btnEntPend.style.color = '#64748b';
+        btnEntPend.style.boxShadow = 'none';
+        renderMotoristaEntregas();
+      });
     }
 
     const searchConcluidos = document.getElementById('search-concluidos-input');
@@ -890,8 +951,8 @@ const App = (() => {
       'concluidos': 'Concluídos',
       'admin': 'Configurações',
       'os-detail': 'Detalhes da OS',
-      'motorista-retiradas': 'Painel Motorista — Retiradas',
-      'motorista-entregas': 'Painel Motorista — Entregas'
+      'motorista-retiradas': 'Retiradas de Veículos',
+      'motorista-entregas': 'Entregas de Veículos'
     };
     document.getElementById('header-title').textContent = titles[page] || 'Boa Gestão';
   }
@@ -946,7 +1007,7 @@ const App = (() => {
           item.style.display = 'none';
         }
       } else {
-        if (page === 'motorista-retiradas' || page === 'motorista-entregas') {
+        if (page === 'motorista-entregas') {
           item.style.display = 'none';
         } else if (page === 'nova-os') {
           item.style.display = temPermissao('criar_os') ? 'flex' : 'none';
@@ -1032,137 +1093,6 @@ const App = (() => {
     const container = document.getElementById(containerId);
     const countEl = document.getElementById(countId);
     if (!container) return;
-
-    container.innerHTML = '';
-
-    // Se for a aba 'aguardando' e estiver na sub-aba RETIRADA
-    if (status === 'aguardando' && currentServicosSubtab === 'retirada') {
-      let ordensRetirada = Storage.getOrdens().filter(o => (o.tipo === 'retirada' || o.status === 'retirada_pendente') && o.status !== 'convertida');
-
-      const searchGeneral = document.getElementById('search-input');
-      const rawQuery = searchGeneral ? searchGeneral.value.trim() : '';
-      const qClean = Utils.removerAcentos(rawQuery);
-
-      if (qClean) {
-        ordensRetirada = ordensRetirada.filter(os =>
-          Utils.removerAcentos(os.id || '').includes(qClean) ||
-          Utils.removerAcentos(os.clienteNome || '').includes(qClean) ||
-          Utils.removerAcentos(os.clienteTelefone || '').includes(qClean) ||
-          Utils.removerAcentos(os.modeloVeiculo || '').includes(qClean)
-        );
-      }
-
-      if (countEl) countEl.textContent = ordensRetirada.length;
-
-      if (ordensRetirada.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <div class="empty-state-title">Nenhuma ordem de retirada em espera</div>
-            <div class="empty-state-text">${rawQuery ? 'Tente outro termo de busca' : 'Clique no botão "Ordem de Retirada" na Home para registrar.'}</div>
-          </div>`;
-        return;
-      }
-
-      let htmlResult = '';
-      ordensRetirada.forEach(os => {
-        const dataStr = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : '';
-        htmlResult += `
-          <div class="os-card os-card-retirada" data-id="${os.id}" style="cursor:pointer; margin-bottom:var(--space-md); border-left:4px solid #f59e0b; padding:var(--space-md); background:var(--bg-surface); border-radius:var(--radius-lg); border:1px solid var(--glass-border); border-left:4px solid #f59e0b;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--space-xs);">
-              <div>
-                <div style="font-weight:800; font-size:var(--font-md); color:#f59e0b;">${os.id}</div>
-                <div style="font-weight:800; font-size:15px; color:var(--text-primary); margin-top:2px;">${Utils.escapeHtml(os.clienteNome)}</div>
-                <div style="font-size:var(--font-xs); color:var(--text-secondary); margin-top:2px;">
-                  🛵 ${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')} (${Utils.escapeHtml(os.corVeiculo || 'Cor')}) · 📅 ${dataStr}
-                </div>
-              </div>
-              ${os.assinaturaCliente ? `<span class="badge badge-assinatura-ok" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:10px; padding:3px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);" title="Assinado em ${new Date(os.dataAssinatura).toLocaleString('pt-BR')}">✅ Assinado</span>` : '<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:10px; padding:3px 8px; font-weight:700;">Retirada em Espera</span>'}
-            </div>
-
-            <div style="font-size:var(--font-xs); color:var(--text-tertiary); margin-bottom:var(--space-sm); border-top:1px dashed rgba(255,255,255,0.06); padding-top:6px;">
-              📝 ${Utils.escapeHtml(os.observacoes || 'Ordem de Retirada cadastrada')}
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-              <button class="btn btn-secondary btn-sm btn-coletar-assinatura-retirada" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
-                ✍️ Assinar ${os.assinaturaCliente ? '✅' : ''}
-              </button>
-              <button class="btn btn-secondary btn-sm btn-fotos-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
-                📷 Fotos ${os.temFotos && os.fotos.length ? `(${os.fotos.length})` : ''}
-              </button>
-              <button class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2;">
-                📄 Baixar PDF do Termo
-              </button>
-              <button class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; padding:10px; margin-top:2px;">
-                ✅ Concluir Retirada
-              </button>
-              ${temPermissao('configuracoes') || temPermissao('excluir_os') ? `
-                <button class="btn btn-danger btn-sm btn-excluir-retirada-card" data-id="${os.id}" style="font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; grid-column:span 2; background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.3); color:#ef4444; padding:8px; border-radius:8px; font-size:12px;">
-                  🗑️ Excluir Ordem de Retirada
-                </button>
-              ` : ''}
-            </div>
-          </div>
-        `;
-      });
-
-      container.innerHTML = htmlResult;
-
-      container.querySelectorAll('.btn-coletar-assinatura-retirada').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openModalColetarAssinatura(btn.dataset.id);
-        });
-      });
-
-      container.querySelectorAll('.btn-fotos-retirada-card').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const os = Storage.getOrdemById(btn.dataset.id);
-          if (os) openModalFotosRetirada(os);
-        });
-      });
-
-      container.querySelectorAll('.btn-confirmar-retirada').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          confirmarRetiradaParaServico(btn.dataset.id);
-        });
-      });
-
-      container.querySelectorAll('.btn-pdf-retirada-card').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          Utils.gerarPDFRetiradaDoc(btn.dataset.id);
-        });
-      });
-
-      container.querySelectorAll('.btn-excluir-retirada-card').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (confirm(`Tem certeza que deseja excluir a Ordem de Retirada ${btn.dataset.id}?`)) {
-            Storage.deleteOrdem(btn.dataset.id, currentUser ? currentUser.nome : 'Sistema');
-            showToast(`Ordem ${btn.dataset.id} excluída com sucesso!`, 'info');
-            renderListaOS('aguardando');
-            updateDashboard();
-          }
-        });
-      });
-
-      // Click on card body → edit retirada
-      container.querySelectorAll('.os-card-retirada').forEach(card => {
-        card.addEventListener('click', (e) => {
-          if (e.target.closest('button')) return;
-          const os = Storage.getOrdemById(card.dataset.id);
-          if (os) openModalNovaOrdemRetirada(os);
-        });
-      });
-
-      return;
-    }
 
     let ordens = Storage.getOrdensByStatus(status);
     if (status === 'aguardando') {
@@ -1317,22 +1247,30 @@ const App = (() => {
     if (!container) return;
 
     const ordens = Storage.getOrdens();
-    const retiradasPai = ordens.filter(o => {
+    const todasRetiradas = ordens.filter(o => {
       if (o.deletado) return false;
-      if (o.status === 'entregue' || o.status === 'concluido') return false;
       const isRetiradaType = o.tipo === 'retirada' || (o.id && o.id.startsWith('RET-')) || o.status === 'retirada_pendente';
       const hasRetiradaServico = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
       return isRetiradaType || hasRetiradaServico;
     });
 
-    const countEl = document.getElementById('count-motorista-retiradas');
-    if (countEl) countEl.textContent = retiradasPai.length;
-    setBadge('badge-motorista-retiradas', retiradasPai.length);
+    const pendentes = todasRetiradas.filter(o => o.status !== 'convertida' && o.status !== 'coletado' && o.status !== 'entregue' && o.status !== 'concluido');
+    const concluidas = todasRetiradas.filter(o => o.status === 'convertida' || o.status === 'coletado');
+
+    const countPend = document.getElementById('count-mot-ret-pendentes');
+    if (countPend) countPend.textContent = pendentes.length;
+    const countConc = document.getElementById('count-mot-ret-concluidas');
+    if (countConc) countConc.textContent = concluidas.length;
+    const countHeader = document.getElementById('count-motorista-retiradas');
+    if (countHeader) countHeader.textContent = pendentes.length;
+
+    setBadge('badge-motorista-retiradas', pendentes.length);
 
     const searchInput = document.getElementById('search-motorista-retiradas');
     const qClean = searchInput && searchInput.value ? Utils.removerAcentos(searchInput.value.trim().toLowerCase()) : '';
 
-    let listToRender = retiradasPai;
+    let listToRender = currentMotoristaRetSubtab === 'concluidas' ? concluidas : pendentes;
+
     if (qClean) {
       listToRender = listToRender.filter(o =>
         Utils.removerAcentos(o.id || '').toLowerCase().includes(qClean) ||
@@ -1343,27 +1281,40 @@ const App = (() => {
     }
 
     if (listToRender.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
-          <div style="font-size:2.5rem; margin-bottom:10px;">🚚</div>
-          <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma retirada pendente no momento</div>
-          <div style="font-size:13px; color:var(--text-tertiary);">Todas as coletas de veículos estão em dia. Quando houver novos agendamentos de retirada, eles aparecerão aqui automaticamente.</div>
-        </div>
-      `;
+      if (currentMotoristaRetSubtab === 'concluidas') {
+        container.innerHTML = `
+          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">✅</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma retirada concluída ainda</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">As retiradas finalizadas aparecerão nesta aba para sua consulta.</div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">🚚</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma retirada pendente no momento</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">Todas as coletas de veículos estão em dia. Quando houver novos agendamentos, eles aparecerão aqui.</div>
+          </div>
+        `;
+      }
       return;
     }
 
     let html = '';
     listToRender.forEach(os => {
-      const dataStr = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : '—';
-      const linkWa = os.clienteTelefone ? Utils.gerarLinkWhatsApp(os.clienteTelefone, `Olá ${os.clienteNome}, sou o motorista da Supra Bike e estou a caminho para a retirada da sua moto.`) : null;
-      const mapUrl = os.clienteEndereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(os.clienteEndereco)}` : null;
+      const isConcluida = os.status === 'convertida' || os.status === 'coletado';
+      const statusLabel = isConcluida 
+        ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Coletado</span>`
+        : (os.assinaturaCliente ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>` : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`);
+
+      const borderCol = isConcluida ? '#22c55e' : '#f59e0b';
 
       html += `
-        <div class="os-card" style="border-left:4px solid #f59e0b; background:var(--bg-surface); padding:16px; border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
+        <div class="os-card" style="border-left:4px solid ${borderCol}; background:var(--bg-surface); padding:16px; border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
             <div>
-              <div style="font-weight:800; font-size:1.1rem; color:#f59e0b;">${os.id}</div>
+              <div style="font-weight:800; font-size:1.1rem; color:${borderCol};">${os.id}</div>
               <div style="font-weight:800; font-size:16px; color:var(--text-primary); margin-top:2px;">👤 ${Utils.escapeHtml(os.clienteNome)}</div>
               ${os.clienteTelefone ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</div>` : ''}
               ${os.clienteEndereco ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${Utils.escapeHtml(os.clienteEndereco)}</div>` : ''}
@@ -1372,7 +1323,7 @@ const App = (() => {
               </div>
             </div>
             <div style="text-align:right;">
-              ${os.assinaturaCliente ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>` : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`}
+              ${statusLabel}
             </div>
           </div>
 
@@ -1383,9 +1334,27 @@ const App = (() => {
             <button type="button" class="btn btn-secondary btn-sm btn-fotos-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
               📷 Fotos ${os.temFotos && os.fotos.length ? `(${os.fotos.length})` : ''}
             </button>
-            <button type="button" class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
-              ✅ Concluir Retirada (Coletado)
-            </button>
+            ${isConcluida ? `
+              <div style="grid-column:span 2; display:flex; flex-direction:column; gap:8px;">
+                <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#15803d; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
+                  ✅ Retirada Concluída (Coletado)
+                </div>
+                ${!isMotoristaUser() ? `
+                  <button type="button" class="btn btn-primary btn-sm btn-converter-retirada-os" data-id="${os.id}" style="background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:700; padding:12px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
+                    📋 Criar OS para Mecânicos
+                  </button>
+                ` : ''}
+              </div>
+            ` : `
+              <button type="button" class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" style="background:#2563eb; border-color:#2563eb; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
+                ✅ Concluir Retirada (Coletado)
+              </button>
+              ${!isMotoristaUser() ? `
+                <button type="button" class="btn btn-secondary btn-sm btn-converter-retirada-os" data-id="${os.id}" style="font-weight:700; grid-column:span 2; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; color:#8b5cf6; border-color:rgba(139,92,246,0.3);">
+                  📋 Criar OS para Mecânicos
+                </button>
+              ` : ''}
+            `}
           </div>
         </div>`;
     });
@@ -1414,6 +1383,17 @@ const App = (() => {
         confirmarRetiradaParaServico(btn.dataset.id);
       };
     });
+
+    container.querySelectorAll('.btn-converter-retirada-os').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const osData = Storage.getOrdemById(btn.dataset.id);
+        if (osData) {
+          navigateTo('nova-os');
+          renderNovaOS(osData, true);
+        }
+      };
+    });
   }
 
   function renderMotoristaEntregas() {
@@ -1421,16 +1401,25 @@ const App = (() => {
     if (!container) return;
 
     const ordens = Storage.getOrdens();
-    const entregasPai = ordens.filter(o => (o.status === 'concluido' || o.temDataEntrega) && o.status !== 'entregue');
+    const todasEntregas = ordens.filter(o => o.status === 'concluido' || o.temDataEntrega || o.status === 'entregue');
 
-    const countEl = document.getElementById('count-motorista-entregas');
-    if (countEl) countEl.textContent = entregasPai.length;
-    setBadge('badge-motorista-entregas', entregasPai.length);
+    const pendentes = todasEntregas.filter(o => o.status !== 'entregue');
+    const concluidas = todasEntregas.filter(o => o.status === 'entregue');
+
+    const countPend = document.getElementById('count-mot-ent-pendentes');
+    if (countPend) countPend.textContent = pendentes.length;
+    const countConc = document.getElementById('count-mot-ent-concluidas');
+    if (countConc) countConc.textContent = concluidas.length;
+    const countHeader = document.getElementById('count-motorista-entregas');
+    if (countHeader) countHeader.textContent = pendentes.length;
+
+    setBadge('badge-motorista-entregas', pendentes.length);
 
     const searchInput = document.getElementById('search-motorista-entregas');
     const qClean = searchInput && searchInput.value ? Utils.removerAcentos(searchInput.value.trim().toLowerCase()) : '';
 
-    let listToRender = entregasPai;
+    let listToRender = currentMotoristaEntSubtab === 'concluidas' ? concluidas : pendentes;
+
     if (qClean) {
       listToRender = listToRender.filter(o =>
         Utils.removerAcentos(o.id || '').toLowerCase().includes(qClean) ||
@@ -1441,14 +1430,24 @@ const App = (() => {
     }
 
     if (listToRender.length === 0) {
-      container.innerHTML = `<div class="empty-state" style="text-align:center; padding:30px; color:var(--text-tertiary);">Nenhuma entrega pendente encontrada.</div>`;
+      if (currentMotoristaEntSubtab === 'concluidas') {
+        container.innerHTML = `
+          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">✅</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma entrega concluída ainda</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">As entregas finalizadas aparecerão nesta aba.</div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `<div class="empty-state" style="text-align:center; padding:30px; color:var(--text-tertiary);">Nenhuma entrega pendente encontrada.</div>`;
+      }
       return;
     }
 
     let html = '';
     listToRender.forEach(os => {
-      const linkWa = os.clienteTelefone ? Utils.gerarLinkWhatsApp(os.clienteTelefone, `Olá ${os.clienteNome}, sou o motorista da Supra Bike e estou a caminho para realizar a entrega da sua moto.`) : null;
-      const mapUrl = os.clienteEndereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(os.clienteEndereco)}` : null;
+      const isEntregue = os.status === 'entregue';
+      const borderCol = isEntregue ? '#10b981' : '#f59e0b';
 
       let cobrancaTxt = '';
       if (os.statusPagamento === 'pago') {
@@ -1461,10 +1460,10 @@ const App = (() => {
       }
 
       html += `
-        <div class="os-card" style="border-left:4px solid #10b981; background:var(--bg-surface); padding:16px; border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
+        <div class="os-card" style="border-left:4px solid ${borderCol}; background:var(--bg-surface); padding:16px; border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
             <div>
-              <div style="font-weight:800; font-size:1.1rem; color:#10b981;">${os.id}</div>
+              <div style="font-weight:800; font-size:1.1rem; color:${borderCol};">${os.id}</div>
               <div style="font-weight:800; font-size:16px; color:var(--text-primary); margin-top:2px;">👤 ${Utils.escapeHtml(os.clienteNome)}</div>
               ${os.clienteTelefone ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</div>` : ''}
               ${os.clienteEndereco ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${Utils.escapeHtml(os.clienteEndereco)}</div>` : ''}
@@ -1473,7 +1472,7 @@ const App = (() => {
               </div>
             </div>
             <div style="text-align:right;">
-              ${os.assinaturaEntrega ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>` : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`}
+              ${isEntregue ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Entregue</span>` : (os.assinaturaEntrega ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>` : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`)}
             </div>
           </div>
 
@@ -1488,9 +1487,15 @@ const App = (() => {
             <button type="button" class="btn btn-secondary btn-sm btn-fotos-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
               📷 Fotos ${os.temFotos && os.fotos.length ? `(${os.fotos.length})` : ''}
             </button>
-            <button type="button" class="btn btn-primary btn-sm btn-confirmar-entrega-motorista" data-id="${os.id}" style="background:#10b981; border-color:#10b981; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
-              ✅ Concluir Entrega (Entregue)
-            </button>
+            ${isEntregue ? `
+              <div style="grid-column:span 2; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#15803d; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
+                ✅ Entrega Concluída (Entregue)
+              </div>
+            ` : `
+              <button type="button" class="btn btn-primary btn-sm btn-confirmar-entrega-motorista" data-id="${os.id}" style="background:#10b981; border-color:#10b981; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
+                ✅ Concluir Entrega (Entregue)
+              </button>
+            `}
           </div>
         </div>`;
     });
@@ -2117,9 +2122,9 @@ const App = (() => {
 
     const motoristaRetiradasCount = ordens.filter(o => {
       if (o.deletado) return false;
-      if (o.status === 'entregue' || o.status === 'concluido') return false;
-      const isRetiradaType = o.tipo === 'retirada' || (o.id && o.id.startsWith('RET-')) || o.status === 'retirada_pendente' || o.status === 'aguardando';
-      const hasRetiradaServico = Array.isArray(o.servicos) && o.servicos.some(s => s.descricao && s.descricao.toLowerCase().includes('retirada'));
+      if (o.status === 'entregue' || o.status === 'concluido' || o.status === 'convertida' || o.status === 'coletado') return false;
+      const isRetiradaType = o.tipo === 'retirada' || (o.id && o.id.startsWith('RET-')) || o.status === 'retirada_pendente';
+      const hasRetiradaServico = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
       return isRetiradaType || hasRetiradaServico;
     }).length;
 
@@ -2128,13 +2133,18 @@ const App = (() => {
       return (o.status === 'concluido' || o.temDataEntrega) && o.status !== 'entregue';
     }).length;
 
-    const normalAguardando = ordens.filter(o => o.status === 'aguardando' && o.tipo !== 'retirada' && o.status !== 'retirada_pendente').length;
-    const totalAguardando = normalAguardando + motoristaRetiradasCount;
+    const normalAguardando = ordens.filter(o => {
+      if (o.deletado) return false;
+      if (o.status !== 'aguardando') return false;
+      const isRetiradaType = o.tipo === 'retirada' || (o.id && o.id.startsWith('RET-')) || o.status === 'retirada_pendente';
+      const hasRetiradaServico = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
+      return !isRetiradaType && !hasRetiradaServico;
+    }).length;
 
-    const andamento = ordens.filter(o => o.status === 'em_andamento').length;
-    const concluido = ordens.filter(o => o.status === 'concluido').length;
+    const andamento = ordens.filter(o => !o.deletado && o.status === 'em_andamento').length;
+    const concluido = ordens.filter(o => !o.deletado && o.status === 'concluido').length;
 
-    setBadge('badge-servicos', totalAguardando);
+    setBadge('badge-servicos', normalAguardando);
     setBadge('badge-andamento', andamento);
     setBadge('badge-concluidos', concluido);
     setBadge('badge-motorista-retiradas', motoristaRetiradasCount);
@@ -2568,17 +2578,21 @@ const App = (() => {
   function confirmarRetiradaParaServico(retiradaId) {
     const osRetirada = Storage.getOrdemById(retiradaId);
     if (!osRetirada) return;
-    // Marca a retirada como convertida
     Storage.updateOrdem(retiradaId, { status: 'convertida', atualizadoEm: new Date().toISOString() });
-    showToast(`Retirada ${retiradaId} concluída! Vá em Serviços para abrir a OS.`, 'success');
-    renderListaOS('aguardando');
-    updateNavBadges();
-    // Navega para a aba Serviços (subtab normal)
-    navigateTo('servicos');
-    setTimeout(() => {
-      const subtabServicos = document.getElementById('subtab-servicos');
-      if (subtabServicos) subtabServicos.click();
-    }, 100);
+    showToast(`Retirada ${retiradaId} concluída com sucesso!`, 'success');
+    
+    if (isMotoristaUser()) {
+      renderMotoristaRetiradas();
+      updateNavBadges();
+    } else {
+      renderListaOS('aguardando');
+      updateNavBadges();
+      navigateTo('servicos');
+      setTimeout(() => {
+        const subtabServicos = document.getElementById('subtab-servicos');
+        if (subtabServicos) subtabServicos.click();
+      }, 100);
+    }
   }
 
   let isVisitaTecnicaForm = false;
@@ -2689,8 +2703,8 @@ const App = (() => {
       if (osData.statusPagamento === 'parcial' && inputEntradaReset) {
         inputEntradaReset.value = osData.valorEntrada || '';
       }
-      atualizarCalculoPagamentoParcial();
-      document.getElementById('os-prioridade').value = osData.prioridade;
+      const elPrio = document.getElementById('os-prioridade');
+      if (elPrio) elPrio.value = osData.prioridade || 'normal';
       document.getElementById('os-observacoes').value = osData.observacoes || '';
 
       if (osData.temDataEntrega && osData.dataEntrega) {
@@ -2990,14 +3004,21 @@ const App = (() => {
 
     const elEndereco = document.getElementById('os-endereco');
     const elCpf = document.getElementById('os-cpf');
+    const elPrioridade = document.getElementById('os-prioridade');
+    const elModelo = document.getElementById('os-modelo');
+    const elCor = document.getElementById('os-cor');
+    const elObs = document.getElementById('os-observacoes');
+    const elNome = document.getElementById('os-cliente-nome');
+    const elTel = document.getElementById('os-telefone');
+
     const osData = {
       tipo: isVisitaTecnicaForm ? 'visita_tecnica' : (editingOS ? (editingOS.tipo || 'os') : 'os'),
-      clienteNome: document.getElementById('os-cliente-nome').value.trim(),
-      clienteTelefone: document.getElementById('os-telefone').value.trim(),
+      clienteNome: elNome ? elNome.value.trim() : '',
+      clienteTelefone: elTel ? elTel.value.trim() : '',
       clienteCpf: elCpf ? elCpf.value.trim() : '',
       clienteEndereco: elEndereco ? elEndereco.value.trim() : '',
-      modeloVeiculo: document.getElementById('os-modelo').value,
-      corVeiculo: document.getElementById('os-cor').value,
+      modeloVeiculo: elModelo ? elModelo.value : '',
+      corVeiculo: elCor ? elCor.value : '',
       servicos,
       valorTotal,
       valorEntrada,
@@ -3011,18 +3032,18 @@ const App = (() => {
       motoristaEntrega,
       temFotos,
       fotos,
-      prioridade: document.getElementById('os-prioridade').value,
+      prioridade: elPrioridade ? elPrioridade.value : (editingOS ? (editingOS.prioridade || 'normal') : 'normal'),
       status: editingOS ? editingOS.status : 'aguardando',
-      atendente: editingOS ? editingOS.atendente : currentUser.nome,
+      atendente: editingOS ? editingOS.atendente : (currentUser ? currentUser.nome : 'Atendente'),
       mecanico,
-      observacoes: document.getElementById('os-observacoes').value.trim(),
+      observacoes: elObs ? elObs.value.trim() : '',
       camposPersonalizados,
       horaInicio: editingOS ? editingOS.horaInicio : null,
       horaFim: editingOS ? editingOS.horaFim : null,
       tempoTotal: editingOS ? editingOS.tempoTotal : null,
-      criadoPor: editingOS ? editingOS.criadoPor : currentUser.nome,
+      criadoPor: editingOS ? editingOS.criadoPor : (currentUser ? currentUser.nome : 'Sistema'),
       criadoEm: editingOS ? editingOS.criadoEm : new Date().toISOString(),
-      editadoPor: editingOS ? currentUser.nome : null,
+      editadoPor: editingOS ? (currentUser ? currentUser.nome : 'Sistema') : null,
       editadoEm: editingOS ? new Date().toISOString() : null
     };
 

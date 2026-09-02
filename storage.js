@@ -405,6 +405,12 @@ const Storage = (() => {
           delete payload.tipo;
           delete payload.relato_cliente;
           delete payload.criado_por;
+          delete payload.assinante_entrega_nome;
+          delete payload.assinatura_entrega;
+          delete payload.data_assinatura_entrega;
+          delete payload.assinatura_motorista;
+          delete payload.data_assinatura_motorista;
+          delete payload.assinante_motorista_nome;
           await client.from('ordens_servico').upsert(payload);
         }
       } else if (key === KEYS.USUARIOS) {
