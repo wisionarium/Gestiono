@@ -23,6 +23,48 @@ const Utils = (() => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
   }
 
+  function formatarMoedaDigitada(valorInput) {
+    if (valorInput === null || valorInput === undefined) return 'R$ 0,00';
+    let str = String(valorInput).trim();
+    if (!str) return 'R$ 0,00';
+
+    let clean = str.replace(/[^0-9,\.]/g, '');
+    if (!clean) return 'R$ 0,00';
+
+    if (clean.includes(',') || clean.includes('.')) {
+      const normalized = clean.replace(',', '.');
+      const parts = normalized.split('.');
+      const inteiro = parts[0] || '0';
+      const decimal = (parts[1] || '').slice(0, 2);
+      const valNum = parseFloat(`${inteiro}.${decimal.padEnd(2, '0')}`);
+      return isNaN(valNum) ? 'R$ 0,00' : formatarMoeda(valNum);
+    }
+
+    const valNum = parseFloat(clean);
+    if (isNaN(valNum)) return 'R$ 0,00';
+    return formatarMoeda(valNum);
+  }
+
+  function aplicarMascaraMoedaInput(inputElement) {
+    if (!inputElement) return;
+
+    inputElement.addEventListener('focus', function() {
+      if (this.value === 'R$ 0,00' || this.value === 'R$ 0' || this.value === '0') {
+        this.value = '';
+      } else {
+        this.select();
+      }
+    });
+
+    inputElement.addEventListener('blur', function() {
+      if (!this.value.trim()) {
+        this.value = 'R$ 0,00';
+      } else {
+        this.value = formatarMoedaDigitada(this.value);
+      }
+    });
+  }
+
   function formatarTelefone(tel) {
     if (!tel) return '';
     const digits = tel.replace(/\D/g, '');
@@ -360,14 +402,16 @@ const Utils = (() => {
       doc.setTextColor(30, 58, 138); doc.text(' BIKE', pw / 2 + 2, 16, { align: 'left' });
     }
     function drawFotos(fotos, photoAreaY) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(0);
-      doc.text('FOTOS:', ml + 3, photoAreaY);
-      const pwI = 30, phI = 20, pGap = (cw - 6 - (pwI * 5)) / 4;
-      for (let i = 0; i < 5; i++) {
+      if (!fotos || fotos.length === 0) return;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('FOTOS / ANEXOS DO VEÍCULO (' + fotos.length + '):', ml + 3, photoAreaY);
+      const maxFotos = Math.min(fotos.length, 5);
+      const pwI = 32, phI = 22, pGap = 3;
+      for (let i = 0; i < maxFotos; i++) {
         const px = ml + 3 + i * (pwI + pGap);
         doc.setDrawColor(200); doc.setFillColor(250, 250, 250);
         doc.rect(px, photoAreaY + 2, pwI, phI, 'FD');
-        if (fotos && fotos[i]) {
+        if (fotos[i]) {
           try {
             let fmt = 'JPEG';
             if (fotos[i].includes('image/png') || fotos[i].includes('data:image/png')) fmt = 'PNG';
@@ -541,6 +585,12 @@ const Utils = (() => {
 
     // Declaração de recebimento
     y = boxStartY + boxHeight + 6;
+    const validFotosEnt = (os.fotos || []).filter(f => typeof f === 'string' && f.length > 20);
+    if (validFotosEnt.length > 0) {
+      h.drawFotos(validFotosEnt, y);
+      y += 27;
+    }
+
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(70);
     const termoEntrega = "Declaro que recebi o veículo/produto da Supra Bike e confirmo que ele foi entregue em perfeitas condições, após a realização dos serviços de manutenção, conforme verificado no momento da entrega.\nDeclaro ainda que realizei a conferência do veículo/produto e estou ciente de que o seu recebimento representa a aceitação das condições em que foi entregue.\nAo prosseguir, confirmo que li, compreendi e aceito os termos acima.";
     const linesTermoE = doc.splitTextToSize(termoEntrega, cw);
@@ -651,6 +701,12 @@ const Utils = (() => {
 
     // Declaração de ciência e autorização
     y = bsY + bH + 6;
+    const validFotosRet = (os.fotos || []).filter(f => typeof f === 'string' && f.length > 20);
+    if (validFotosRet.length > 0) {
+      h.drawFotos(validFotosRet, y);
+      y += 27;
+    }
+
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(70);
     const termoTexto = "Declaro estar ciente e de acordo com a retirada do meu veículo pela Supra Bike para realização de inspeção técnica, diagnóstico e dos serviços de manutenção que se fizerem necessários.\nAutorizo a equipe técnica da Supra Bike a executar os procedimentos necessários para avaliação e manutenção do veículo, conforme as condições identificadas durante a análise.\nAo prosseguir, confirmo que li, compreendi e aceito os termos acima.";
     const linesTermo = doc.splitTextToSize(termoTexto, cw);
@@ -804,13 +860,17 @@ const Utils = (() => {
       doc.text(obsLines, ml + 6, cY);
     }
 
-    if (hasFotos) {
-      h.drawFotos(validFotos, photoAreaY);
+    // FOTOS ANEXADAS
+    y = bsY + bH + 6;
+    const validFotosOS = (os.fotos || []).filter(f => typeof f === 'string' && f.length > 20);
+    if (validFotosOS.length > 0) {
+      h.drawFotos(validFotosOS, y);
+      y += 27;
     }
 
     // === ASSINATURAS ===
-    y = bsY + bH + 14;
-    if (y > 250) { doc.addPage(); y = 30; }
+    y += 10;
+    if (y > 240) { doc.addPage(); y = 30; }
     h.drawAssinaturas(pw, y, os.mecanico, 'Técnico Responsável', os.assinaturaCliente, os.assinanteNome || os.clienteNome, os.assinaturaMotorista, os.assinanteMotoristaNome);
     h.drawFooter(pw);
 
@@ -870,7 +930,8 @@ const Utils = (() => {
   }
 
   return {
-    gerarCodigoOS, formatarMoeda, formatarTelefone, limparTelefone,
+    gerarCodigoOS, formatarMoeda, formatarMoedaDigitada, aplicarMascaraMoedaInput,
+    formatarTelefone, limparTelefone,
     formatarData, formatarDataHora, formatarHora, calcularTempoTotal,
     traduzirStatus, traduzirVeiculo, traduzirPagamento,
     traduzirStatusPagamento, traduzirRole, formatarDataEntrega,

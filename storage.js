@@ -160,7 +160,8 @@ const Storage = (() => {
         ordens.forEach(o => {
           let tipoFinal = o.tipo;
           if (!tipoFinal) {
-            if (o.status === 'convertida' || o.relato_cliente || (o.id && o.id.startsWith('RET-'))) {
+            const hasRetiradaServ = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
+            if (o.status === 'convertida' || o.relato_cliente || (o.id && o.id.startsWith('RET-')) || hasRetiradaServ) {
               tipoFinal = 'retirada';
             } else {
               tipoFinal = 'os';
@@ -212,7 +213,10 @@ const Storage = (() => {
             assinanteNome: o.assinante_nome || null,
             assinaturaMotorista: o.assinatura_motorista || null,
             dataAssinaturaMotorista: o.data_assinatura_motorista || null,
-            assinanteMotoristaNome: o.assinante_motorista_nome || null
+            assinanteMotoristaNome: o.assinante_motorista_nome || null,
+            assinaturaEntrega: o.assinatura_entrega || null,
+            dataAssinaturaEntrega: o.data_assinatura_entrega || null,
+            assinanteEntregaNome: o.assinante_entrega_nome || null
           });
         });
 
@@ -389,7 +393,10 @@ const Storage = (() => {
           assinante_nome: o.assinanteNome || null,
           assinatura_motorista: o.assinaturaMotorista || null,
           data_assinatura_motorista: o.dataAssinaturaMotorista || null,
-          assinante_motorista_nome: o.assinanteMotoristaNome || null
+          assinante_motorista_nome: o.assinanteMotoristaNome || null,
+          assinatura_entrega: o.assinaturaEntrega || null,
+          data_assinatura_entrega: o.dataAssinaturaEntrega || null,
+          assinante_entrega_nome: o.assinanteEntregaNome || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
         const { error } = await client.from('ordens_servico').upsert(payload);
