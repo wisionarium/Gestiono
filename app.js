@@ -1096,7 +1096,7 @@ const App = (() => {
 
     let ordens = Storage.getOrdensByStatus(status);
     if (status === 'aguardando') {
-      ordens = ordens.filter(o => o.tipo !== 'retirada' && o.status !== 'retirada_pendente');
+      ordens = ordens.filter(o => o.status === 'aguardando' && o.status !== 'retirada_pendente');
     }
 
     // Search filter
@@ -2135,10 +2135,7 @@ const App = (() => {
 
     const normalAguardando = ordens.filter(o => {
       if (o.deletado) return false;
-      if (o.status !== 'aguardando') return false;
-      const isRetiradaType = o.tipo === 'retirada' || (o.id && o.id.startsWith('RET-')) || o.status === 'retirada_pendente';
-      const hasRetiradaServico = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
-      return !isRetiradaType && !hasRetiradaServico;
+      return o.status === 'aguardando' && o.status !== 'retirada_pendente';
     }).length;
 
     const andamento = ordens.filter(o => !o.deletado && o.status === 'em_andamento').length;
@@ -2180,6 +2177,7 @@ const App = (() => {
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
     const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento';
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
+    const canExcluir = temPermissao('configuracoes') || temPermissao('excluir_os');
 
     let fotosBadgeHtml = '';
     if (os.temFotos && Array.isArray(os.fotos) && os.fotos.length > 0) {

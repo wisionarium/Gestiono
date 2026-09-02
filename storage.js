@@ -161,7 +161,7 @@ const Storage = (() => {
           let tipoFinal = o.tipo;
           if (!tipoFinal) {
             const hasRetiradaServ = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
-            if (o.status === 'convertida' || o.relato_cliente || (o.id && o.id.startsWith('RET-')) || hasRetiradaServ) {
+            if (o.status !== 'aguardando' && (o.status === 'convertida' || o.relato_cliente || (o.id && o.id.startsWith('RET-')) || hasRetiradaServ)) {
               tipoFinal = 'retirada';
             } else {
               tipoFinal = 'os';
