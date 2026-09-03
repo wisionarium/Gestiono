@@ -1457,6 +1457,9 @@ const App = (() => {
                     <div style="background:rgba(100,116,139,0.15); border:1px solid rgba(100,116,139,0.3); color:#475569; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
                       ✅ ${isEntregaItem ? 'Entrega Concluída (Entregue)' : 'Retirada Concluída (Coletado)'}
                     </div>
+                    <button type="button" class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; color:#2563eb; border-color:rgba(37,99,235,0.3); background:rgba(37,99,235,0.06);">
+                      📄 Baixar Termo de Retirada (PDF)
+                    </button>
                     ${(!isEntregaItem && !isMotoristaUser()) ? (
                       osCriadaCode ? `
                         <div style="background:rgba(139,92,246,0.12); color:#8b5cf6; font-weight:800; text-align:center; padding:10px; border-radius:8px; font-size:13px; border:1px solid rgba(139,92,246,0.3);">
@@ -1544,6 +1547,14 @@ const App = (() => {
         e.stopPropagation();
         const os = Storage.getOrdemById(btn.dataset.id);
         if (os) openModalFotosRetirada(os);
+      };
+    });
+
+    container.querySelectorAll('.btn-pdf-retirada-card').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const osData = Storage.getOrdemById(btn.dataset.id);
+        if (osData) Utils.gerarPDFRetiradaDoc(osData);
       };
     });
 
@@ -2145,7 +2156,7 @@ const App = (() => {
     }).length;
 
     const andamento = ordens.filter(o => !o.deletado && o.status === 'em_andamento').length;
-    const concluido = ordens.filter(o => !o.deletado && o.status === 'concluido').length;
+    const concluido = ordens.filter(o => !o.deletado && (o.status === 'concluido' || o.status === 'coletado' || o.status === 'convertida' || o.status === 'entregue' || o.statusEntrega === 'entregue')).length;
 
     setBadge('badge-servicos', normalAguardando);
     setBadge('badge-andamento', andamento);
@@ -2637,8 +2648,15 @@ const App = (() => {
     Storage.addHistorico(retiradaId, 'Retirada Concluída pelo Motorista (Coletado)', currentUser ? currentUser.nome : 'Motorista');
     showToast(`Retirada ${retiradaId} concluída com sucesso!`, 'success');
 
+    // Auto-generate Termo de Retirada PDF with customer signature
+    setTimeout(() => {
+      const updatedOS = Storage.getOrdemById(retiradaId);
+      if (updatedOS) Utils.gerarPDFRetiradaDoc(updatedOS);
+    }, 100);
+
     renderMotoristaRetiradas();
     renderListaOS('aguardando');
+    renderListaOS('concluido');
     updateNavBadges();
   }
 
