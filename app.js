@@ -1203,15 +1203,7 @@ const App = (() => {
             <div class="kanban-list">
               ${visibleOrdens.map(os => {
                 let cardHtml = renderOSCard(os);
-                if (os.status === 'concluido' && os.status !== 'entregue' && os.statusEntrega !== 'pendente') {
-                  cardHtml = cardHtml.replace('</div>\n      </div>', `
-                    <div style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.08); padding-top:10px;">
-                      <button type="button" class="btn btn-secondary btn-sm btn-agendar-entrega-card" data-id="${os.id}" style="width:100%; font-weight:700; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#10b981; padding:10px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
-                        📦 Agendar Entrega ao Cliente
-                      </button>
-                    </div>
-                  </div>\n      </div>`);
-                } else if (os.statusEntrega === 'pendente') {
+                if (os.statusEntrega === 'pendente') {
                   cardHtml = cardHtml.replace('</div>\n      </div>', `
                     <div style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.08); padding-top:10px; text-align:center;">
                       <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:800; padding:6px 12px; border-radius:8px;">📦 Entrega Agendada (${os.motoristaEntrega || 'Motorista'})</span>
@@ -3237,6 +3229,9 @@ const App = (() => {
     }
     if (os.status === 'concluido') {
       moreContentHtml += `
+        <button type="button" class="btn btn-secondary btn-block btn-sm" id="btn-detail-agendar-entrega" style="font-size:12px; font-weight:700; color:#10b981; border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.06);">
+          📦 Agendar Entrega ao Cliente
+        </button>
         <button type="button" class="btn btn-secondary btn-block btn-sm" id="btn-detail-pdf-entrega" style="font-size:12px; font-weight:700;">
           📄 Baixar Termo de Entrega (PDF)
         </button>`;
@@ -3459,6 +3454,11 @@ const App = (() => {
     const btnColetarAssinatura = document.getElementById('btn-detail-coletar-assinatura');
     if (btnColetarAssinatura) {
       btnColetarAssinatura.addEventListener('click', () => openModalColetarAssinatura(os.id, 'cliente'));
+    }
+
+    const btnAgendarEntrega = document.getElementById('btn-detail-agendar-entrega');
+    if (btnAgendarEntrega) {
+      btnAgendarEntrega.addEventListener('click', () => openModalAgendarEntrega(os.id));
     }
 
     const btnColetarAssinaturaMot = document.getElementById('btn-detail-coletar-assinatura-motorista');
