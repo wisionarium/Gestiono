@@ -13,6 +13,8 @@ const App = (() => {
   let currentMotoristaRetSubtab = 'pendentes';
   let currentMotoristaEntSubtab = 'pendentes';
   let currentServicosSubtab = 'servicos';
+  let currentConcluidosSubtab = 'servicos';
+  let formSalvoComSucesso = false;
   let fotosAnexadas = [];
   let deferredPwaPrompt = null;
 
@@ -246,33 +248,31 @@ const App = (() => {
       });
     }
 
-    const btnEntPend = document.getElementById('motorista-ent-subtab-pendentes');
-    const btnEntConc = document.getElementById('motorista-ent-subtab-concluidas');
-    if (btnEntPend && btnEntConc) {
-      btnEntPend.addEventListener('click', () => {
-        currentMotoristaEntSubtab = 'pendentes';
-        btnEntPend.classList.add('active');
-        btnEntPend.style.background = '#ffffff';
-        btnEntPend.style.color = '#0f172a';
-        btnEntPend.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
-        btnEntConc.classList.remove('active');
-        btnEntConc.style.background = 'transparent';
-        btnEntConc.style.color = '#64748b';
-        btnEntConc.style.boxShadow = 'none';
-        renderMotoristaEntregas();
-      });
-      btnEntConc.addEventListener('click', () => {
-        currentMotoristaEntSubtab = 'concluidas';
-        btnEntConc.classList.add('active');
-        btnEntConc.style.background = '#ffffff';
-        btnEntConc.style.color = '#0f172a';
-        btnEntConc.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
-        btnEntPend.classList.remove('active');
-        btnEntPend.style.background = 'transparent';
-        btnEntPend.style.color = '#64748b';
-        btnEntPend.style.boxShadow = 'none';
-        renderMotoristaEntregas();
-      });
+    // Sub-abas Concluídos (Serviços / Retiradas / Entregas)
+    const btnConcServ = document.getElementById('concluidos-subtab-servicos');
+    const btnConcRet = document.getElementById('concluidos-subtab-retiradas');
+    const btnConcEnt = document.getElementById('concluidos-subtab-entregas');
+    if (btnConcServ && btnConcRet && btnConcEnt) {
+      const setConcSubtabActive = (activeBtn, tabKey) => {
+        currentConcluidosSubtab = tabKey;
+        [btnConcServ, btnConcRet, btnConcEnt].forEach(btn => {
+          if (btn === activeBtn) {
+            btn.classList.add('active');
+            btn.style.background = '#ffffff';
+            btn.style.color = '#0f172a';
+            btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)';
+          } else {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.color = '#64748b';
+            btn.style.boxShadow = 'none';
+          }
+        });
+        renderListaOS('concluido');
+      };
+      btnConcServ.addEventListener('click', () => setConcSubtabActive(btnConcServ, 'servicos'));
+      btnConcRet.addEventListener('click', () => setConcSubtabActive(btnConcRet, 'retiradas'));
+      btnConcEnt.addEventListener('click', () => setConcSubtabActive(btnConcEnt, 'entregas'));
     }
 
     const searchConcluidos = document.getElementById('search-concluidos-input');
@@ -661,17 +661,18 @@ const App = (() => {
     const isMotorista = isMotoristaUser();
 
     // Restrição estrita de navegação para o perfil de Motorista (Timóteo)
-    if (isMotorista && page !== 'motorista-retiradas' && page !== 'motorista-entregas') {
+    if (isMotorista && page !== 'motorista-retiradas') {
       navigateTo('motorista-retiradas');
       return;
     }
 
     // Alerta de confirmação ao tentar sair de um Orçamento com dados preenchidos
-    if (currentPage === 'nova-os' && page !== 'nova-os' && isNovaOSFormDirty()) {
+    if (currentPage === 'nova-os' && page !== 'nova-os' && isNovaOSFormDirty() && !formSalvoComSucesso) {
       if (!confirm('⚠️ Você possui alterações não salvas no orçamento.\n\nDeseja realmente sair e descartar as informações?')) {
         return;
       }
     }
+    formSalvoComSucesso = false;
 
     if (page === 'nova-os' && !temPermissao('criar_os')) {
       showToast('Acesso restrito!', 'error');
@@ -1001,15 +1002,13 @@ const App = (() => {
     document.querySelectorAll('.nav-item').forEach(item => {
       const page = item.dataset.page;
       if (isMotorista) {
-        if (page === 'motorista-retiradas' || page === 'motorista-entregas') {
+        if (page === 'motorista-retiradas') {
           item.style.display = 'flex';
         } else {
           item.style.display = 'none';
         }
       } else {
-        if (page === 'motorista-entregas') {
-          item.style.display = 'none';
-        } else if (page === 'nova-os') {
+        if (page === 'nova-os') {
           item.style.display = temPermissao('criar_os') ? 'flex' : 'none';
         } else {
           item.style.display = 'flex';
@@ -1148,10 +1147,39 @@ const App = (() => {
       return;
     }
 
-    // Render Especial para Concluídos (Histórico por Seção Temporal)
+    // Render Especial para Concluídos (Histórico por Sub-abas & Seção Temporal)
     if (status === 'concluido') {
+      const todasOrdens = Storage.getOrdens().filter(o => !o.deletado);
+      const cServicos = todasOrdens.filter(o => o.status === 'concluido' && o.tipo !== 'retirada');
+      const cRetiradas = todasOrdens.filter(o => o.status === 'convertida' || o.status === 'coletado' || (o.tipo === 'retirada' && o.status === 'concluido'));
+      const cEntregas = todasOrdens.filter(o => o.status === 'entregue' || o.statusEntrega === 'entregue');
+
+      const elConcServ = document.getElementById('count-conc-servicos');
+      if (elConcServ) elConcServ.textContent = cServicos.length;
+      const elConcRet = document.getElementById('count-conc-retiradas');
+      if (elConcRet) elConcRet.textContent = cRetiradas.length;
+      const elConcEnt = document.getElementById('count-conc-entregas');
+      if (elConcEnt) elConcEnt.textContent = cEntregas.length;
+
+      let listConcluidosToRender = cServicos;
+      if (currentConcluidosSubtab === 'retiradas') listConcluidosToRender = cRetiradas;
+      if (currentConcluidosSubtab === 'entregas') listConcluidosToRender = cEntregas;
+
+      if (countEl) countEl.textContent = listConcluidosToRender.length;
+
+      if (listConcluidosToRender.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">📋</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhum item concluído nesta categoria</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">Os itens finalizados aparecerão aqui para consulta.</div>
+          </div>
+        `;
+        return;
+      }
+
       const groupsMap = {};
-      ordens.forEach(os => {
+      listConcluidosToRender.forEach(os => {
         const groupInfo = getHistoricoGroupInfo(os);
         if (!groupsMap[groupInfo.key]) {
           groupsMap[groupInfo.key] = {
@@ -1186,7 +1214,25 @@ const App = (() => {
               ` : ''}
             </div>
             <div class="kanban-list">
-              ${visibleOrdens.map(os => renderOSCard(os)).join('')}
+              ${visibleOrdens.map(os => {
+                let cardHtml = renderOSCard(os);
+                if (currentConcluidosSubtab === 'servicos' && os.status === 'concluido' && os.status !== 'entregue' && os.statusEntrega !== 'pendente') {
+                  cardHtml = cardHtml.replace('</div>\n      </div>', `
+                    <div style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.08); padding-top:10px;">
+                      <button type="button" class="btn btn-secondary btn-sm btn-agendar-entrega-card" data-id="${os.id}" style="width:100%; font-weight:700; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#10b981; padding:10px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
+                        📦 Agendar Entrega ao Cliente
+                      </button>
+                    </div>
+                  </div>\n      </div>`);
+                } else if (os.statusEntrega === 'pendente') {
+                  cardHtml = cardHtml.replace('</div>\n      </div>', `
+                    <div style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.08); padding-top:10px; text-align:center;">
+                      <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:800; padding:6px 12px; border-radius:8px;">📦 Entrega Agendada (${os.motoristaEntrega || 'Motorista'})</span>
+                    </div>
+                  </div>\n      </div>`);
+                }
+                return cardHtml;
+              }).join('')}
             </div>
           </div>
         `;
@@ -1202,6 +1248,13 @@ const App = (() => {
           historicoExpandedSections[k] = !historicoExpandedSections[k];
           renderListaOS('concluido');
         });
+      });
+
+      container.querySelectorAll('.btn-agendar-entrega-card').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          openModalAgendarEntrega(btn.dataset.id);
+        };
       });
     } else {
       container.innerHTML = ordens.map(os => renderOSCard(os)).join('');
@@ -1369,6 +1422,192 @@ const App = (() => {
       };
     });
 
+  // ---------- RENDERS UNIFICADOS DE LOGÍSTICA (RETIRADAS & ENTREGAS) ----------
+
+  function renderMotoristaRetiradas() {
+    const container = document.getElementById('list-motorista-retiradas');
+    if (!container) return;
+
+    const ordens = Storage.getOrdens().filter(o => !o.deletado);
+
+    // Retiradas: coletas no cliente
+    const retiradasPendentes = ordens.filter(o => {
+      const isRetiradaType = o.tipo === 'retirada' || (o.id && o.id.startsWith('RET-')) || o.status === 'retirada_pendente';
+      const hasRetiradaServ = Array.isArray(o.servicos) && o.servicos.some(s => s && s.descricao && s.descricao.toLowerCase().includes('retirada'));
+      return (isRetiradaType || hasRetiradaServ) && o.status !== 'convertida' && o.status !== 'coletado' && o.status !== 'entregue' && o.status !== 'concluido';
+    });
+
+    // Entregas: devoluções ao cliente
+    const entregasPendentes = ordens.filter(o => {
+      return (o.tipo === 'entrega' || o.statusEntrega === 'pendente' || (o.temDataEntrega && o.status === 'concluido')) && o.status !== 'entregue' && o.statusEntrega !== 'entregue';
+    });
+
+    // Unificado
+    const pendentes = [...retiradasPendentes, ...entregasPendentes];
+
+    const retiradasConcluidas = ordens.filter(o => o.status === 'convertida' || o.status === 'coletado');
+    const entregasConcluidas = ordens.filter(o => o.status === 'entregue' || o.statusEntrega === 'entregue');
+    const concluidas = [...retiradasConcluidas, ...entregasConcluidas];
+
+    const countPend = document.getElementById('count-mot-ret-pendentes');
+    if (countPend) countPend.textContent = pendentes.length;
+    const countConc = document.getElementById('count-mot-ret-concluidas');
+    if (countConc) countConc.textContent = concluidas.length;
+    const countHeader = document.getElementById('count-motorista-retiradas');
+    if (countHeader) countHeader.textContent = pendentes.length;
+
+    setBadge('badge-motorista-retiradas', pendentes.length);
+
+    const searchInput = document.getElementById('search-motorista-retiradas');
+    const qClean = searchInput && searchInput.value ? Utils.removerAcentos(searchInput.value.trim().toLowerCase()) : '';
+
+    let listToRender = currentMotoristaRetSubtab === 'concluidas' ? concluidas : pendentes;
+
+    if (qClean) {
+      listToRender = listToRender.filter(o =>
+        Utils.removerAcentos(o.id || '').toLowerCase().includes(qClean) ||
+        Utils.removerAcentos(o.clienteNome || '').toLowerCase().includes(qClean) ||
+        Utils.removerAcentos(o.clienteEndereco || '').toLowerCase().includes(qClean) ||
+        Utils.removerAcentos(o.modeloVeiculo || '').toLowerCase().includes(qClean)
+      );
+    }
+
+    if (listToRender.length === 0) {
+      if (currentMotoristaRetSubtab === 'concluidas') {
+        container.innerHTML = `
+          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">✅</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma retirada ou entrega concluída ainda</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">O histórico de coletas e devoluções finalizadas aparecerá aqui.</div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">🚚</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma tarefa de logística pendente</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">Coletas e entregas agendadas aparecerão aqui em tempo real.</div>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    let html = '';
+    listToRender.forEach(os => {
+      const isEntregaItem = os.tipo === 'entrega' || os.statusEntrega === 'pendente' || os.status === 'entregue' || (os.temDataEntrega && os.status === 'concluido');
+      const isConcluida = os.status === 'convertida' || os.status === 'coletado' || os.status === 'entregue' || os.statusEntrega === 'entregue';
+      const borderCol = isConcluida ? '#22c55e' : (isEntregaItem ? '#10b981' : '#f59e0b');
+
+      const itemBadge = isEntregaItem
+        ? `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; font-weight:800; padding:4px 8px; border:1px solid rgba(16,185,129,0.3);">📦 ENTREGA</span>`
+        : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:800; padding:4px 8px; border:1px solid rgba(245,158,11,0.3);">🚚 RETIRADA</span>`;
+
+      // Check if an OS was already generated for this Retirada
+      const osGerada = os.osCriadaId || (Storage.getOrdens().find(o => !o.deletado && o.origemRetiradaId === os.id));
+      const osCriadaCode = osGerada ? (typeof osGerada === 'object' ? osGerada.id : osGerada) : null;
+
+      html += `
+        <div class="os-card" style="border-left:4px solid ${borderCol}; background:var(--bg-surface); padding:16px; border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="font-weight:800; font-size:1.1rem; color:${borderCol};">${os.id}</span>
+                ${itemBadge}
+              </div>
+              <div style="font-weight:800; font-size:16px; color:var(--text-primary); margin-top:2px;">👤 ${Utils.escapeHtml(os.clienteNome)}</div>
+              ${os.clienteTelefone ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</div>` : ''}
+              ${os.clienteEndereco ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${Utils.escapeHtml(os.clienteEndereco)}</div>` : ''}
+              <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
+                🛵 <strong>${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')}</strong> (${Utils.escapeHtml(os.corVeiculo || 'Cor')})
+              </div>
+            </div>
+            <div style="text-align:right;">
+              ${isConcluida ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Concluído</span>` : (os.assinaturaCliente || os.assinaturaEntrega ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>` : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`)}
+            </div>
+          </div>
+
+          <div style="margin-top:10px; padding:10px; background:var(--bg-surface-secondary); border-radius:10px; border:1px solid var(--glass-border);">
+            <div style="font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+              <span>🎒 Itens Entregues pelo Cliente:</span>
+              <span style="font-size:10px; color:var(--text-tertiary); font-weight:500;">(Checklist de Coleta)</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouChave" ${os.deixouChave ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
+                🔑 Chaves
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouControle" ${os.deixouControle ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
+                🎮 Controles
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouCarregador" ${os.deixouCarregador ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
+                🔌 Carregador
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouDocumento" ${os.deixouDocumento ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
+                📄 Documentos
+              </label>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+            <button type="button" class="btn btn-secondary btn-sm btn-coletar-assinatura-retirada" data-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
+              ✍️ ${(os.assinaturaCliente || os.assinaturaEntrega) ? 'Reassinar' : 'Assinar Cliente'}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm btn-fotos-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
+              📷 Fotos ${os.temFotos && os.fotos.length ? `(${os.fotos.length})` : ''}
+            </button>
+
+            ${isConcluida ? `
+              <div style="grid-column:span 2; display:flex; flex-direction:column; gap:8px;">
+                <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#15803d; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
+                  ✅ ${isEntregaItem ? 'Entrega Concluída (Entregue)' : 'Retirada Concluída (Coletado)'}
+                </div>
+                ${(!isEntregaItem && !isMotoristaUser()) ? (
+                  osCriadaCode ? `
+                    <div style="background:rgba(139,92,246,0.12); color:#8b5cf6; font-weight:800; text-align:center; padding:10px; border-radius:8px; font-size:13px; border:1px solid rgba(139,92,246,0.3);">
+                      ✅ Orçamento / OS Criado (${osCriadaCode})
+                    </div>
+                  ` : `
+                    <button type="button" class="btn btn-primary btn-sm btn-converter-retirada-os" data-id="${os.id}" style="background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:700; padding:12px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
+                      📋 Criar OS para Mecânicos
+                    </button>
+                  `
+                ) : ''}
+              </div>
+            ` : `
+              <button type="button" class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="background:${isEntregaItem ? '#10b981' : '#2563eb'}; border-color:${isEntregaItem ? '#10b981' : '#2563eb'}; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
+                ✅ ${isEntregaItem ? 'Concluir Entrega (Entregue)' : 'Concluir Retirada (Coletado)'}
+              </button>
+            `}
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+    container.querySelectorAll('.chk-item-retirada').forEach(chk => {
+      chk.onchange = (e) => {
+        e.stopPropagation();
+        const id = chk.dataset.id;
+        const field = chk.dataset.field;
+        const isChecked = chk.checked;
+        Storage.updateOrdem(id, { [field]: isChecked, atualizadoEm: new Date().toISOString() });
+        showToast(`Item ${isChecked ? 'marcado' : 'desmarcado'} com sucesso!`, 'info');
+      };
+    });
+
+    container.querySelectorAll('.btn-coletar-assinatura-retirada').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const os = Storage.getOrdemById(btn.dataset.id);
+        const isEnt = btn.dataset.entrega === '1';
+        if (os) openModalAssinaturaRetirada(os, false, isEnt);
+      };
+    });
+
     container.querySelectorAll('.btn-fotos-retirada-card').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -1380,7 +1619,12 @@ const App = (() => {
     container.querySelectorAll('.btn-confirmar-retirada').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
-        confirmarRetiradaParaServico(btn.dataset.id);
+        const isEnt = btn.dataset.entrega === '1';
+        if (isEnt) {
+          confirmarEntregaMotorista(btn.dataset.id);
+        } else {
+          confirmarRetiradaParaServico(btn.dataset.id);
+        }
       };
     });
 
@@ -1396,111 +1640,15 @@ const App = (() => {
     });
   }
 
-  function renderMotoristaEntregas() {
-    const container = document.getElementById('list-motorista-entregas');
-    if (!container) return;
-
-    const ordens = Storage.getOrdens();
-    const todasEntregas = ordens.filter(o => o.status === 'concluido' || o.temDataEntrega || o.status === 'entregue');
-
-    const pendentes = todasEntregas.filter(o => o.status !== 'entregue');
-    const concluidas = todasEntregas.filter(o => o.status === 'entregue');
-
-    const countPend = document.getElementById('count-mot-ent-pendentes');
-    if (countPend) countPend.textContent = pendentes.length;
-    const countConc = document.getElementById('count-mot-ent-concluidas');
-    if (countConc) countConc.textContent = concluidas.length;
-    const countHeader = document.getElementById('count-motorista-entregas');
-    if (countHeader) countHeader.textContent = pendentes.length;
-
-    setBadge('badge-motorista-entregas', pendentes.length);
-
-    const searchInput = document.getElementById('search-motorista-entregas');
-    const qClean = searchInput && searchInput.value ? Utils.removerAcentos(searchInput.value.trim().toLowerCase()) : '';
-
-    let listToRender = currentMotoristaEntSubtab === 'concluidas' ? concluidas : pendentes;
-
-    if (qClean) {
-      listToRender = listToRender.filter(o =>
-        Utils.removerAcentos(o.id || '').toLowerCase().includes(qClean) ||
-        Utils.removerAcentos(o.clienteNome || '').toLowerCase().includes(qClean) ||
-        Utils.removerAcentos(o.clienteEndereco || '').toLowerCase().includes(qClean) ||
-        Utils.removerAcentos(o.modeloVeiculo || '').toLowerCase().includes(qClean)
-      );
-    }
-
-    if (listToRender.length === 0) {
-      if (currentMotoristaEntSubtab === 'concluidas') {
-        container.innerHTML = `
-          <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
-            <div style="font-size:2.5rem; margin-bottom:10px;">✅</div>
-            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhuma entrega concluída ainda</div>
-            <div style="font-size:13px; color:var(--text-tertiary);">As entregas finalizadas aparecerão nesta aba.</div>
-          </div>
-        `;
-      } else {
-        container.innerHTML = `<div class="empty-state" style="text-align:center; padding:30px; color:var(--text-tertiary);">Nenhuma entrega pendente encontrada.</div>`;
-      }
-      return;
-    }
-
-    let html = '';
-    listToRender.forEach(os => {
-      const isEntregue = os.status === 'entregue';
-      const borderCol = isEntregue ? '#10b981' : '#f59e0b';
-
-      let cobrancaTxt = '';
-      if (os.statusPagamento === 'pago') {
-        cobrancaTxt = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; font-weight:700; padding:4px 8px;">✅ Pago Total</span>`;
-      } else {
-        const valTotal = os.valorTotal || 0;
-        const valEntrada = os.statusPagamento === 'parcial' ? (parseFloat(os.valorEntrada) || 0) : 0;
-        const valCobrar = Math.max(0, valTotal - valEntrada);
-        cobrancaTxt = `<span class="badge" style="background:rgba(239,68,68,0.15); color:#ef4444; font-weight:800; font-size:12px; padding:4px 10px; border:1px solid rgba(239,68,68,0.3);">💰 Cobrar na Entrega: ${Utils.formatarMoeda(valCobrar)}</span>`;
-      }
-
-      html += `
-        <div class="os-card" style="border-left:4px solid ${borderCol}; background:var(--bg-surface); padding:16px; border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-            <div>
-              <div style="font-weight:800; font-size:1.1rem; color:${borderCol};">${os.id}</div>
-              <div style="font-weight:800; font-size:16px; color:var(--text-primary); margin-top:2px;">👤 ${Utils.escapeHtml(os.clienteNome)}</div>
-              ${os.clienteTelefone ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</div>` : ''}
-              ${os.clienteEndereco ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${Utils.escapeHtml(os.clienteEndereco)}</div>` : ''}
-              <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
-                🛵 <strong>${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')}</strong> (${Utils.escapeHtml(os.corVeiculo || 'Cor')})
-              </div>
-            </div>
-            <div style="text-align:right;">
-              ${isEntregue ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Entregue</span>` : (os.assinaturaEntrega ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>` : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`)}
-            </div>
-          </div>
-
-          <div style="margin-top:6px; margin-bottom:10px;">
-            ${cobrancaTxt}
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
-            <button type="button" class="btn btn-secondary btn-sm btn-coletar-assinatura-entrega" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
-              ✍️ ${os.assinaturaEntrega ? 'Reassinar' : 'Assinar Entrega'}
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm btn-fotos-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
-              📷 Fotos ${os.temFotos && os.fotos.length ? `(${os.fotos.length})` : ''}
-            </button>
-            ${isEntregue ? `
-              <div style="grid-column:span 2; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#15803d; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
-                ✅ Entrega Concluída (Entregue)
-              </div>
-            ` : `
-              <button type="button" class="btn btn-primary btn-sm btn-confirmar-entrega-motorista" data-id="${os.id}" style="background:#10b981; border-color:#10b981; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
-                ✅ Concluir Entrega (Entregue)
-              </button>
-            `}
-          </div>
-        </div>`;
-    });
-
-    container.innerHTML = html;
+  function confirmarEntregaMotorista(id) {
+    const os = Storage.getOrdemById(id);
+    if (!os) return;
+    Storage.updateOrdem(id, { status: 'entregue', statusEntrega: 'entregue', dataEntregaRealizada: new Date().toISOString() });
+    Storage.addHistorico(id, 'Entrega Concluída ao Cliente', currentUser ? currentUser.nome : 'Motorista');
+    showToast(`Entrega da OS ${id} concluída com sucesso!`, 'success');
+    renderMotoristaRetiradas();
+    updateNavBadges();
+  }
 
     container.querySelectorAll('.btn-coletar-assinatura-entrega').forEach(btn => {
       btn.onclick = (e) => {
@@ -1927,61 +2075,6 @@ const App = (() => {
         </div>
 
         <div class="form-group">
-          <label class="form-label" style="font-weight:700; margin-bottom:10px; color:var(--text-primary);">Itens Deixados pelo Cliente</label>
-          <div style="display:flex; flex-direction:column; gap:12px; background:var(--bg-surface); border:1px solid var(--glass-border); padding:14px; border-radius:12px;">
-            
-            <!-- Chaves -->
-            <div class="toggle-quantity-wrapper">
-              <div class="form-toggle" style="padding:0; min-height:auto; border:none; background:transparent;" onclick="const cb=document.getElementById('retirada-edit-chave'); cb.checked=!cb.checked; cb.dispatchEvent(new Event('change'));">
-                <span class="form-toggle-label" style="font-weight:700; font-size:13px; color:var(--text-primary);">Chaves</span>
-                <label class="toggle-switch" onclick="event.stopPropagation()">
-                  <input type="checkbox" id="retirada-edit-chave">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div id="container-qtd-chave" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed var(--glass-border);">
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Quantidade de Chaves:</label>
-                <input type="number" class="form-input" id="retirada-edit-qtd-chave" min="1" value="1" placeholder="Ex: 2" style="font-size:12px; padding:6px 10px;">
-              </div>
-            </div>
-
-            <!-- Controles -->
-            <div class="toggle-quantity-wrapper">
-              <div class="form-toggle" style="padding:0; min-height:auto; border:none; background:transparent;" onclick="const cb=document.getElementById('retirada-edit-controle'); cb.checked=!cb.checked; cb.dispatchEvent(new Event('change'));">
-                <span class="form-toggle-label" style="font-weight:700; font-size:13px; color:var(--text-primary);">Controles / Tags / NFC</span>
-                <label class="toggle-switch" onclick="event.stopPropagation()">
-                  <input type="checkbox" id="retirada-edit-controle">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div id="container-qtd-controle" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed var(--glass-border);">
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Quantidade de Controles/Tags:</label>
-                <input type="number" class="form-input" id="retirada-edit-qtd-controle" min="1" value="1" placeholder="Ex: 1" style="font-size:12px; padding:6px 10px;">
-              </div>
-            </div>
-
-            <!-- Carregador -->
-            <div class="form-toggle" style="padding:0; min-height:auto; border:none; background:transparent;" onclick="const cb=document.getElementById('retirada-edit-carregador'); cb.checked=!cb.checked;">
-              <span class="form-toggle-label" style="font-weight:700; font-size:13px; color:var(--text-primary);">Carregador</span>
-              <label class="toggle-switch" onclick="event.stopPropagation()">
-                <input type="checkbox" id="retirada-edit-carregador">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <!-- Documentos -->
-            <div class="form-toggle" style="padding:0; min-height:auto; border:none; background:transparent;" onclick="const cb=document.getElementById('retirada-edit-documento'); cb.checked=!cb.checked;">
-              <span class="form-toggle-label" style="font-weight:700; font-size:13px; color:var(--text-primary);">Documentos</span>
-              <label class="toggle-switch" onclick="event.stopPropagation()">
-                <input type="checkbox" id="retirada-edit-documento">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-          </div>
-        </div>
-
-        <div class="form-group">
           <label class="form-label">Relato do cliente</label>
           <textarea class="form-textarea" id="retirada-edit-obs" rows="3" placeholder="Descreva o relato do cliente sobre o veículo..."></textarea>
         </div>
@@ -2019,12 +2112,12 @@ const App = (() => {
         temGarantia: document.getElementById('retirada-edit-garantia').checked,
         valorRetirada: Utils.formatarMoedaDigitada(document.getElementById('retirada-edit-taxa').value),
         taxaEntrega: 'R$ 0,00',
-        deixouChave: document.getElementById('retirada-edit-chave').checked,
-        qtdChave: document.getElementById('retirada-edit-chave').checked ? (document.getElementById('retirada-edit-qtd-chave').value || 1) : 0,
-        deixouControle: document.getElementById('retirada-edit-controle').checked,
-        qtdControle: document.getElementById('retirada-edit-controle').checked ? (document.getElementById('retirada-edit-qtd-controle').value || 1) : 0,
-        deixouCarregador: document.getElementById('retirada-edit-carregador').checked,
-        deixouDocumento: document.getElementById('retirada-edit-documento').checked,
+        deixouChave: existingOS ? existingOS.deixouChave : false,
+        qtdChave: existingOS ? existingOS.qtdChave : 0,
+        deixouControle: existingOS ? existingOS.deixouControle : false,
+        qtdControle: existingOS ? existingOS.qtdControle : 0,
+        deixouCarregador: existingOS ? existingOS.deixouCarregador : false,
+        deixouDocumento: existingOS ? existingOS.deixouDocumento : false,
         observacoes: document.getElementById('retirada-edit-obs').value,
         atualizadoEm: new Date().toISOString()
       };
@@ -2205,17 +2298,17 @@ const App = (() => {
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
         PDF
       </button>`;
+      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-coletar-assinatura" data-id="${os.id}" style="margin-left:4px;" title="Coletar Assinatura do Cliente">
+        ✍️ Assinar
+      </button>`;
     }
-    actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-coletar-assinatura" data-id="${os.id}" style="margin-left:4px;" title="Coletar Assinatura do Cliente">
-      ✍️ Assinar
-    </button>`;
     if (canConcluir) {
       actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px; background:#2563eb; border-color:#2563eb; color:#ffffff;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Concluir
       </button>`;
     }
-    if (canExcluir) {
+    if (canExcluir && os.status !== 'aguardando') {
       actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-excluir-os-card" data-id="${os.id}" style="margin-left:4px; color:#ef4444; border-color:rgba(239,68,68,0.3);" title="Excluir OS">🗑️ Excluir</button>`;
     }
 
@@ -2547,12 +2640,84 @@ const App = (() => {
     }, 50);
   }
 
+  function openModalAgendarEntrega(osId) {
+    const os = Storage.getOrdemById(osId);
+    if (!os) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const html = `
+      <div style="padding:10px 0;">
+        <div style="font-size:14px; color:var(--text-secondary); margin-bottom:14px;">
+          Agende a devolução do veículo para o cliente <strong>${Utils.escapeHtml(os.clienteNome)}</strong> (${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')}).
+        </div>
+
+        <form id="form-agendar-entrega" style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-primary); display:block; margin-bottom:4px;">Data de Entrega *</label>
+            <input type="date" id="entrega-modal-data" value="${os.dataEntrega || todayStr}" required style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg-surface-secondary); color:var(--text-primary); font-size:14px;">
+          </div>
+
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-primary); display:block; margin-bottom:4px;">Hora da Entrega (Opcional)</label>
+            <input type="time" id="entrega-modal-hora" value="${os.horaEntrega || ''}" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg-surface-secondary); color:var(--text-primary); font-size:14px;">
+          </div>
+
+          <div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-primary); display:block; margin-bottom:4px;">Motorista Responsável</label>
+            <select id="entrega-modal-motorista" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg-surface-secondary); color:var(--text-primary); font-size:14px;">
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="background:#10b981; border-color:#10b981; margin-top:8px; padding:12px; font-weight:700; width:100%;">
+            📦 Confirmar Agendamento de Entrega
+          </button>
+        </form>
+      </div>
+    `;
+
+    openBottomSheet(`📦 Agendar Entrega (${os.id})`, html);
+    populateMotoristasSelect('entrega-modal-motorista', os.motoristaEntrega || '');
+
+    const form = document.getElementById('form-agendar-entrega');
+    if (form) {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const data = document.getElementById('entrega-modal-data').value;
+        const hora = document.getElementById('entrega-modal-hora').value;
+        const motorista = document.getElementById('entrega-modal-motorista').value;
+
+        Storage.updateOrdem(osId, {
+          temDataEntrega: true,
+          dataEntrega: data,
+          horaEntrega: hora,
+          motoristaEntrega: motorista,
+          statusEntrega: 'pendente',
+          atualizadoEm: new Date().toISOString()
+        });
+
+        Storage.addHistorico(osId, `Entrega agendada para ${data} (${motorista || 'Motorista'})`, currentUser ? currentUser.nome : 'Sistema');
+        showToast('Entrega agendada com sucesso!', 'success');
+        closeModal();
+        renderListaOS('concluido');
+        renderMotoristaRetiradas();
+        updateNavBadges();
+      };
+    }
+  }
+
   function assumirServico(id) {
     const os = Storage.getOrdemById(id);
     if (!os || os.status !== 'aguardando') return;
-    Storage.updateOrdem(id, { status: 'em_andamento', mecanico: currentUser.nome, horaInicio: new Date().toISOString() });
-    Storage.addHistorico(id, 'Serviço Assumido', currentUser.nome);
-    showToast('Serviço assumido!', 'success');
+    const nowIso = new Date().toISOString();
+    Storage.updateOrdem(id, {
+      status: 'em_andamento',
+      mecanico: currentUser.nome,
+      assumidoPor: currentUser.nome,
+      dataAssumido: nowIso,
+      horaInicio: nowIso
+    });
+    Storage.addHistorico(id, 'Serviço Assumido pelo Mecânico', currentUser.nome);
+    showToast('Serviço assumido com sucesso!', 'success');
     renderListaOS('aguardando');
     renderListaOS('em_andamento');
     navigateTo('andamento');
@@ -2576,21 +2741,17 @@ const App = (() => {
   function confirmarRetiradaParaServico(retiradaId) {
     const osRetirada = Storage.getOrdemById(retiradaId);
     if (!osRetirada) return;
-    Storage.updateOrdem(retiradaId, { status: 'convertida', atualizadoEm: new Date().toISOString() });
+    Storage.updateOrdem(retiradaId, {
+      status: 'coletado',
+      dataColetado: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    Storage.addHistorico(retiradaId, 'Retirada Concluída pelo Motorista (Coletado)', currentUser ? currentUser.nome : 'Motorista');
     showToast(`Retirada ${retiradaId} concluída com sucesso!`, 'success');
-    
-    if (isMotoristaUser()) {
-      renderMotoristaRetiradas();
-      updateNavBadges();
-    } else {
-      renderListaOS('aguardando');
-      updateNavBadges();
-      navigateTo('servicos');
-      setTimeout(() => {
-        const subtabServicos = document.getElementById('subtab-servicos');
-        if (subtabServicos) subtabServicos.click();
-      }, 100);
-    }
+
+    renderMotoristaRetiradas();
+    renderListaOS('aguardando');
+    updateNavBadges();
   }
 
   let isVisitaTecnicaForm = false;
@@ -3054,13 +3215,14 @@ const App = (() => {
       showToast(`OS ${saved.id} criada com sucesso!`, 'success');
 
       if (origemRetiradaId) {
-        Storage.updateOrdem(origemRetiradaId, { status: 'convertida', atualizadoEm: new Date().toISOString() });
-        showToast(`Retirada ${origemRetiradaId} convertida em Ordem de Serviço!`, 'info');
+        Storage.updateOrdem(origemRetiradaId, { status: 'convertida', osCriadaId: saved.id, atualizadoEm: new Date().toISOString() });
+        showToast(`Retirada ${origemRetiradaId} convertida em Ordem de Serviço ${saved.id}!`, 'info');
         origemRetiradaId = null;
       }
     }
 
     editingOS = null;
+    formSalvoComSucesso = true;
     currentServicosSubtab = 'servicos';
     navigateTo('servicos');
   }
