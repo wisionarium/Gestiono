@@ -3,7 +3,7 @@
 // Cache offline e suporte PWA completo
 // ============================================
 
-const CACHE_NAME = 'boa-gestao-v27';
+const CACHE_NAME = 'boa-gestao-v28';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

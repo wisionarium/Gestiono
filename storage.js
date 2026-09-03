@@ -168,10 +168,12 @@ const Storage = (() => {
             }
           }
 
+          const customMeta = typeof o.campos_personalizados === 'object' && o.campos_personalizados ? o.campos_personalizados : {};
+
           supabaseMap.set(o.id, {
             id: o.id,
             tipo: tipoFinal,
-            relatoCliente: o.relato_cliente || '',
+            relatoCliente: o.relato_cliente || customMeta.relatoCliente || '',
             clienteNome: o.cliente_nome,
             clienteTelefone: o.cliente_telefone,
             clienteCpf: o.cliente_cpf || '',
@@ -191,10 +193,18 @@ const Storage = (() => {
             temDataEntrega: o.tem_data_entrega,
             dataEntrega: o.data_entrega,
             horaEntrega: o.hora_entrega,
-            motoristaEntrega: o.motorista_entrega || null,
+            motoristaEntrega: o.motorista_entrega || customMeta.motoristaEntrega || null,
+            statusEntrega: customMeta.statusEntrega || null,
+            osCriadaId: customMeta.osCriadaId || null,
+            deixouChave: !!customMeta.deixouChave,
+            qtdChave: customMeta.qtdChave || 0,
+            deixouControle: !!customMeta.deixouControle,
+            qtdControle: customMeta.qtdControle || 0,
+            deixouCarregador: !!customMeta.deixouCarregador,
+            deixouDocumento: !!customMeta.deixouDocumento,
             temFotos: o.tem_fotos,
             fotos: o.fotos || [],
-            camposPersonalizados: o.campos_personalizados || {},
+            camposPersonalizados: customMeta,
             atendente: o.atendente,
             criadoPor: o.criado_por || o.atendente || 'Sistema',
             mecanico: o.mecanico,
@@ -208,15 +218,15 @@ const Storage = (() => {
             deletado: !!o.deletado,
             deletadoEm: o.deletado_em || null,
             deletadoPor: o.deletado_por || null,
-            assinaturaCliente: o.assinatura_cliente || null,
-            dataAssinatura: o.data_assinatura || null,
-            assinanteNome: o.assinante_nome || null,
-            assinaturaMotorista: o.assinatura_motorista || null,
-            dataAssinaturaMotorista: o.data_assinatura_motorista || null,
-            assinanteMotoristaNome: o.assinante_motorista_nome || null,
-            assinaturaEntrega: o.assinatura_entrega || null,
-            dataAssinaturaEntrega: o.data_assinatura_entrega || null,
-            assinanteEntregaNome: o.assinante_entrega_nome || null
+            assinaturaCliente: o.assinatura_cliente || customMeta.assinaturaCliente || null,
+            dataAssinatura: o.data_assinatura || customMeta.dataAssinatura || null,
+            assinanteNome: o.assinante_nome || customMeta.assinanteNome || null,
+            assinaturaMotorista: o.assinatura_motorista || customMeta.assinaturaMotorista || null,
+            dataAssinaturaMotorista: o.data_assinatura_motorista || customMeta.dataAssinaturaMotorista || null,
+            assinanteMotoristaNome: o.assinante_motorista_nome || customMeta.assinanteMotoristaNome || null,
+            assinaturaEntrega: o.assinatura_entrega || customMeta.assinaturaEntrega || null,
+            dataAssinaturaEntrega: o.data_assinatura_entrega || customMeta.dataAssinaturaEntrega || null,
+            assinanteEntregaNome: o.assinante_entrega_nome || customMeta.assinanteEntregaNome || null
           });
         });
 
@@ -229,23 +239,25 @@ const Storage = (() => {
         // Remove do mapa remoto qualquer ID marcado como excluído permanentemente localmente
         deletedPermIds.forEach(delId => supabaseMap.delete(delId));
 
-        // Preserva APENAS rascunhos offline ainda não sincronizados
+        // Preserva TODOS os itens locais ainda não no Supabase ou que possuem alterações pendentes
         const localOrdens = getData(KEYS.ORDENS) || [];
         localOrdens.forEach(localO => {
           if (localO && localO.id && !deletedPermIds.includes(localO.id)) {
             const remoteO = supabaseMap.get(localO.id);
-            if (!remoteO && localO._isOfflineDraft === true) {
+            if (!remoteO) {
+              // Item local que ainda não sincronizou com o Supabase -> Preserva no mapa!
               supabaseMap.set(localO.id, localO);
-            } else if (remoteO && localO.deletado && !remoteO.deletado) {
-              remoteO.deletado = true;
-              remoteO.deletadoEm = localO.deletadoEm || remoteO.deletadoEm;
-              remoteO.deletadoPor = localO.deletadoPor || remoteO.deletadoPor;
+            } else {
+              // Item existe remotamente -> faz merge seguro para não perder estados locais
+              const mergedO = { ...remoteO, ...localO };
+              if (remoteO.status && !localO.status) mergedO.status = remoteO.status;
+              if (localO.deletado) mergedO.deletado = true;
+              supabaseMap.set(localO.id, mergedO);
             }
           }
         });
 
         // Registra também como deletedPermIds qualquer ID excluído pelo usuário
-        // que ainda não estava na lista (garantia dupla)
         localOrdens.forEach(localO => {
           if (localO && localO.id && localO.deletado && !deletedPermIds.includes(localO.id)) {
             deletedPermIds.push(localO.id);
@@ -349,6 +361,26 @@ const Storage = (() => {
     try {
       if (key === KEYS.ORDENS) {
         const o = dataItem;
+        const camposPersonalizados = {
+          ...(o.camposPersonalizados || {}),
+          deixouChave: !!o.deixouChave,
+          qtdChave: o.qtdChave || 0,
+          deixouControle: !!o.deixouControle,
+          qtdControle: o.qtdControle || 0,
+          deixouCarregador: !!o.deixouCarregador,
+          deixouDocumento: !!o.deixouDocumento,
+          osCriadaId: o.osCriadaId || null,
+          statusEntrega: o.statusEntrega || null,
+          motoristaEntrega: o.motoristaEntrega || null,
+          assinaturaEntrega: o.assinaturaEntrega || null,
+          dataAssinaturaEntrega: o.dataAssinaturaEntrega || null,
+          assinanteEntregaNome: o.assinanteEntregaNome || null,
+          assinaturaMotorista: o.assinaturaMotorista || null,
+          dataAssinaturaMotorista: o.dataAssinaturaMotorista || null,
+          assinanteMotoristaNome: o.assinanteMotoristaNome || null,
+          relatoCliente: o.relatoCliente || null
+        };
+
         const payload = {
           id: o.id,
           tipo: o.tipo || 'os',
@@ -372,10 +404,9 @@ const Storage = (() => {
           tem_data_entrega: !!o.temDataEntrega,
           data_entrega: o.dataEntrega || null,
           hora_entrega: o.horaEntrega || null,
-          motorista_entrega: o.motoristaEntrega || null,
           tem_fotos: !!o.temFotos,
           fotos: o.fotos || [],
-          campos_personalizados: o.camposPersonalizados || {},
+          campos_personalizados: camposPersonalizados,
           atendente: o.atendente || '',
           criado_por: o.criadoPor || o.atendente || 'Sistema',
           mecanico: o.mecanico || null,
@@ -390,28 +421,12 @@ const Storage = (() => {
           deletado_por: o.deletadoPor || null,
           assinatura_cliente: o.assinaturaCliente || null,
           data_assinatura: o.dataAssinatura || null,
-          assinante_nome: o.assinanteNome || null,
-          assinatura_motorista: o.assinaturaMotorista || null,
-          data_assinatura_motorista: o.dataAssinaturaMotorista || null,
-          assinante_motorista_nome: o.assinanteMotoristaNome || null,
-          assinatura_entrega: o.assinaturaEntrega || null,
-          data_assinatura_entrega: o.dataAssinaturaEntrega || null,
-          assinante_entrega_nome: o.assinanteEntregaNome || null
+          assinante_nome: o.assinanteNome || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
         const { error } = await client.from('ordens_servico').upsert(payload);
         if (error) {
-          console.warn('Sincronização com aviso no Supabase, tentando payload secundário:', error.message);
-          delete payload.tipo;
-          delete payload.relato_cliente;
-          delete payload.criado_por;
-          delete payload.assinante_entrega_nome;
-          delete payload.assinatura_entrega;
-          delete payload.data_assinatura_entrega;
-          delete payload.assinatura_motorista;
-          delete payload.data_assinatura_motorista;
-          delete payload.assinante_motorista_nome;
-          await client.from('ordens_servico').upsert(payload);
+          console.warn('Sincronização Supabase com aviso:', error.message);
         }
       } else if (key === KEYS.USUARIOS) {
         const u = dataItem;

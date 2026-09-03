@@ -2034,15 +2034,15 @@ const App = (() => {
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Endereço</label>
-          <input type="text" class="form-input" id="retirada-edit-endereco" placeholder="Rua, número, bairro, cidade">
+          <label class="form-label required">Endereço</label>
+          <input type="text" class="form-input" id="retirada-edit-endereco" placeholder="Rua, número, bairro, cidade" required>
         </div>
 
         <div class="section-divider">Dados do Veículo & Mecânico</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Modelo</label>
-            <select class="form-select" id="retirada-edit-modelo">
+            <label class="form-label required">Modelo</label>
+            <select class="form-select" id="retirada-edit-modelo" required>
               <option value="">Selecione...</option>
               ${modelsHtml}
             </select>
@@ -2098,6 +2098,15 @@ const App = (() => {
     openModal(existingOS ? `Editar ${existingOS.id}` : 'Nova Ordem de Retirada', bodyHtml, () => {
       const form = document.getElementById('form-nova-retirada');
       if (!form.checkValidity()) { form.reportValidity(); return false; }
+
+      const endVal = (document.getElementById('retirada-edit-endereco')?.value || '').trim();
+      const modVal = (document.getElementById('retirada-edit-modelo')?.value || '').trim();
+      if (!endVal || !modVal) {
+        showToast('⚠️ Por favor, informe o Endereço e o Modelo do Veículo!', 'error');
+        if (!endVal) document.getElementById('retirada-edit-endereco').focus();
+        else if (!modVal) document.getElementById('retirada-edit-modelo').focus();
+        return false;
+      }
 
       const dados = {
         tipo: 'retirada',
