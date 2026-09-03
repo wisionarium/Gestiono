@@ -1147,23 +1147,10 @@ const App = (() => {
       return;
     }
 
-    // Render Especial para Concluídos (Histórico por Sub-abas & Seção Temporal)
+    // Render Especial para Concluídos (Histórico por Seção Temporal)
     if (status === 'concluido') {
       const todasOrdens = Storage.getOrdens().filter(o => !o.deletado);
-      const cServicos = todasOrdens.filter(o => o.status === 'concluido' && o.tipo !== 'retirada');
-      const cRetiradas = todasOrdens.filter(o => o.status === 'convertida' || o.status === 'coletado' || (o.tipo === 'retirada' && o.status === 'concluido'));
-      const cEntregas = todasOrdens.filter(o => o.status === 'entregue' || o.statusEntrega === 'entregue');
-
-      const elConcServ = document.getElementById('count-conc-servicos');
-      if (elConcServ) elConcServ.textContent = cServicos.length;
-      const elConcRet = document.getElementById('count-conc-retiradas');
-      if (elConcRet) elConcRet.textContent = cRetiradas.length;
-      const elConcEnt = document.getElementById('count-conc-entregas');
-      if (elConcEnt) elConcEnt.textContent = cEntregas.length;
-
-      let listConcluidosToRender = cServicos;
-      if (currentConcluidosSubtab === 'retiradas') listConcluidosToRender = cRetiradas;
-      if (currentConcluidosSubtab === 'entregas') listConcluidosToRender = cEntregas;
+      const listConcluidosToRender = todasOrdens.filter(o => o.status === 'concluido' || o.status === 'convertida' || o.status === 'coletado' || o.status === 'entregue' || o.statusEntrega === 'entregue');
 
       if (countEl) countEl.textContent = listConcluidosToRender.length;
 
@@ -1171,8 +1158,8 @@ const App = (() => {
         container.innerHTML = `
           <div class="empty-state" style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
             <div style="font-size:2.5rem; margin-bottom:10px;">📋</div>
-            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhum item concluído nesta categoria</div>
-            <div style="font-size:13px; color:var(--text-tertiary);">Os itens finalizados aparecerão aqui para consulta.</div>
+            <div style="font-weight:700; font-size:16px; color:var(--text-primary); margin-bottom:4px;">Nenhum item no histórico de concluídos</div>
+            <div style="font-size:13px; color:var(--text-tertiary);">Os serviços e entregas finalizadas aparecerão aqui para consulta.</div>
           </div>
         `;
         return;
@@ -1216,7 +1203,7 @@ const App = (() => {
             <div class="kanban-list">
               ${visibleOrdens.map(os => {
                 let cardHtml = renderOSCard(os);
-                if (currentConcluidosSubtab === 'servicos' && os.status === 'concluido' && os.status !== 'entregue' && os.statusEntrega !== 'pendente') {
+                if (os.status === 'concluido' && os.status !== 'entregue' && os.statusEntrega !== 'pendente') {
                   cardHtml = cardHtml.replace('</div>\n      </div>', `
                     <div style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.08); padding-top:10px;">
                       <button type="button" class="btn btn-secondary btn-sm btn-agendar-entrega-card" data-id="${os.id}" style="width:100%; font-weight:700; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#10b981; padding:10px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
@@ -1370,15 +1357,20 @@ const App = (() => {
     listToRender.forEach(os => {
       const isEntregaItem = os.tipo === 'entrega' || os.statusEntrega === 'pendente' || os.status === 'entregue' || (os.temDataEntrega && os.status === 'concluido');
       const isConcluida = os.status === 'convertida' || os.status === 'coletado' || os.status === 'entregue' || os.statusEntrega === 'entregue';
-      const borderCol = isConcluida ? '#22c55e' : (isEntregaItem ? '#10b981' : '#f59e0b');
+      const borderCol = isConcluida ? '#64748b' : (isEntregaItem ? '#10b981' : '#f59e0b');
       const isExpanded = expandedRetiradasCards.has(os.id);
+
+      // Card Background: Grayed out tone when completed (Imagem 4)
+      const cardStyle = isConcluida
+        ? `border-left:4px solid #64748b; background:var(--bg-surface-secondary, #f1f5f9); opacity:0.88; border-top:1px solid rgba(148,163,184,0.25); border-right:1px solid rgba(148,163,184,0.25); border-bottom:1px solid rgba(148,163,184,0.25);`
+        : `border-left:4px solid ${borderCol}; background:var(--bg-surface); border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);`;
 
       const itemBadge = isEntregaItem
         ? `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; font-weight:800; padding:4px 8px; border:1px solid rgba(16,185,129,0.3); font-size:11px;">📦 ENTREGA</span>`
         : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:800; padding:4px 8px; border:1px solid rgba(245,158,11,0.3); font-size:11px;">🚚 RETIRADA</span>`;
 
       const statusBadge = isConcluida
-        ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Concluído</span>`
+        ? `<span class="badge" style="background:rgba(100,116,139,0.2); color:#64748b; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(100,116,139,0.4);">✅ Concluído</span>`
         : (os.assinaturaCliente || os.assinaturaEntrega
           ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>`
           : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`);
@@ -1386,8 +1378,39 @@ const App = (() => {
       const osGerada = os.osCriadaId || (Storage.getOrdens().find(o => !o.deletado && o.origemRetiradaId === os.id));
       const osCriadaCode = osGerada ? (typeof osGerada === 'object' ? osGerada.id : osGerada) : null;
 
+      // Checklist Items definitions for Imagem 5 (Toggle-switches + Quantity per line)
+      const checklistItems = [
+        { field: 'deixouCartaoNFC', qtdField: 'qtdCartaoNFC', label: '💳 Cartão NFC', isChecked: !!os.deixouCartaoNFC, qtd: os.qtdCartaoNFC || (os.deixouCartaoNFC ? 1 : 0) },
+        { field: 'deixouChave', qtdField: 'qtdChave', label: '🔑 Chaves', isChecked: !!os.deixouChave, qtd: os.qtdChave || (os.deixouChave ? 1 : 0) },
+        { field: 'deixouControle', qtdField: 'qtdControle', label: '🎮 Controles', isChecked: !!os.deixouControle, qtd: os.qtdControle || (os.deixouControle ? 1 : 0) },
+        { field: 'deixouCarregador', qtdField: 'qtdCarregador', label: '🔌 Carregador', isChecked: !!os.deixouCarregador, qtd: os.qtdCarregador || (os.deixouCarregador ? 1 : 0) },
+        { field: 'deixouDocumento', qtdField: 'qtdDocumento', label: '📄 Documentos', isChecked: !!os.deixouDocumento, qtd: os.qtdDocumento || (os.deixouDocumento ? 1 : 0) }
+      ];
+
+      const checklistHtml = checklistItems.map(item => `
+        <div class="ret-checklist-item-row" style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:var(--bg-surface-secondary); border-radius:10px; border:1px solid var(--glass-border); margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+              ${item.label}
+            </span>
+            <label class="toggle-switch">
+              <input type="checkbox" class="chk-toggle-item-retirada" data-id="${os.id}" data-field="${item.field}" data-qtdfield="${item.qtdField}" ${item.isChecked ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          ${item.isChecked ? `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px; padding-top:6px; border-top:1px dashed var(--glass-border);">
+              <span style="font-size:11px; font-weight:700; color:var(--text-secondary);">Quantidade deixada pelo cliente:</span>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <input type="number" min="1" class="form-input input-qtd-retirada" data-id="${os.id}" data-qtdfield="${item.qtdField}" value="${item.qtd || 1}" ${isConcluida ? 'disabled' : ''} style="width:65px; padding:4px 8px; font-weight:800; font-size:13px; text-align:center; height:32px; border-radius:6px;">
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+
       html += `
-        <div class="ret-card-wrapper" data-ret-id="${os.id}" style="border-left:4px solid ${borderCol}; background:var(--bg-surface); border-radius:14px; border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border); overflow:hidden; transition:box-shadow 0.2s;">
+        <div class="ret-card-wrapper" data-ret-id="${os.id}" style="${cardStyle} border-radius:14px; overflow:hidden; transition:box-shadow 0.2s; margin-bottom:12px;">
 
           <!-- CARD HEADER (always visible — tap to expand) -->
           <div class="ret-card-toggle" data-ret-id="${os.id}" style="padding:14px 16px; cursor:pointer; display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
@@ -1411,34 +1434,13 @@ const App = (() => {
           ${isExpanded ? `
             <div style="padding:0 16px 16px 16px; border-top:1px dashed var(--glass-border);">
 
-              <!-- Checklist de Itens -->
-              <div style="margin-top:12px; padding:10px; background:var(--bg-surface-secondary); border-radius:10px; border:1px solid var(--glass-border);">
-                <div style="font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+              <!-- Checklist de Itens (1 por linha com Toggle-switch e Qtd) -->
+              <div style="margin-top:12px; padding:12px; background:var(--bg-surface); border-radius:12px; border:1px solid var(--glass-border);">
+                <div style="font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
                   <span>🎒 Itens Entregues pelo Cliente</span>
                   <span style="font-size:10px; color:var(--text-tertiary); font-weight:500;">(Checklist de Coleta)</span>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                  <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
-                    <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouCartaoNFC" ${os.deixouCartaoNFC ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
-                    💳 Cartão NFC
-                  </label>
-                  <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
-                    <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouChave" ${os.deixouChave ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
-                    🔑 Chaves
-                  </label>
-                  <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
-                    <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouControle" ${os.deixouControle ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
-                    🎮 Controles
-                  </label>
-                  <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
-                    <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouCarregador" ${os.deixouCarregador ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
-                    🔌 Carregador
-                  </label>
-                  <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; cursor:pointer;">
-                    <input type="checkbox" class="chk-item-retirada" data-id="${os.id}" data-field="deixouDocumento" ${os.deixouDocumento ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
-                    📄 Documentos
-                  </label>
-                </div>
+                ${checklistHtml}
               </div>
 
               <!-- Botões de ação -->
@@ -1452,7 +1454,7 @@ const App = (() => {
 
                 ${isConcluida ? `
                   <div style="grid-column:span 2; display:flex; flex-direction:column; gap:8px;">
-                    <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#15803d; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
+                    <div style="background:rgba(100,116,139,0.15); border:1px solid rgba(100,116,139,0.3); color:#475569; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
                       ✅ ${isEntregaItem ? 'Entrega Concluída (Entregue)' : 'Retirada Concluída (Coletado)'}
                     </div>
                     ${(!isEntregaItem && !isMotoristaUser()) ? (
@@ -1480,7 +1482,7 @@ const App = (() => {
 
     container.innerHTML = html;
 
-    // Toggle expand on card header click
+    // Bind toggle expand
     container.querySelectorAll('.ret-card-toggle').forEach(toggle => {
       toggle.addEventListener('click', (e) => {
         const id = toggle.dataset.retId;
@@ -1493,14 +1495,38 @@ const App = (() => {
       });
     });
 
-    container.querySelectorAll('.chk-item-retirada').forEach(chk => {
+    // Bind Toggle Switch for checklist items
+    container.querySelectorAll('.chk-toggle-item-retirada').forEach(chk => {
       chk.onchange = (e) => {
         e.stopPropagation();
         const id = chk.dataset.id;
         const field = chk.dataset.field;
+        const qtdField = chk.dataset.qtdfield;
         const isChecked = chk.checked;
-        Storage.updateOrdem(id, { [field]: isChecked, atualizadoEm: new Date().toISOString() });
-        showToast(`Item ${isChecked ? 'marcado' : 'desmarcado'} com sucesso!`, 'info');
+        const currentOS = Storage.getOrdemById(id);
+
+        const updates = { [field]: isChecked, atualizadoEm: new Date().toISOString() };
+        if (isChecked) {
+          const currentQtd = currentOS ? (currentOS[qtdField] || 0) : 0;
+          updates[qtdField] = currentQtd > 0 ? currentQtd : 1;
+        } else {
+          updates[qtdField] = 0;
+        }
+
+        Storage.updateOrdem(id, updates);
+        renderMotoristaRetiradas();
+      };
+    });
+
+    // Bind Quantity Input for checklist items
+    container.querySelectorAll('.input-qtd-retirada').forEach(inp => {
+      inp.onchange = (e) => {
+        e.stopPropagation();
+        const id = inp.dataset.id;
+        const qtdField = inp.dataset.qtdfield;
+        const newQtd = Math.max(1, parseInt(inp.value) || 1);
+        Storage.updateOrdem(id, { [qtdField]: newQtd, atualizadoEm: new Date().toISOString() });
+        showToast(`Quantidade atualizada: ${newQtd}`, 'info');
       };
     });
 
@@ -2157,15 +2183,12 @@ const App = (() => {
     const canAssumir = temPermissao('assumir_servico') && os.status === 'aguardando';
     const canConcluir = temPermissao('concluir_servico') && os.status === 'em_andamento';
     const canDelegar = temPermissao('delegar_servico') && os.status === 'aguardando';
-    const canExcluir = temPermissao('configuracoes') || temPermissao('excluir_os');
 
-    let fotosBadgeHtml = '';
-    if (os.temFotos && Array.isArray(os.fotos) && os.fotos.length > 0) {
-      fotosBadgeHtml = `<span class="badge" style="background:rgba(139,92,246,0.15); color:var(--accent); border:1px solid rgba(139,92,246,0.3); display:inline-flex; align-items:center; gap:4px; font-size:var(--font-xs); padding:2px 7px; border-radius:var(--radius-full); font-weight:700;">
-        <img src="${os.fotos[0]}" style="width:14px; height:14px; border-radius:3px; object-fit:cover;">
-        📷 ${os.fotos.length} foto${os.fotos.length > 1 ? 's' : ''}
-      </span>`;
-    }
+    // Tag de Origem (Retirada vs Presencial)
+    const isRetiradaOrigem = os.tipo === 'retirada' || os.origemRetiradaId || (os.id && os.id.startsWith('RET-')) || os.origem === 'retirada';
+    const origemBadgeHtml = isRetiradaOrigem
+      ? `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:800; font-size:11px; padding:3px 8px;">🚚 Retirada</span>`
+      : `<span class="badge" style="background:rgba(59,130,246,0.15); color:#3b82f6; border:1px solid rgba(59,130,246,0.3); font-weight:800; font-size:11px; padding:3px 8px;">🏪 Presencial</span>`;
 
     let actionsHtml = '';
     if (canAssumir) {
@@ -2180,38 +2203,17 @@ const App = (() => {
         Delegar
       </button>`;
     }
-    if (os.status === 'em_andamento') {
-      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-pdf-os-card" data-id="${os.id}" title="Baixar Ordem de Serviço (PDF)" style="font-weight:700; margin-left:4px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-        PDF
-      </button>`;
-      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-coletar-assinatura" data-id="${os.id}" style="margin-left:4px;" title="Coletar Assinatura do Cliente">
-        ✍️ Assinar
-      </button>`;
-    }
+    // Em "Em Andamento", apenas o botão Concluir é exibido na frente do card.
+    // Botões de Assinar, PDF e Excluir foram movidos para a parte interna (openOSDetail).
     if (canConcluir) {
-      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px; background:#2563eb; border-color:#2563eb; color:#ffffff;">
+      actionsHtml += `<button class="btn btn-blue btn-xs os-card-action-btn btn-concluir" data-id="${os.id}" style="margin-left:4px; background:#2563eb; border-color:#2563eb; color:#ffffff; font-weight:700; padding:6px 12px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Concluir
       </button>`;
     }
-    if (canExcluir && os.status !== 'aguardando') {
-      actionsHtml += `<button class="btn btn-secondary btn-xs os-card-action-btn btn-excluir-os-card" data-id="${os.id}" style="margin-left:4px; color:#ef4444; border-color:rgba(239,68,68,0.3);" title="Excluir OS">🗑️ Excluir</button>`;
-    }
 
     const valorMostrar = temPermissao('ver_valores_cliente') ? Utils.formatarMoeda(os.valorTotal) : 'Restrito 🔒';
     const pagamentoStr = temPermissao('ver_valores_cliente') ? Utils.traduzirPagamento(os.formaPagamento) : 'Restrito';
-
-    let entregaHtml = '';
-    if (os.temDataEntrega && os.dataEntrega) {
-      const infoEntrega = Utils.formatarDataEntrega(os.dataEntrega, os.horaEntrega);
-      if (infoEntrega) {
-        entregaHtml = `<div class="os-card-entrega-row" style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.06); font-size:var(--font-xs); font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
-          <span>DATA DE ENTREGA: ${infoEntrega.textoCompleto}</span>
-        </div>`;
-      }
-    }
 
     let mecanicoHtml = '';
     if (os.mecanico) {
@@ -2231,14 +2233,14 @@ const App = (() => {
     }
 
     return `
-      <div class="os-card" data-id="${os.id}" data-status="${os.status}">
+      <div class="os-card" data-id="${os.id}" data-status="${os.status}" style="cursor:pointer;">
         <div class="os-card-header">
-          <span class="os-card-code">${os.id}</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="os-card-code">${os.id}</span>
+            ${origemBadgeHtml}
+          </div>
           <div class="os-card-badges">
-            ${os.assinaturaCliente ? `<span class="badge badge-assinatura-ok" title="Assinado em ${new Date(os.dataAssinatura).toLocaleString('pt-BR')}">✅ Assinado</span>` : ''}
-            ${fotosBadgeHtml}
             ${os.prioridade === 'urgente' ? '<span class="badge badge-urgente">URGENTE</span>' : ''}
-            <span class="badge badge-${os.statusPagamento}">${Utils.traduzirStatusPagamento(os.statusPagamento)}</span>
           </div>
         </div>
         <div class="os-card-cliente">${os.clienteNome}</div>
@@ -2253,7 +2255,6 @@ const App = (() => {
           </span>
           ${mecanicoHtml}
         </div>
-        ${entregaHtml}
         <div class="os-card-footer">
           <div>
             <span class="os-card-valor">${valorMostrar}</span>
@@ -3344,13 +3345,36 @@ const App = (() => {
 
       ${os.assinaturaCliente ? `
         <div class="os-detail-section">
-          <div class="os-detail-section-title" style="color:#22c55e;">✅ Assinatura Digital do Cliente</div>
+          <div class="os-detail-section-title" style="color:#22c55e;">✅ Assinatura Digital do Cliente (Retirada / Cadastro)</div>
           <div class="signature-preview-card">
             <img src="${os.assinaturaCliente}" class="signature-preview-img" alt="Assinatura do Cliente">
             <div style="font-size:11px; color:var(--text-secondary); text-align:center;">
               Assinado em <strong>${Utils.formatarDataHora(os.dataAssinatura)}</strong> ${os.assinanteNome ? `por <strong>${Utils.escapeHtml(os.assinanteNome)}</strong>` : ''}
             </div>
           </div>
+        </div>` : ''}
+
+      ${(os.assinaturaEntrega || os.status === 'entregue' || os.statusEntrega === 'entregue' || os.statusEntrega === 'pendente' || os.tipo === 'entrega' || os.temDataEntrega) ? `
+        <div class="os-detail-section">
+          <div class="os-detail-section-title" style="color:#10b981;">📦 Assinatura Digital de Recebimento (Entrega ao Cliente)</div>
+          ${os.assinaturaEntrega ? `
+            <div class="signature-preview-card" style="background:rgba(16,185,129,0.08); border-color:rgba(16,185,129,0.3);">
+              <img src="${os.assinaturaEntrega}" class="signature-preview-img" alt="Assinatura de Entrega">
+              <div style="font-size:11px; color:var(--text-secondary); text-align:center;">
+                Assinado em <strong>${Utils.formatarDataHora(os.dataAssinaturaEntrega)}</strong> ${os.assinanteEntregaNome ? `por <strong>${Utils.escapeHtml(os.assinanteEntregaNome)}</strong>` : ''}
+              </div>
+              <div style="margin-top:8px; text-align:center;">
+                <button type="button" class="btn btn-secondary btn-xs" id="btn-detail-coletar-assinatura-entrega" style="font-weight:700;">✍️ Reassinar Entrega</button>
+              </div>
+            </div>
+          ` : `
+            <div style="padding:14px; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:10px; text-align:center;">
+              <p style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Cliente assina na hora da entrega para confirmar o recebimento do veículo.</p>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-detail-coletar-assinatura-entrega" style="background:#10b981; border-color:#10b981; color:#fff; font-weight:700; padding:10px 16px;">
+                ✍️ Coletar Assinatura de Entrega do Cliente
+              </button>
+            </div>
+          `}
         </div>` : ''}
 
       ${os.assinaturaMotorista ? `
@@ -3422,6 +3446,11 @@ const App = (() => {
     const btnColetarAssinaturaMot = document.getElementById('btn-detail-coletar-assinatura-motorista');
     if (btnColetarAssinaturaMot) {
       btnColetarAssinaturaMot.addEventListener('click', () => openModalColetarAssinatura(os.id, 'motorista'));
+    }
+
+    const btnColetarAssinaturaEntrega = document.getElementById('btn-detail-coletar-assinatura-entrega');
+    if (btnColetarAssinaturaEntrega) {
+      btnColetarAssinaturaEntrega.addEventListener('click', () => openModalAssinaturaRetirada(os, false, true));
     }
 
     const btnTicketWa = document.getElementById('btn-ticket-wa-icon');
