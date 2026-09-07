@@ -908,6 +908,500 @@ const Utils = (() => {
   }
 
   // =============================================
+  // VEHICLE DAMAGE TOUCH CANVAS
+  // =============================================
+  class VehicleDamageCanvas {
+    constructor(canvasEl, bgImageSrc, options = {}) {
+      this.canvas = typeof canvasEl === 'string' ? document.getElementById(canvasEl) : canvasEl;
+      if (!this.canvas) return;
+      this.ctx = this.canvas.getContext('2d');
+      this.bgImageSrc = bgImageSrc;
+      this.strokeColor = options.strokeColor || '#ef4444';
+      this.lineWidth = options.lineWidth || 3;
+      this.isDrawing = false;
+      this.strokes = [];
+      this.currentStroke = [];
+      this.bgLoaded = false;
+      this.img = new Image();
+      this.init();
+    }
+
+    init() {
+      this.img.crossOrigin = 'Anonymous';
+      this.img.onload = () => {
+        this.bgLoaded = true;
+        this.redraw();
+      };
+      this.img.onerror = () => {
+        this.bgLoaded = false;
+        this.redraw();
+      };
+      if (this.bgImageSrc) {
+        this.img.src = this.bgImageSrc;
+      }
+      this.attachEvents();
+    }
+
+    attachEvents() {
+      const c = this.canvas;
+      c.style.touchAction = 'none';
+
+      const getPos = (e) => {
+        const rect = c.getBoundingClientRect();
+        const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : (e.clientX || 0);
+        const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : (e.clientY || 0);
+        const scaleX = c.width / rect.width;
+        const scaleY = c.height / rect.height;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      };
+
+      const startDraw = (e) => {
+        e.preventDefault();
+        this.isDrawing = true;
+        const pos = getPos(e);
+        this.currentStroke = [{ x: pos.x, y: pos.y, color: this.strokeColor, width: this.lineWidth }];
+      };
+
+      const moveDraw = (e) => {
+        if (!this.isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        this.currentStroke.push({ x: pos.x, y: pos.y, color: this.strokeColor, width: this.lineWidth });
+        this.redraw();
+      };
+
+      const stopDraw = (e) => {
+        if (!this.isDrawing) return;
+        this.isDrawing = false;
+        if (this.currentStroke.length > 0) {
+          this.strokes.push([...this.currentStroke]);
+          this.currentStroke = [];
+        }
+        this.redraw();
+      };
+
+      c.addEventListener('pointerdown', startDraw);
+      c.addEventListener('pointermove', moveDraw);
+      c.addEventListener('pointerup', stopDraw);
+      c.addEventListener('pointercancel', stopDraw);
+      c.addEventListener('pointerleave', stopDraw);
+
+      c.addEventListener('touchstart', startDraw, { passive: false });
+      c.addEventListener('touchmove', moveDraw, { passive: false });
+      c.addEventListener('touchend', stopDraw);
+    }
+
+    setStrokeColor(color) { this.strokeColor = color; }
+    setLineWidth(width) { this.lineWidth = width; }
+    clear() { this.strokes = []; this.currentStroke = []; this.redraw(); }
+    undo() { this.strokes.pop(); this.redraw(); }
+
+    redraw() {
+      if (!this.ctx) return;
+      const { ctx, canvas } = this;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (this.bgLoaded && this.img) {
+        ctx.drawImage(this.img, 0, 0, canvas.width, canvas.height);
+      }
+
+      const allStrokes = [...this.strokes];
+      if (this.currentStroke.length > 0) {
+        allStrokes.push(this.currentStroke);
+      }
+
+      allStrokes.forEach(stroke => {
+        if (stroke.length === 0) return;
+        ctx.beginPath();
+        ctx.strokeStyle = stroke[0].color || this.strokeColor;
+        ctx.lineWidth = stroke[0].width || this.lineWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.moveTo(stroke[0].x, stroke[0].y);
+        for (let i = 1; i < stroke.length; i++) {
+          ctx.lineTo(stroke[i].x, stroke[i].y);
+        }
+        ctx.stroke();
+      });
+    }
+
+    toDataURL() {
+      this.redraw();
+      return this.canvas.toDataURL('image/png');
+    }
+
+    loadFromDataURL(dataUrl) {
+      if (!dataUrl) return;
+      const overlayImg = new Image();
+      overlayImg.onload = () => {
+        this.ctx.drawImage(overlayImg, 0, 0, this.canvas.width, this.canvas.height);
+      };
+      overlayImg.src = dataUrl;
+    }
+  }
+
+  // =============================================
+  // GERAR DOCUMENTO DE ATENDIMENTO UNIFICADO PDF
+  // =============================================
+  function gerarDocumentoAtendimentoPDF(osTarget) {
+    if (!window.jspdf) {
+      alert('Biblioteca jsPDF não carregada.');
+      return;
+    }
+    let os = osTarget;
+    if (typeof osTarget === 'string' || typeof osTarget === 'number') {
+      if (window.Storage && Storage.getOrdemById) {
+        os = Storage.getOrdemById(osTarget);
+      }
+    }
+    if (!os) {
+      alert('Dados do atendimento/OS não encontrados para gerar o PDF.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const ml = 12;
+    const cw = pw - (ml * 2);
+    let y = 14;
+
+    const dataGen = os.criadoEm ? new Date(os.criadoEm).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+    const codigoDoc = os.codigoOS || ('#' + (os.id || '001'));
+
+    // --- PÁGINA 1 ---
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(30, 58, 138); // #1e3a8a
+    doc.text('SUPRA BIKE', pw / 2, y, { align: 'center' });
+    y += 6;
+    doc.setFontSize(14);
+    doc.text('DOCUMENTO DE ATENDIMENTO', pw / 2, y, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text('N.º: ' + codigoDoc + '    Data: ' + dataGen, pw - ml, y - 2, { align: 'right' });
+    y += 6;
+
+    // Checkboxes Tipo de Atendimento
+    const tipos = os.tiposAtendimento || os.tipoAtendimento || [];
+    const isCheckin = Array.isArray(tipos) ? tipos.includes('checkin') : !!os.tipoCheckin;
+    const isOS = Array.isArray(tipos) ? tipos.includes('ordem_servico') : (!!os.tipoOS || os.tipo === 'os' || !os.tipo);
+    const isRetirada = Array.isArray(tipos) ? tipos.includes('retirada') : (!!os.tipoRetirada || os.tipo === 'retirada');
+    const isEntrega = Array.isArray(tipos) ? tipos.includes('entrega') : (!!os.tipoEntrega || os.tipo === 'entrega');
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(ml, y, cw, 10, 'F');
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(ml, y, cw, 10, 'S');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Tipo:', ml + 4, y + 6.5);
+
+    const drawCheckOption = (xPos, label, isChecked) => {
+      doc.setDrawColor(15, 23, 42);
+      doc.rect(xPos, y + 2.5, 4, 4);
+      if (isChecked) {
+        doc.setFillColor(37, 99, 235);
+        doc.rect(xPos + 0.8, y + 3.3, 2.4, 2.4, 'F');
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.text(label, xPos + 6, y + 5.8);
+    };
+
+    drawCheckOption(ml + 18, 'Check-in', isCheckin);
+    drawCheckOption(ml + 50, 'Ordem de Serviço', isOS);
+    drawCheckOption(ml + 95, 'Retirada', isRetirada);
+    drawCheckOption(ml + 130, 'Entrega', isEntrega);
+    y += 14;
+
+    // Helper for Section Banners
+    const drawBanner = (titleText) => {
+      doc.setFillColor(15, 42, 74); // Dark navy banner matching Novo PDF
+      doc.rect(ml, y, cw, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text(titleText, ml + 4, y + 4.3);
+      y += 8;
+    };
+
+    // 1. DADOS DO CLIENTE
+    drawBanner('DADOS DO CLIENTE');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+    doc.text('Nome:', ml, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(os.clienteNome || '—', ml + 14, y);
+    y += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('CPF:', ml, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(os.clienteCpf || '—', ml + 12, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cel.:', ml + 80, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(os.clienteTelefone ? formatarTelefone(os.clienteTelefone) : '—', ml + 90, y);
+    y += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Endereço:', ml, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(os.clienteEndereco || os.endereco || '—', ml + 18, y);
+    y += 8;
+
+    // 2. DADOS DO VEÍCULO
+    drawBanner('DADOS DO VEÍCULO');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+    doc.text('Modelo:', ml, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(os.modeloVeiculo || '—', ml + 16, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cor:', ml + 100, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(os.corVeiculo || '—', ml + 110, y);
+    y += 5;
+
+    const temGarantia = !!os.garantia;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Garantia:', ml, y);
+    doc.rect(ml + 18, y - 3, 3.5, 3.5);
+    if (temGarantia) { doc.setFillColor(37, 99, 235); doc.rect(ml + 18.6, y - 2.4, 2.3, 2.3, 'F'); }
+    doc.setFont('helvetica', 'normal');
+    doc.text('SIM', ml + 23, y);
+
+    doc.rect(ml + 38, y - 3, 3.5, 3.5);
+    if (!temGarantia) { doc.setFillColor(37, 99, 235); doc.rect(ml + 38.6, y - 2.4, 2.3, 2.3, 'F'); }
+    doc.text('NÃO', ml + 43, y);
+    y += 8;
+
+    // 3. ITENS DEIXADOS / RETIRADOS / ENTREGUES
+    drawBanner('ITENS · DEIXADOS / RETIRADOS / ENTREGUES');
+    const chk = os.checklistItems || os.camposPersonalizados || {};
+
+    const drawCheckItem = (xPos, label, isChecked, qty) => {
+      doc.setDrawColor(15, 23, 42);
+      doc.rect(xPos, y - 3, 3.5, 3.5);
+      if (isChecked) { doc.setFillColor(37, 99, 235); doc.rect(xPos + 0.6, y - 2.4, 2.3, 2.3, 'F'); }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.text(label, xPos + 5, y);
+      if (qty) {
+        doc.setDrawColor(148, 163, 184);
+        doc.rect(xPos + 26, y - 3.5, 8, 4.5);
+        doc.setFont('helvetica', 'bold');
+        doc.text(String(qty), xPos + 29, y);
+      }
+    };
+
+    drawCheckItem(ml, 'Chaves', !!chk.deixouChaves, chk.qtdChaves || 1);
+    drawCheckItem(ml + 45, 'Controles', !!chk.deixouControles, chk.qtdControles || 1);
+    drawCheckItem(ml + 95, 'Carregador', !!chk.deixouCarregador, null);
+    drawCheckItem(ml + 140, 'Documentos', !!chk.deixouDocumentos, null);
+    y += 8;
+
+    // 4. RELATO DO CLIENTE / PROBLEMA INFORMADO
+    drawBanner('RELATO DO CLIENTE / PROBLEMA INFORMADO');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    const relato = os.observacoes || os.relatoCliente || os.problemaInformado || 'Nenhuma observação registrada.';
+    const splitRelato = doc.splitTextToSize(relato, cw - 4);
+    doc.text(splitRelato, ml + 2, y);
+    y += Math.max(12, (splitRelato.length * 4) + 4);
+
+    // 5. ORÇAMENTO / SERVIÇOS EXECUTADOS (Visível se for OS ou tiver serviços)
+    if (isOS || (os.servicos && os.servicos.length > 0)) {
+      drawBanner('ORÇAMENTO / SERVIÇOS EXECUTADOS');
+      // Table Header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(ml, y, cw - 30, 5, 'F');
+      doc.rect(ml + cw - 30, y, 30, 5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
+      doc.text('Descrição', ml + 2, y + 3.8);
+      doc.text('Valor (R$)', ml + cw - 28, y + 3.8);
+      y += 5;
+
+      const servicos = os.servicos || [];
+      if (servicos.length === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.text('Manutenção em avaliação / sem itens discriminados.', ml + 2, y + 4);
+        y += 6;
+      } else {
+        servicos.forEach(s => {
+          doc.setFont('helvetica', 'normal');
+          doc.text(String(s.descricao || 'Serviço'), ml + 2, y + 4);
+          doc.text(formatarMoeda(s.valor || 0), ml + cw - 28, y + 4);
+          doc.setDrawColor(226, 232, 240);
+          doc.line(ml, y + 5, ml + cw, y + 5);
+          y += 5.5;
+        });
+      }
+
+      // Total & Aprovação
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('VALOR TOTAL: R$ ' + formatarMoeda(os.valorTotal || 0), ml, y + 4);
+      const isAprovado = os.statusAprovacao === 'aprovado' || os.status === 'aprovado' || os.status === 'em_andamento' || os.status === 'concluido';
+      doc.text('Aprovação:  ■ ' + (isAprovado ? 'APROVADO' : 'PENDENTE') + '  ■ NÃO APROVADO', ml + 90, y + 4);
+      y += 9;
+    }
+
+    // 6. TAXAS & STATUS DO ATENDIMENTO
+    if (isRetirada || isEntrega || os.taxaRetirada || os.taxaEntrega) {
+      const boxW = (cw - 4) / 2;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(ml, y, boxW, 14, 'F');
+      doc.rect(ml + boxW + 4, y, boxW, 14, 'F');
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(ml, y, boxW, 14, 'S');
+      doc.rect(ml + boxW + 4, y, boxW, 14, 'S');
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
+      doc.text('TAXA · ( Retirada )', ml + 3, y + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Valor: R$ ' + formatarMoeda(os.taxaRetirada || 0), ml + 3, y + 9);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('TAXA · ( Entrega )', ml + boxW + 7, y + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Valor: R$ ' + formatarMoeda(os.taxaEntrega || 0), ml + boxW + 7, y + 9);
+      y += 18;
+    }
+
+    // 7. DECLARAÇÃO E ASSINATURAS
+    doc.setFillColor(248, 250, 252);
+    doc.rect(ml, y, cw, 12, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 41, 59);
+    doc.text('DECLARAÇÃO', ml + 2, y + 3.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    const decText = 'Declaro estar ciente e de acordo com os termos referentes ao tipo de atendimento marcado acima (check-in, ordem de serviço, retirada ou entrega do veículo), incluindo a autorização para diagnóstico, execução dos serviços orçados e/ou confirmação de recebimento, conforme o caso.';
+    const splitDec = doc.splitTextToSize(decText, cw - 4);
+    doc.text(splitDec, ml + 2, y + 7);
+    y += 18;
+
+    // Assinaturas linhas
+    const sigW = 75;
+    doc.setDrawColor(148, 163, 184);
+    doc.line(ml + 5, y, ml + 5 + sigW, y);
+    doc.line(pw - ml - 5 - sigW, y, pw - ml - 5, y);
+
+    // Se houver assinaturas base64
+    if (os.assinaturaCliente) {
+      try { doc.addImage(os.assinaturaCliente, 'PNG', ml + 15, y - 12, 45, 11); } catch (e) {}
+    }
+    if (os.assinaturaMotorista || os.assinaturaTecnico) {
+      try { doc.addImage(os.assinaturaMotorista || os.assinaturaTecnico, 'PNG', pw - ml - 5 - sigW + 15, y - 12, 45, 11); } catch (e) {}
+    }
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
+    doc.text('Assinatura do Cliente', ml + 5 + (sigW / 2), y + 4, { align: 'center' });
+    doc.text('Responsável (Recebimento/Retirada/Técnico/Entrega)', pw - ml - 5 - (sigW / 2), y + 4, { align: 'center' });
+
+    // --- PÁGINA 2: CONDIÇÕES DO VEÍCULO ---
+    doc.addPage();
+    let y2 = 16;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(15, 42, 74);
+    doc.text('CONDIÇÕES DO VEÍCULO', pw / 2, y2, { align: 'center' });
+    y2 += 10;
+
+    // Diagramas de Avarias (Canvas dataUrl ou imagens base)
+    const avarias = os.avarias || {};
+    const frontImg = avarias.frontDataUrl || 'scooter_front.png';
+    const rearImg = avarias.rearDataUrl || 'scooter_rear.png';
+
+    const diagramW = 85;
+    const diagramH = 75;
+
+    try {
+      doc.addImage(frontImg, 'PNG', ml + 2, y2, diagramW, diagramH);
+    } catch (e) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+      doc.text('[ Vista Frontal / Lateral ]', ml + 20, y2 + 35);
+    }
+
+    try {
+      doc.addImage(rearImg, 'PNG', ml + diagramW + 10, y2, diagramW, diagramH);
+    } catch (e) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+      doc.text('[ Vista Traseira / Lateral ]', ml + diagramW + 30, y2 + 35);
+    }
+    y2 += diagramH + 12;
+
+    // Seção Fotos do Veículo (Grade 2x2 - apenas fotos preenchidas)
+    const fotosVeiculo = os.fotosVeiculo || os.fotos || [];
+    const fotosValidas = (Array.isArray(fotosVeiculo) ? fotosVeiculo : []).filter(f => typeof f === 'string' && f.length > 30);
+
+    if (fotosValidas.length > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(30, 58, 138);
+      doc.text('REGISTRO FOTOGRÁFICO DO VEÍCULO', ml, y2);
+      y2 += 6;
+
+      const photoW = 85;
+      const photoH = 60;
+      const gapX = 12;
+      const gapY = 8;
+
+      fotosValidas.slice(0, 4).forEach((foto, idx) => {
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const posX = ml + (col * (photoW + gapX));
+        const posY = y2 + (row * (photoH + gapY));
+
+        try {
+          doc.addImage(foto, 'JPEG', posX, posY, photoW, photoH);
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(posX, posY, photoW, photoH, 'S');
+        } catch (e) {
+          try {
+            doc.addImage(foto, 'PNG', posX, posY, photoW, photoH);
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(posX, posY, photoW, photoH, 'S');
+          } catch (err) {}
+        }
+      });
+    }
+
+    // Observações de Avarias & Arranhões (registradas pelo motorista na vistoria)
+    const textObsAvarias = os.obsAvarias || (os.avarias && os.avarias.observacoes) || '';
+    if (textObsAvarias) {
+      let yObs = y2;
+      if (fotosValidas.length > 0) {
+        const rows = Math.ceil(Math.min(fotosValidas.length, 4) / 2);
+        yObs += (rows * (60 + 8)) + 4;
+      }
+      if (yObs > 240) {
+        doc.addPage();
+        yObs = 20;
+      }
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(ml, yObs, cw, 6, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 58, 138);
+      doc.text('OBSERVAÇÕES DE AVARIAS / ARRANHÕES:', ml + 2, yObs + 4.3);
+      yObs += 9;
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+      const splitObsAv = doc.splitTextToSize(textObsAvarias, cw - 4);
+      doc.text(splitObsAv, ml + 2, yObs);
+    }
+
+    doc.save('Documento_Atendimento_OS_' + os.id + '.pdf');
+  }
+
+  // =============================================
   // INSTAGRAM
   // =============================================
   function abrirInstagram(username = 'wisionarium') {
@@ -937,11 +1431,13 @@ const Utils = (() => {
     traduzirStatusPagamento, traduzirRole, formatarDataEntrega,
     comprimirFotoBase64, removerAcentos, escapeHtml,
     gerarMensagemWhatsApp, gerarLinkWhatsApp, abrirInstagram,
-    gerarPDFEntrega,
-    gerarPDFRetirada: gerarPDFRetiradaDoc,
-    gerarPDFTermoRetirada: gerarPDFRetiradaDoc,
-    gerarPDFRetiradaDoc,
-    gerarPDFOrdemServico,
+    gerarPDFEntrega: gerarDocumentoAtendimentoPDF,
+    gerarPDFRetirada: gerarDocumentoAtendimentoPDF,
+    gerarPDFTermoRetirada: gerarDocumentoAtendimentoPDF,
+    gerarPDFRetiradaDoc: gerarDocumentoAtendimentoPDF,
+    gerarPDFOrdemServico: gerarDocumentoAtendimentoPDF,
+    gerarDocumentoAtendimentoPDF,
+    VehicleDamageCanvas,
     hashSenha, gerarId, debounce
   };
 })();

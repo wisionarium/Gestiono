@@ -4,8 +4,8 @@
   "description": "Boa Gestão - Gestão de Ordens de Serviço",
   "main": "index.html",
   "scripts": {
-    "dev": "npx -y serve . -l 3000",
-    "start": "npx -y serve . -l 3000"
+    "dev": "npx -y serve . -l 3001",
+    "start": "npx -y serve . -l 3001"
   },
   "author": "Wisionarium",
   "license": "ISC",

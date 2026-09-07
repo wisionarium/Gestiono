@@ -206,6 +206,10 @@ const Storage = (() => {
             qtdDocumento: customMeta.qtdDocumento || 0,
             deixouCartaoNFC: !!customMeta.deixouCartaoNFC,
             qtdCartaoNFC: customMeta.qtdCartaoNFC || 0,
+            avarias: customMeta.avarias || o.avarias || {},
+            obsAvarias: customMeta.obsAvarias || o.obsAvarias || '',
+            fotosVeiculo: customMeta.fotosVeiculo || o.fotosVeiculo || [],
+            tiposAtendimento: customMeta.tiposAtendimento || o.tiposAtendimento || [],
             temFotos: o.tem_fotos,
             fotos: o.fotos || [],
             camposPersonalizados: customMeta,
@@ -386,7 +390,11 @@ const Storage = (() => {
           assinaturaMotorista: o.assinaturaMotorista || null,
           dataAssinaturaMotorista: o.dataAssinaturaMotorista || null,
           assinanteMotoristaNome: o.assinanteMotoristaNome || null,
-          relatoCliente: o.relatoCliente || null
+          relatoCliente: o.relatoCliente || null,
+          avarias: o.avarias || null,
+          obsAvarias: o.obsAvarias || null,
+          fotosVeiculo: o.fotosVeiculo || null,
+          tiposAtendimento: o.tiposAtendimento || null
         };
 
         const payload = {

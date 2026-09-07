@@ -1530,7 +1530,7 @@ const App = (() => {
         e.stopPropagation();
         const os = Storage.getOrdemById(btn.dataset.id);
         const isEnt = btn.dataset.entrega === '1';
-        if (os) openModalAssinaturaRetirada(os, false, isEnt);
+        if (os) openModalVistoriaAvarias(os, isEnt);
       };
     });
 
@@ -1538,7 +1538,7 @@ const App = (() => {
       btn.onclick = (e) => {
         e.stopPropagation();
         const os = Storage.getOrdemById(btn.dataset.id);
-        if (os) openModalFotosRetirada(os);
+        if (os) openModalVistoriaAvarias(os);
       };
     });
 
@@ -1982,7 +1982,7 @@ const App = (() => {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Relato do cliente</label>
+          <label class="form-label">Relato do cliente / Problema Informado</label>
           <textarea class="form-textarea" id="retirada-edit-obs" rows="3" placeholder="Descreva o relato do cliente sobre o veículo..."></textarea>
         </div>
 
@@ -2018,6 +2018,7 @@ const App = (() => {
       const dados = {
         tipo: 'retirada',
         status: existingOS ? existingOS.status : 'retirada_pendente',
+        tiposAtendimento: existingOS ? (existingOS.tiposAtendimento || ['checkin', 'ordem_servico', 'retirada']) : ['checkin', 'ordem_servico', 'retirada'],
         clienteNome: document.getElementById('retirada-edit-nome').value.trim(),
         clienteCpf: document.getElementById('retirada-edit-cpf').value.trim(),
         clienteTelefone: document.getElementById('retirada-edit-telefone').value.trim(),
@@ -2038,8 +2039,10 @@ const App = (() => {
         atualizadoEm: new Date().toISOString()
       };
 
+      let savedOS = null;
       if (existingOS) {
         Storage.updateOrdem(existingOS.id, dados);
+        savedOS = Storage.getOrdemById(existingOS.id);
         showToast(`Ordem ${existingOS.id} atualizada!`, 'success');
       } else {
         dados.servicos = [{ descricao: 'Ordem de Retirada', valor: 0 }];
@@ -2050,9 +2053,14 @@ const App = (() => {
         dados.atendente = currentUser ? currentUser.nome : 'Sistema';
         dados.criadoPor = currentUser ? currentUser.nome : 'Sistema';
         dados.criadoEm = new Date().toISOString();
-        const saved = Storage.saveOrdem(dados);
-        showToast(`Ordem de Retirada ${saved.id} registrada! Veja na aba Retirada em Serviços.`, 'success');
+        savedOS = Storage.saveOrdem(dados);
+        showToast(`Documento de Atendimento ${savedOS.id} registrado!`, 'success');
       }
+
+      if (savedOS && Utils.gerarDocumentoAtendimentoPDF) {
+        Utils.gerarDocumentoAtendimentoPDF(savedOS);
+      }
+
       renderListaOS('aguardando');
       updateNavBadges();
       return true;
@@ -2271,81 +2279,268 @@ const App = (() => {
       </div>`;
   }
 
-  function openModalFotosRetirada(os) {
-    let tempFotos = [...(os.fotos || [])];
+  function openModalVistoriaAvarias(os, isEntrega = false) {
+    if (!os) return;
+    const escapeHtml = Utils.escapeHtml;
+    let tempFotos = [...(os.fotosVeiculo || os.fotos || [])];
+    const obsAvariasVal = os.obsAvarias || (os.avarias && os.avarias.observacoes) || '';
+
     const bodyHtml = `
-      <div style="margin-bottom:12px; font-size:13px; color:var(--text-secondary);">
-        Anexe ou tire fotos do veículo para a Retirada <strong>${os.id}</strong>:
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div style="padding:10px 12px; background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.2); border-radius:10px; font-size:12px; color:var(--text-primary);">
+          <strong>Vistoria & Coleta:</strong> ${escapeHtml(os.clienteNome || 'Cliente')} — <strong>${escapeHtml(os.modeloVeiculo || 'Veículo')}</strong>
+        </div>
+
+        <div class="section-divider" style="margin-top:0;">Condições do Veículo (Marcação por Toque)</div>
+        <div class="damage-diagrams-grid">
+          <div class="damage-canvas-card">
+            <div class="damage-canvas-title">Vista Frontal / Lateral</div>
+            <div class="damage-canvas-wrapper">
+              <canvas id="vistoria-canvas-front" width="280" height="210"></canvas>
+            </div>
+            <div class="damage-toolbar">
+              <div class="damage-color-picker">
+                <span class="damage-color-dot active" style="background:#ef4444;" data-color="#ef4444"></span>
+                <span class="damage-color-dot" style="background:#f59e0b;" data-color="#f59e0b"></span>
+                <span class="damage-color-dot" style="background:#3b82f6;" data-color="#3b82f6"></span>
+                <span class="damage-color-dot" style="background:#000000;" data-color="#000000"></span>
+              </div>
+              <button type="button" class="damage-btn-clear" id="btn-clear-vistoria-front">Limpar</button>
+            </div>
+          </div>
+          <div class="damage-canvas-card">
+            <div class="damage-canvas-title">Vista Traseira / Lateral</div>
+            <div class="damage-canvas-wrapper">
+              <canvas id="vistoria-canvas-rear" width="280" height="210"></canvas>
+            </div>
+            <div class="damage-toolbar">
+              <div class="damage-color-picker">
+                <span class="damage-color-dot active" style="background:#ef4444;" data-color="#ef4444"></span>
+                <span class="damage-color-dot" style="background:#f59e0b;" data-color="#f59e0b"></span>
+                <span class="damage-color-dot" style="background:#3b82f6;" data-color="#3b82f6"></span>
+                <span class="damage-color-dot" style="background:#000000;" data-color="#000000"></span>
+              </div>
+              <button type="button" class="damage-btn-clear" id="btn-clear-vistoria-rear">Limpar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider">Fotos do Veículo (Opcional - até 4 Fotos)</div>
+        <div class="vehicle-photos-grid">
+          ${[0, 1, 2, 3].map(idx => `
+            <div class="vehicle-photo-slot" data-slot="${idx}" id="vistoria-slot-vphoto-${idx}">
+              <input type="file" accept="image/*" id="vistoria-input-vphoto-${idx}">
+              <div class="vehicle-photo-slot-placeholder" id="vistoria-placeholder-vphoto-${idx}">
+                <span>📷 Foto ${idx + 1}</span>
+                <span style="font-size:0.65rem; opacity:0.7;">Anexar / Tirar foto</span>
+              </div>
+              <img id="vistoria-img-vphoto-${idx}" style="display:none;">
+              <button type="button" class="vehicle-photo-remove" id="vistoria-remove-vphoto-${idx}" style="display:none;">×</button>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="section-divider">Observações de Avarias & Arranhões</div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:700; color:var(--text-primary);">Descreva arranhões ou avarias não visíveis nas fotos</label>
+          <textarea class="form-textarea" id="vistoria-obs-avarias" rows="3" placeholder="Ex: Arranhão na carenagem lateral esquerda, retrovisor frouxo...">${escapeHtml(obsAvariasVal)}</textarea>
+        </div>
+
+        <div class="section-divider">Assinatura do Cliente</div>
+        <div style="background:var(--bg-surface); padding:10px; border-radius:10px; border:1px solid var(--glass-border); text-align:center;">
+          <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Desenhe a assinatura do cliente abaixo:</div>
+          <div style="position:relative; width:100%; aspect-ratio:3 / 1; border:1px dashed var(--glass-border); border-radius:8px; overflow:hidden; background:#fff;">
+            <canvas id="vistoria-signature-pad" style="width:100%; height:100%; touch-action:none; cursor:crosshair;"></canvas>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-vistoria-sig" style="margin-top:6px; font-size:11px; padding:4px 10px;">Limpar Assinatura</button>
+        </div>
       </div>
-      <input type="file" id="modal-foto-camera" accept="image/*" capture="environment" multiple style="display:none;">
-      <input type="file" id="modal-foto-galeria" accept="image/*" multiple style="display:none;">
-      <div style="display:flex; gap:8px; margin-bottom:14px;">
-        <button type="button" class="btn btn-secondary" id="btn-modal-camera" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px;">
-          📷 Câmera
-        </button>
-        <button type="button" class="btn btn-secondary" id="btn-modal-galeria" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px;">
-          🖼️ Galeria
-        </button>
-      </div>
-      <div id="modal-fotos-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; min-height:60px;"></div>
     `;
 
-    openModal(`Fotos - Retirada ${os.id}`, bodyHtml, () => {
-      Storage.updateOrdem(os.id, { fotos: tempFotos, temFotos: tempFotos.length > 0 });
-      showToast(`${tempFotos.length} foto(s) salva(s) na Retirada!`, 'success');
+    let canvasFront = null;
+    let canvasRear = null;
+    let sigCtx = null;
+    let sigCanvasEl = null;
+    let sigDrawing = false;
+    let sigHasStrokes = false;
+
+    openModal(`Vistoria & Avarias — OS ${os.id}`, bodyHtml, () => {
+      const frontDataUrl = canvasFront ? canvasFront.toDataURL() : (os.avarias?.frontDataUrl || null);
+      const rearDataUrl = canvasRear ? canvasRear.toDataURL() : (os.avarias?.rearDataUrl || null);
+      const textObsAvarias = (document.getElementById('vistoria-obs-avarias')?.value || '').trim();
+
+      const validFotos = tempFotos.filter(f => typeof f === 'string' && f.length > 30);
+
+      let signatureBase64 = os.assinaturaCliente || null;
+      if (sigCanvasEl && sigHasStrokes && !isCanvasBlank(sigCanvasEl)) {
+        signatureBase64 = sigCanvasEl.toDataURL('image/png');
+      }
+
+      const updates = {
+        avarias: { frontDataUrl, rearDataUrl },
+        obsAvarias: textObsAvarias,
+        fotosVeiculo: validFotos,
+        fotos: validFotos,
+        temFotos: validFotos.length > 0,
+        assinaturaCliente: signatureBase64,
+        assinanteNome: os.clienteNome || 'Cliente',
+        dataAssinaturaCliente: signatureBase64 ? new Date().toISOString() : os.dataAssinaturaCliente,
+        atualizadoEm: new Date().toISOString()
+      };
+
+      Storage.updateOrdem(os.id, updates);
+      const updatedOS = Storage.getOrdemById(os.id);
+      showToast('Vistoria e Avarias salvas com sucesso!', 'success');
+
+      if (updatedOS && Utils.gerarDocumentoAtendimentoPDF) {
+        Utils.gerarDocumentoAtendimentoPDF(updatedOS);
+      }
+
+      renderMotoristaRetiradas();
       renderListaOS('aguardando');
       return true;
     });
 
     setTimeout(() => {
-      const grid = document.getElementById('modal-fotos-grid');
-      const inputCam = document.getElementById('modal-foto-camera');
-      const inputGal = document.getElementById('modal-foto-galeria');
-      const btnCam = document.getElementById('btn-modal-camera');
-      const btnGal = document.getElementById('btn-modal-galeria');
+      // 1. Initialize Damage Canvases
+      if (Utils.VehicleDamageCanvas) {
+        canvasFront = new Utils.VehicleDamageCanvas('vistoria-canvas-front', 'scooter_front.png');
+        canvasRear = new Utils.VehicleDamageCanvas('vistoria-canvas-rear', 'scooter_rear.png');
 
-      const renderGrid = () => {
-        if (!grid) return;
-        if (tempFotos.length === 0) {
-          grid.innerHTML = `<div style="grid-column:span 4; text-align:center; padding:16px; font-size:12px; color:var(--text-tertiary);">Nenhuma foto anexada.</div>`;
-          return;
+        if (os && os.avarias) {
+          if (os.avarias.frontDataUrl) canvasFront.loadFromDataURL(os.avarias.frontDataUrl);
+          if (os.avarias.rearDataUrl) canvasRear.loadFromDataURL(os.avarias.rearDataUrl);
         }
-        grid.innerHTML = tempFotos.map((f, idx) => `
-          <div style="position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; border:1px solid var(--glass-border);">
-            <img src="${f}" style="width:100%; height:100%; object-fit:cover;">
-            <button type="button" data-idx="${idx}" class="btn-del-modal-foto" style="position:absolute; top:2px; right:2px; background:rgba(239,68,68,0.9); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
-          </div>
-        `).join('');
 
-        grid.querySelectorAll('.btn-del-modal-foto').forEach(b => {
-          b.onclick = () => {
-            tempFotos.splice(parseInt(b.dataset.idx), 1);
-            renderGrid();
-          };
+        document.getElementById('btn-clear-vistoria-front')?.addEventListener('click', () => canvasFront.clear());
+        document.getElementById('btn-clear-vistoria-rear')?.addEventListener('click', () => canvasRear.clear());
+
+        document.querySelectorAll('.damage-canvas-card').forEach(card => {
+          const canvasObj = card.querySelector('#vistoria-canvas-front') ? canvasFront : canvasRear;
+          card.querySelectorAll('.damage-color-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+              card.querySelectorAll('.damage-color-dot').forEach(d => d.classList.remove('active'));
+              dot.classList.add('active');
+              canvasObj.setStrokeColor(dot.dataset.color);
+            });
+          });
         });
-      };
+      }
 
-      const handleFiles = (files) => {
-        Array.from(files).forEach(file => {
-          if (tempFotos.length >= 8) return;
+      // 2. Initialize Photo Slots
+      [0, 1, 2, 3].forEach(idx => {
+        const slotEl = document.getElementById(`vistoria-slot-vphoto-${idx}`);
+        const inputEl = document.getElementById(`vistoria-input-vphoto-${idx}`);
+        const imgEl = document.getElementById(`vistoria-img-vphoto-${idx}`);
+        const placeholderEl = document.getElementById(`vistoria-placeholder-vphoto-${idx}`);
+        const removeBtn = document.getElementById(`vistoria-remove-vphoto-${idx}`);
+
+        if (tempFotos[idx]) {
+          imgEl.src = tempFotos[idx];
+          imgEl.style.display = 'block';
+          if (placeholderEl) placeholderEl.style.display = 'none';
+          if (removeBtn) removeBtn.style.display = 'flex';
+        }
+
+        slotEl?.addEventListener('click', (e) => {
+          if (e.target.classList.contains('vehicle-photo-remove')) return;
+          inputEl?.click();
+        });
+
+        inputEl?.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
           const reader = new FileReader();
-          reader.onload = (e) => {
-            Utils.comprimirFotoBase64(e.target.result, 800, 800, 0.75).then(compressed => {
-              tempFotos.push(compressed);
-              renderGrid();
+          reader.onload = (evt) => {
+            Utils.comprimirFotoBase64(evt.target.result, 800, 800, 0.75).then(compressed => {
+              tempFotos[idx] = compressed;
+              imgEl.src = compressed;
+              imgEl.style.display = 'block';
+              if (placeholderEl) placeholderEl.style.display = 'none';
+              if (removeBtn) removeBtn.style.display = 'flex';
             });
           };
           reader.readAsDataURL(file);
         });
-      };
 
-      if (btnCam && inputCam) btnCam.onclick = () => inputCam.click();
-      if (btnGal && inputGal) btnGal.onclick = () => inputGal.click();
-      if (inputCam) inputCam.onchange = (e) => handleFiles(e.target.files);
-      if (inputGal) inputGal.onchange = (e) => handleFiles(e.target.files);
+        removeBtn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          tempFotos[idx] = null;
+          imgEl.src = '';
+          imgEl.style.display = 'none';
+          if (placeholderEl) placeholderEl.style.display = 'flex';
+          if (removeBtn) removeBtn.style.display = 'none';
+          if (inputEl) inputEl.value = '';
+        });
+      });
 
-      renderGrid();
-    }, 50);
+      // 3. Initialize Signature Pad
+      sigCanvasEl = document.getElementById('vistoria-signature-pad');
+      if (sigCanvasEl) {
+        const rect = sigCanvasEl.parentElement.getBoundingClientRect();
+        sigCanvasEl.width = rect.width || 300;
+        sigCanvasEl.height = rect.height || 100;
+        sigCtx = sigCanvasEl.getContext('2d');
+        sigCtx.fillStyle = '#ffffff';
+        sigCtx.fillRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
+
+        if (os.assinaturaCliente) {
+          const sigImg = new Image();
+          sigImg.onload = () => sigCtx.drawImage(sigImg, 0, 0, sigCanvasEl.width, sigCanvasEl.height);
+          sigImg.src = os.assinaturaCliente;
+        }
+
+        const getSigPos = (e) => {
+          const r = sigCanvasEl.getBoundingClientRect();
+          const cx = e.touches && e.touches.length > 0 ? e.touches[0].clientX : (e.clientX || 0);
+          const cy = e.touches && e.touches.length > 0 ? e.touches[0].clientY : (e.clientY || 0);
+          return {
+            x: (cx - r.left) * (sigCanvasEl.width / r.width),
+            y: (cy - r.top) * (sigCanvasEl.height / r.height)
+          };
+        };
+
+        const startSig = (e) => {
+          e.preventDefault();
+          sigDrawing = true;
+          sigHasStrokes = true;
+          const p = getSigPos(e);
+          sigCtx.beginPath();
+          sigCtx.moveTo(p.x, p.y);
+          sigCtx.strokeStyle = '#0f172a';
+          sigCtx.lineWidth = 2.5;
+          sigCtx.lineCap = 'round';
+        };
+
+        const moveSig = (e) => {
+          if (!sigDrawing) return;
+          e.preventDefault();
+          const p = getSigPos(e);
+          sigCtx.lineTo(p.x, p.y);
+          sigCtx.stroke();
+        };
+
+        const stopSig = () => { sigDrawing = false; };
+
+        sigCanvasEl.addEventListener('pointerdown', startSig);
+        sigCanvasEl.addEventListener('pointermove', moveSig);
+        sigCanvasEl.addEventListener('pointerup', stopSig);
+        sigCanvasEl.addEventListener('touchstart', startSig, { passive: false });
+        sigCanvasEl.addEventListener('touchmove', moveSig, { passive: false });
+        sigCanvasEl.addEventListener('touchend', stopSig);
+
+        document.getElementById('btn-clear-vistoria-sig')?.addEventListener('click', () => {
+          sigCtx.clearRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
+          sigCtx.fillStyle = '#ffffff';
+          sigCtx.fillRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
+          sigHasStrokes = false;
+        });
+      }
+    }, 150);
+  }
+
+  function openModalFotosRetirada(os) {
+    openModalVistoriaAvarias(os);
   }
 
   function isCanvasBlank(canvas) {
