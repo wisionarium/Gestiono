@@ -437,7 +437,13 @@ const Storage = (() => {
           deletado_por: o.deletadoPor || null,
           assinatura_cliente: o.assinaturaCliente || null,
           data_assinatura: o.dataAssinatura || null,
-          assinante_nome: o.assinanteNome || null
+          assinante_nome: o.assinanteNome || null,
+          assinatura_motorista: o.assinaturaMotorista || null,
+          data_assinatura_motorista: o.dataAssinaturaMotorista || null,
+          assinante_motorista_nome: o.assinanteMotoristaNome || null,
+          assinatura_entrega: o.assinaturaEntrega || null,
+          data_assinatura_entrega: o.dataAssinaturaEntrega || null,
+          assinante_entrega_nome: o.assinanteEntregaNome || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
         const { error } = await client.from('ordens_servico').upsert(payload);

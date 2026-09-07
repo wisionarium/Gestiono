@@ -1350,227 +1350,128 @@ const App = (() => {
       const isEntregaItem = os.tipo === 'entrega' || os.statusEntrega === 'pendente' || os.status === 'entregue' || (os.temDataEntrega && os.status === 'concluido');
       const isConcluida = os.status === 'convertida' || os.status === 'coletado' || os.status === 'entregue' || os.statusEntrega === 'entregue';
       const borderCol = isConcluida ? '#64748b' : (isEntregaItem ? '#10b981' : '#f59e0b');
-      const isExpanded = expandedRetiradasCards.has(os.id);
+      const hasSig = !!(os.assinaturaCliente || os.assinaturaEntrega);
+      const fotosValidas = (os.fotosVeiculo || os.fotos || []).filter(f => typeof f === 'string' && f.length > 30);
+      const itemsMarcados = [];
+      if (os.deixouCartaoNFC) itemsMarcados.push(`Cartão NFC (${os.qtdCartaoNFC || 1})`);
+      if (os.deixouChave) itemsMarcados.push(`Chaves (${os.qtdChave || 1})`);
+      if (os.deixouControle) itemsMarcados.push(`Controles (${os.qtdControle || 1})`);
+      if (os.deixouCarregador) itemsMarcados.push(`Carregador (${os.qtdCarregador || 1})`);
+      if (os.deixouDocumento) itemsMarcados.push(`Documentos (${os.qtdDocumento || 1})`);
 
-      // Card Background: Grayed out tone when completed (Imagem 4)
-      const cardStyle = isConcluida
-        ? `border-left:4px solid #64748b; background:var(--bg-surface-secondary, #f1f5f9); opacity:0.88; border-top:1px solid rgba(148,163,184,0.25); border-right:1px solid rgba(148,163,184,0.25); border-bottom:1px solid rgba(148,163,184,0.25);`
-        : `border-left:4px solid ${borderCol}; background:var(--bg-surface); border-top:1px solid var(--glass-border); border-right:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border);`;
-
+      const cardStyle = `background:var(--bg-surface); border:1px solid var(--glass-border); border-left:5px solid ${borderCol}; box-shadow:var(--shadow-sm);`;
       const itemBadge = isEntregaItem
-        ? `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; font-weight:800; padding:4px 8px; border:1px solid rgba(16,185,129,0.3); font-size:11px;">📦 ENTREGA</span>`
-        : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:800; padding:4px 8px; border:1px solid rgba(245,158,11,0.3); font-size:11px;">🚚 RETIRADA</span>`;
-
+        ? `<span class="badge" style="background:rgba(16,185,129,0.15); color:#059669; font-weight:700; border:1px solid rgba(16,185,129,0.3); font-size:11px; padding:3px 8px;">🚚 ENTREGA</span>`
+        : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#d97706; font-weight:700; border:1px solid rgba(245,158,11,0.3); font-size:11px; padding:3px 8px;">🚚 RETIRADA</span>`;
       const statusBadge = isConcluida
-        ? `<span class="badge" style="background:rgba(100,116,139,0.2); color:#64748b; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(100,116,139,0.4);">✅ Concluído</span>`
-        : (os.assinaturaCliente || os.assinaturaEntrega
-          ? `<span class="badge" style="background:rgba(34,197,94,0.15); color:#22c55e; font-size:11px; padding:4px 8px; font-weight:700; border:1px solid rgba(34,197,94,0.4);">✅ Assinado</span>`
-          : `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-size:11px; padding:4px 8px; font-weight:700;">⚠️ Aguardando</span>`);
-
-      const osGerada = os.osCriadaId || (Storage.getOrdens().find(o => !o.deletado && o.origemRetiradaId === os.id));
-      const osCriadaCode = osGerada ? (typeof osGerada === 'object' ? osGerada.id : osGerada) : null;
-
-      // Checklist Items definitions for Imagem 5 (Toggle-switches + Quantity per line)
-      const checklistItems = [
-        { field: 'deixouCartaoNFC', qtdField: 'qtdCartaoNFC', label: '💳 Cartão NFC', isChecked: !!os.deixouCartaoNFC, qtd: os.qtdCartaoNFC || (os.deixouCartaoNFC ? 1 : 0) },
-        { field: 'deixouChave', qtdField: 'qtdChave', label: '🔑 Chaves', isChecked: !!os.deixouChave, qtd: os.qtdChave || (os.deixouChave ? 1 : 0) },
-        { field: 'deixouControle', qtdField: 'qtdControle', label: '🎮 Controles', isChecked: !!os.deixouControle, qtd: os.qtdControle || (os.deixouControle ? 1 : 0) },
-        { field: 'deixouCarregador', qtdField: 'qtdCarregador', label: '🔌 Carregador', isChecked: !!os.deixouCarregador, qtd: os.qtdCarregador || (os.deixouCarregador ? 1 : 0) },
-        { field: 'deixouDocumento', qtdField: 'qtdDocumento', label: '📄 Documentos', isChecked: !!os.deixouDocumento, qtd: os.qtdDocumento || (os.deixouDocumento ? 1 : 0) }
-      ];
-
-      const checklistHtml = checklistItems.map(item => `
-        <div class="ret-checklist-item-row" style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:var(--bg-surface-secondary); border-radius:10px; border:1px solid var(--glass-border); margin-bottom:8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:13px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
-              ${item.label}
-            </span>
-            <label class="toggle-switch">
-              <input type="checkbox" class="chk-toggle-item-retirada" data-id="${os.id}" data-field="${item.field}" data-qtdfield="${item.qtdField}" ${item.isChecked ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          ${item.isChecked ? `
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px; padding-top:6px; border-top:1px dashed var(--glass-border);">
-              <span style="font-size:11px; font-weight:700; color:var(--text-secondary);">Quantidade deixada pelo cliente:</span>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <input type="number" min="1" class="form-input input-qtd-retirada" data-id="${os.id}" data-qtdfield="${item.qtdField}" value="${item.qtd || 1}" ${isConcluida ? 'disabled' : ''} style="width:65px; padding:4px 8px; font-weight:800; font-size:13px; text-align:center; height:32px; border-radius:6px;">
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      `).join('');
+        ? `<span class="badge badge-success" style="font-size:11px; font-weight:700; padding:3px 8px;">✅ Concluído</span>`
+        : `<span class="badge badge-warning" style="font-size:11px; font-weight:700; background:rgba(245,158,11,0.15); color:#b45309; border:1px solid rgba(245,158,11,0.3); padding:3px 8px;">⏳ Aguardando</span>`;
+      const osCriadaCode = os.osCriadaId || null;
 
       html += `
-        <div class="ret-card-wrapper" data-ret-id="${os.id}" style="${cardStyle} border-radius:14px; overflow:hidden; transition:box-shadow 0.2s; margin-bottom:12px;">
-
-          <!-- CARD HEADER (always visible — tap to expand) -->
-          <div class="ret-card-toggle" data-ret-id="${os.id}" style="padding:14px 16px; cursor:pointer; display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-            <div style="flex:1;">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
-                <span style="font-weight:800; font-size:1.05rem; color:${borderCol};">${os.id}</span>
-                ${itemBadge}
-              </div>
-              <div style="font-weight:800; font-size:15px; color:var(--text-primary); margin-top:2px;">👤 ${Utils.escapeHtml(os.clienteNome)}</div>
-              ${os.clienteTelefone ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</div>` : ''}
-              ${os.clienteEndereco ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${Utils.escapeHtml(os.clienteEndereco)}</div>` : ''}
-              <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">🛵 <strong>${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')}</strong> (${Utils.escapeHtml(os.corVeiculo || 'Cor')})</div>
+        <div class="ret-card-wrapper" data-ret-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="${cardStyle} border-radius:14px; overflow:hidden; transition:all 0.2s; margin-bottom:12px; cursor:pointer; padding:14px 16px;">
+          <!-- Top Row: ID, Type Badge, Status Badge -->
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-weight:800; font-size:1.1rem; color:${borderCol};">${os.id}</span>
+              ${itemBadge}
             </div>
-            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;">
               ${statusBadge}
-              <span style="font-size:10px; color:var(--text-tertiary); font-weight:600; white-space:nowrap;">${isExpanded ? '▲ Recolher' : '▼ Ver detalhes'}</span>
             </div>
           </div>
 
-          <!-- EXPANDED DETAILS (only visible when card is tapped) -->
-          ${isExpanded ? `
-            <div style="padding:0 16px 16px 16px; border-top:1px dashed var(--glass-border);">
+          <!-- Customer & Vehicle Info -->
+          <div style="font-weight:800; font-size:15px; color:var(--text-primary); margin-top:2px;">👤 ${Utils.escapeHtml(os.clienteNome)}</div>
+          ${os.clienteTelefone ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;"><a href="tel:${os.clienteTelefone}" onclick="event.stopPropagation();" style="color:inherit; text-decoration:none;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</a></div>` : ''}
+          ${os.clienteEndereco ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${Utils.escapeHtml(os.clienteEndereco)}</div>` : ''}
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">🛵 <strong>${Utils.escapeHtml(os.modeloVeiculo || 'Veículo')}</strong> (${Utils.escapeHtml(os.corVeiculo || 'Cor')})</div>
 
-              <!-- Checklist de Itens (1 por linha com Toggle-switch e Qtd) -->
-              <div style="margin-top:12px; padding:12px; background:var(--bg-surface); border-radius:12px; border:1px solid var(--glass-border);">
-                <div style="font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
-                  <span>🎒 Itens Entregues pelo Cliente</span>
-                  <span style="font-size:10px; color:var(--text-tertiary); font-weight:500;">(Checklist de Coleta)</span>
-                </div>
-                ${checklistHtml}
+          <!-- Resumo de status e itens coletados -->
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:8px;">
+            ${hasSig ? `<span class="badge" style="background:rgba(34,197,94,0.12); color:#16a34a; font-size:10px; font-weight:700; border:1px solid rgba(34,197,94,0.3);">✍️ Assinado</span>` : ''}
+            ${fotosValidas.length > 0 ? `<span class="badge" style="background:rgba(37,99,235,0.12); color:#2563eb; font-size:10px; font-weight:700; border:1px solid rgba(37,99,235,0.3);">📷 ${fotosValidas.length}/4 foto(s)</span>` : ''}
+            ${itemsMarcados.length > 0 ? `<span class="badge" style="background:rgba(100,116,139,0.1); color:#475569; font-size:10px; font-weight:600;">🎒 ${itemsMarcados.length} item(ns) coletado(s)</span>` : ''}
+          </div>
+          ${fotosValidas.length > 0 ? `
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:8px;">
+            ${fotosValidas.slice(0, 4).map(f => `
+              <div style="aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:1px solid var(--glass-border); background:var(--bg-secondary);">
+                <img src="${f}" alt="Foto vistoria" style="width:100%; height:100%; object-fit:cover; display:block;">
+              </div>`).join('')}
+          </div>` : ''}
+
+          <!-- Action buttons -->
+          <div style="margin-top:12px;" onclick="event.stopPropagation();">
+            ${isConcluida ? `
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-secondary btn-sm btn-open-vistoria-popup" data-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="flex:1; font-weight:700; font-size:12px; padding:10px; display:flex; align-items:center; justify-content:center; gap:4px;">
+                  🔍 Ver Vistoria & Coleta
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="flex:1; font-weight:700; font-size:12px; padding:10px; display:flex; align-items:center; justify-content:center; gap:4px; color:#2563eb; border-color:rgba(37,99,235,0.3); background:rgba(37,99,235,0.06);">
+                  📄 Termo (PDF)
+                </button>
               </div>
-
-              <!-- Botões de ação -->
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
-                <button type="button" class="btn btn-secondary btn-sm btn-coletar-assinatura-retirada" data-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
-                  ✍️ ${(os.assinaturaCliente || os.assinaturaEntrega) ? 'Reassinar' : 'Assinar Cliente'}
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm btn-fotos-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">
-                  📷 Fotos ${os.temFotos && os.fotos && os.fotos.length ? `(${os.fotos.length})` : ''}
-                </button>
-
-                ${isConcluida ? `
-                  <div style="grid-column:span 2; display:flex; flex-direction:column; gap:8px;">
-                    <div style="background:rgba(100,116,139,0.15); border:1px solid rgba(100,116,139,0.3); color:#475569; font-weight:700; text-align:center; padding:10px; border-radius:8px; font-size:13px;">
-                      ✅ ${isEntregaItem ? 'Entrega Concluída (Entregue)' : 'Retirada Concluída (Coletado)'}
-                    </div>
-                    <button type="button" class="btn btn-secondary btn-sm btn-pdf-retirada-card" data-id="${os.id}" style="font-weight:700; padding:10px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; color:#2563eb; border-color:rgba(37,99,235,0.3); background:rgba(37,99,235,0.06);">
-                      📄 Baixar Termo de Retirada (PDF)
-                    </button>
-                    ${(!isEntregaItem && !isMotoristaUser()) ? (
-                      osCriadaCode ? `
-                        <div style="background:rgba(139,92,246,0.12); color:#8b5cf6; font-weight:800; text-align:center; padding:10px; border-radius:8px; font-size:13px; border:1px solid rgba(139,92,246,0.3);">
-                          ✅ OS Criada (${osCriadaCode})
-                        </div>
-                      ` : `
-                        <button type="button" class="btn btn-primary btn-sm btn-converter-retirada-os" data-id="${os.id}" style="background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:700; padding:12px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
-                          📋 Criar OS para Mecânicos
-                        </button>
-                      `
-                    ) : ''}
+              ${(!isEntregaItem && !isMotoristaUser()) ? (
+                osCriadaCode ? `
+                  <div style="margin-top:6px; background:rgba(139,92,246,0.12); color:#8b5cf6; font-weight:800; text-align:center; padding:10px; border-radius:8px; font-size:12px; border:1px solid rgba(139,92,246,0.3);">
+                    ✅ OS Criada (${osCriadaCode})
                   </div>
                 ` : `
-                  <button type="button" class="btn btn-primary btn-sm btn-confirmar-retirada" data-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="background:${isEntregaItem ? '#10b981' : '#2563eb'}; border-color:${isEntregaItem ? '#10b981' : '#2563eb'}; color:#fff; font-weight:700; grid-column:span 2; padding:12px; font-size:13px;">
-                    ✅ ${isEntregaItem ? 'Concluir Entrega (Entregue)' : 'Concluir Retirada (Coletado)'}
+                  <button type="button" class="btn btn-primary btn-sm btn-converter-retirada-os" data-id="${os.id}" style="margin-top:6px; width:100%; background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:700; padding:11px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px;">
+                    📋 Criar OS para Mecânicos
                   </button>
-                `}
-              </div>
-            </div>
-          ` : ''}
-        </div>`;
+                `
+              ) : ''}
+            ` : `
+              <button type="button" class="btn btn-primary btn-block btn-open-vistoria-popup" data-id="${os.id}" data-entrega="${isEntregaItem ? '1' : '0'}" style="background:${isEntregaItem ? '#10b981' : '#2563eb'}; border-color:${isEntregaItem ? '#10b981' : '#2563eb'}; color:#fff; font-weight:700; padding:11px 14px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                📋 Abrir ${isEntregaItem ? 'Entrega' : 'Coleta'} & Vistoria
+              </button>
+            `}
+          </div>
+        </div>
+      `;
     });
 
     container.innerHTML = html;
 
-    // Bind toggle expand
-    container.querySelectorAll('.ret-card-toggle').forEach(toggle => {
-      toggle.addEventListener('click', (e) => {
-        const id = toggle.dataset.retId;
-        if (expandedRetiradasCards.has(id)) {
-          expandedRetiradasCards.delete(id);
-        } else {
-          expandedRetiradasCards.add(id);
-        }
-        renderMotoristaRetiradas();
+    // Clicking anywhere on the card opens the popup
+    container.querySelectorAll('.ret-card-wrapper').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const id = card.dataset.retId;
+        const isEnt = card.dataset.entrega === '1';
+        const osData = Storage.getOrdemById(id);
+        if (osData) openModalVistoriaAvarias(osData, isEnt);
       });
     });
 
-    // Bind Toggle Switch for checklist items
-    container.querySelectorAll('.chk-toggle-item-retirada').forEach(chk => {
-      chk.onchange = (e) => {
+    container.querySelectorAll('.btn-open-vistoria-popup').forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const id = chk.dataset.id;
-        const field = chk.dataset.field;
-        const qtdField = chk.dataset.qtdfield;
-        const isChecked = chk.checked;
-        const currentOS = Storage.getOrdemById(id);
-
-        const updates = { [field]: isChecked, atualizadoEm: new Date().toISOString() };
-        if (isChecked) {
-          const currentQtd = currentOS ? (currentOS[qtdField] || 0) : 0;
-          updates[qtdField] = currentQtd > 0 ? currentQtd : 1;
-        } else {
-          updates[qtdField] = 0;
-        }
-
-        Storage.updateOrdem(id, updates);
-        renderMotoristaRetiradas();
-      };
-    });
-
-    // Bind Quantity Input for checklist items
-    container.querySelectorAll('.input-qtd-retirada').forEach(inp => {
-      inp.onchange = (e) => {
-        e.stopPropagation();
-        const id = inp.dataset.id;
-        const qtdField = inp.dataset.qtdfield;
-        const newQtd = Math.max(1, parseInt(inp.value) || 1);
-        Storage.updateOrdem(id, { [qtdField]: newQtd, atualizadoEm: new Date().toISOString() });
-        showToast(`Quantidade atualizada: ${newQtd}`, 'info');
-      };
-    });
-
-    container.querySelectorAll('.btn-coletar-assinatura-retirada').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const os = Storage.getOrdemById(btn.dataset.id);
+        const id = btn.dataset.id;
         const isEnt = btn.dataset.entrega === '1';
-        if (os) openModalVistoriaAvarias(os, isEnt);
-      };
-    });
-
-    container.querySelectorAll('.btn-fotos-retirada-card').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const os = Storage.getOrdemById(btn.dataset.id);
-        if (os) openModalVistoriaAvarias(os);
-      };
+        const osData = Storage.getOrdemById(id);
+        if (osData) openModalVistoriaAvarias(osData, isEnt);
+      });
     });
 
     container.querySelectorAll('.btn-pdf-retirada-card').forEach(btn => {
-      btn.onclick = (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const osData = Storage.getOrdemById(btn.dataset.id);
         if (osData) Utils.gerarPDFRetiradaDoc(osData);
-      };
-    });
-
-    container.querySelectorAll('.btn-confirmar-retirada').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const isEnt = btn.dataset.entrega === '1';
-        if (isEnt) {
-          confirmarEntregaMotorista(btn.dataset.id);
-        } else {
-          confirmarRetiradaParaServico(btn.dataset.id);
-        }
-      };
+      });
     });
 
     container.querySelectorAll('.btn-converter-retirada-os').forEach(btn => {
-      btn.onclick = (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const osData = Storage.getOrdemById(btn.dataset.id);
         if (osData) {
           navigateTo('nova-os');
           renderNovaOS(osData, true);
         }
-      };
+      });
     });
   }
 
@@ -2057,9 +1958,6 @@ const App = (() => {
         showToast(`Documento de Atendimento ${savedOS.id} registrado!`, 'success');
       }
 
-      if (savedOS && Utils.gerarDocumentoAtendimentoPDF) {
-        Utils.gerarDocumentoAtendimentoPDF(savedOS);
-      }
 
       renderListaOS('aguardando');
       updateNavBadges();
@@ -2282,21 +2180,64 @@ const App = (() => {
   function openModalVistoriaAvarias(os, isEntrega = false) {
     if (!os) return;
     const escapeHtml = Utils.escapeHtml;
-    let tempFotos = [...(os.fotosVeiculo || os.fotos || [])];
+    let tempFotos = [...(os.fotosVeiculo || os.fotos || [])].filter(f => typeof f === 'string' && f.length > 30).slice(0, 4);
+    let currentSig = os.assinaturaCliente || os.assinaturaEntrega || null;
     const obsAvariasVal = os.obsAvarias || (os.avarias && os.avarias.observacoes) || '';
+    const isConcluida = os.status === 'convertida' || os.status === 'coletado' || os.status === 'entregue' || os.statusEntrega === 'entregue';
+
+    const checklistDef = [
+      { field: 'deixouCartaoNFC', qtdField: 'qtdCartaoNFC', label: '💳 Cartão NFC', isChecked: !!os.deixouCartaoNFC, qtd: os.qtdCartaoNFC || (os.deixouCartaoNFC ? 1 : 0) },
+      { field: 'deixouChave', qtdField: 'qtdChave', label: '🔑 Chaves', isChecked: !!os.deixouChave, qtd: os.qtdChave || (os.deixouChave ? 1 : 0) },
+      { field: 'deixouControle', qtdField: 'qtdControle', label: '🎮 Controles', isChecked: !!os.deixouControle, qtd: os.qtdControle || (os.deixouControle ? 1 : 0) },
+      { field: 'deixouCarregador', qtdField: 'qtdCarregador', label: '🔌 Carregador', isChecked: !!os.deixouCarregador, qtd: os.qtdCarregador || (os.deixouCarregador ? 1 : 0) },
+      { field: 'deixouDocumento', qtdField: 'qtdDocumento', label: '📄 Documentos', isChecked: !!os.deixouDocumento, qtd: os.qtdDocumento || (os.deixouDocumento ? 1 : 0) }
+    ];
 
     const bodyHtml = `
       <div style="display:flex; flex-direction:column; gap:14px;">
-        <div style="padding:10px 12px; background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.2); border-radius:10px; font-size:12px; color:var(--text-primary);">
-          <strong>Vistoria & Coleta:</strong> ${escapeHtml(os.clienteNome || 'Cliente')} — <strong>${escapeHtml(os.modeloVeiculo || 'Veículo')}</strong>
+        <!-- Header Resumo -->
+        <div style="padding:12px; background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.2); border-radius:12px; font-size:12px; color:var(--text-primary);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <strong style="font-size:14px; color:${isEntrega ? '#10b981' : '#2563eb'};">OS ${os.id}</strong>
+            <span class="badge" style="background:${isEntrega ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'}; color:${isEntrega ? '#10b981' : '#f59e0b'}; font-weight:800; font-size:10px; padding:3px 8px;">
+              ${isEntrega ? '📦 ENTREGA' : '🚚 RETIRADA'}
+            </span>
+          </div>
+          <div style="font-weight:700; font-size:14px; margin-top:2px;">👤 ${escapeHtml(os.clienteNome || 'Cliente')}</div>
+          ${os.clienteTelefone ? `<div style="color:var(--text-secondary); margin-top:2px;">📞 ${Utils.formatarTelefone(os.clienteTelefone)}</div>` : ''}
+          ${os.clienteEndereco ? `<div style="color:var(--text-secondary); margin-top:2px;">📍 ${escapeHtml(os.clienteEndereco)}</div>` : ''}
+          <div style="color:var(--text-secondary); margin-top:3px;">🛵 <strong>${escapeHtml(os.modeloVeiculo || 'Veículo')}</strong> (${escapeHtml(os.corVeiculo || 'Cor')})</div>
         </div>
 
-        <div class="section-divider" style="margin-top:0;">Condições do Veículo (Marcação por Toque)</div>
+        <!-- 1. Checklist de Itens deixados pelo cliente -->
+        <div class="section-divider" style="margin-top:0;">🎒 ${isEntrega ? 'Itens Devolvidos ao Cliente' : 'Itens Entregues pelo Cliente'} (Checklist)</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${checklistDef.map(item => `
+            <div class="modal-checklist-card" style="padding:10px 12px; background:var(--bg-surface); border-radius:10px; border:1px solid var(--glass-border);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:13px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                  ${item.label}
+                </span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="modal-chk-${item.field}" data-field="${item.field}" data-qtdfield="${item.qtdField}" class="modal-checklist-toggle" ${item.isChecked ? 'checked' : ''} ${isConcluida ? 'disabled' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div id="modal-box-qtd-${item.field}" style="display:${item.isChecked ? 'flex' : 'none'}; align-items:center; justify-content:space-between; margin-top:6px; padding-top:6px; border-top:1px dashed var(--glass-border);">
+                <span style="font-size:11px; font-weight:700; color:var(--text-secondary);">Quantidade deixada:</span>
+                <input type="number" min="1" id="modal-qtd-${item.qtdField}" class="form-input modal-checklist-qtd" value="${item.qtd || 1}" ${isConcluida ? 'disabled' : ''} style="width:65px; padding:4px 8px; font-weight:800; font-size:13px; text-align:center; height:32px; border-radius:6px;">
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- 2. Condições do Veículo / Rabiscos de Avarias -->
+        <div class="section-divider">🛵 Condições do Veículo (Marcação de Avarias por Toque)</div>
         <div class="damage-diagrams-grid">
           <div class="damage-canvas-card">
-            <div class="damage-canvas-title">Vista Frontal / Lateral</div>
+            <div class="damage-canvas-title">1. Vista Frontal / Lateral</div>
             <div class="damage-canvas-wrapper">
-              <canvas id="vistoria-canvas-front" width="280" height="210"></canvas>
+              <canvas id="vistoria-canvas-front" width="280" height="280"></canvas>
             </div>
             <div class="damage-toolbar">
               <div class="damage-color-picker">
@@ -2309,9 +2250,9 @@ const App = (() => {
             </div>
           </div>
           <div class="damage-canvas-card">
-            <div class="damage-canvas-title">Vista Traseira / Lateral</div>
+            <div class="damage-canvas-title">2. Vista Traseira / Lateral</div>
             <div class="damage-canvas-wrapper">
-              <canvas id="vistoria-canvas-rear" width="280" height="210"></canvas>
+              <canvas id="vistoria-canvas-rear" width="280" height="280"></canvas>
             </div>
             <div class="damage-toolbar">
               <div class="damage-color-picker">
@@ -2325,35 +2266,47 @@ const App = (() => {
           </div>
         </div>
 
-        <div class="section-divider">Fotos do Veículo (Opcional - até 4 Fotos)</div>
-        <div class="vehicle-photos-grid">
-          ${[0, 1, 2, 3].map(idx => `
-            <div class="vehicle-photo-slot" data-slot="${idx}" id="vistoria-slot-vphoto-${idx}">
-              <input type="file" accept="image/*" id="vistoria-input-vphoto-${idx}">
-              <div class="vehicle-photo-slot-placeholder" id="vistoria-placeholder-vphoto-${idx}">
-                <span>📷 Foto ${idx + 1}</span>
-                <span style="font-size:0.65rem; opacity:0.7;">Anexar / Tirar foto</span>
-              </div>
-              <img id="vistoria-img-vphoto-${idx}" style="display:none;">
-              <button type="button" class="vehicle-photo-remove" id="vistoria-remove-vphoto-${idx}" style="display:none;">×</button>
-            </div>
-          `).join('')}
-        </div>
-
-        <div class="section-divider">Observações de Avarias & Arranhões</div>
-        <div class="form-group">
-          <label class="form-label" style="font-weight:700; color:var(--text-primary);">Descreva arranhões ou avarias não visíveis nas fotos</label>
-          <textarea class="form-textarea" id="vistoria-obs-avarias" rows="3" placeholder="Ex: Arranhão na carenagem lateral esquerda, retrovisor frouxo...">${escapeHtml(obsAvariasVal)}</textarea>
-        </div>
-
-        <div class="section-divider">Assinatura do Cliente</div>
-        <div style="background:var(--bg-surface); padding:10px; border-radius:10px; border:1px solid var(--glass-border); text-align:center;">
-          <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Desenhe a assinatura do cliente abaixo:</div>
-          <div style="position:relative; width:100%; aspect-ratio:3 / 1; border:1px dashed var(--glass-border); border-radius:8px; overflow:hidden; background:#fff;">
-            <canvas id="vistoria-signature-pad" style="width:100%; height:100%; touch-action:none; cursor:crosshair;"></canvas>
+        <!-- 3. Fotos do Veículo (máx. 4 — Câmera + Galeria, salvas no card e no PDF) -->
+        <div class="section-divider">📷 Fotos do Veículo <span id="vistoria-fotos-counter" style="font-size:11px; font-weight:800; color:#2563eb;"></span></div>
+        <div class="vehicle-photos-simple-container">
+          <input type="file" accept="image/*" capture="environment" id="vistoria-input-photo-camera" style="display:none;">
+          <input type="file" accept="image/*" multiple id="vistoria-input-photos-gallery" style="display:none;">
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-add-photos-simple" id="vistoria-btn-photo-camera" style="flex:1; border-style:solid;">
+              <span>📷 Tirar Foto</span>
+            </button>
+            <button type="button" class="btn-add-photos-simple" id="vistoria-btn-photo-gallery" style="flex:1; border-style:solid;">
+              <span>🖼️ Anexar Fotos</span>
+            </button>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-vistoria-sig" style="margin-top:6px; font-size:11px; padding:4px 10px;">Limpar Assinatura</button>
+          <div style="font-size:11px; color:var(--text-tertiary); text-align:center;">Máximo de 4 fotos — ficam salvas na vistoria e saem no PDF.</div>
+          <div id="vistoria-photos-preview-container" class="vehicle-photos-preview-grid"></div>
         </div>
+
+        <!-- 4. Observações de Avarias -->
+        <div class="section-divider">📝 Observações de Avarias & Arranhões</div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-weight:700; color:var(--text-primary);">Descreva arranhões ou avarias não visíveis nas fotos</label>
+          <textarea class="form-textarea" id="vistoria-obs-avarias" rows="2" placeholder="Ex: Arranhão na carenagem lateral esquerda, retrovisor frouxo...">${escapeHtml(obsAvariasVal)}</textarea>
+        </div>
+
+        <!-- 5. Assinatura do Cliente -->
+        <div class="section-divider">✍️ Assinatura do Cliente</div>
+        <div style="background:var(--bg-surface); padding:14px 16px; border-radius:12px; border:1px solid var(--glass-border);">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11px; font-weight:700; color:var(--text-secondary);">Nome do Assinante (${isEntrega ? 'Quem recebeu' : 'Cliente'})</label>
+            <input type="text" class="form-input" id="vistoria-sig-nome" value="${escapeHtml(os.assinanteNome || os.clienteNome || '')}" placeholder="Nome de quem está assinando" style="font-size:13px; font-weight:600; height:40px; min-height:40px; padding:6px 12px;">
+          </div>
+
+          <div id="vistoria-sig-display-area"></div>
+        </div>
+
+        <!-- Botão auxiliar de Salvar Rascunho se pendente -->
+        ${!isConcluida ? `
+          <button type="button" class="btn btn-secondary btn-block" id="btn-save-draft-vistoria" style="font-weight:700; padding:10px; font-size:12px; margin-top:4px;">
+            💾 Salvar Rascunho (Sem Concluir)
+          </button>
+        ` : ''}
       </div>
     `;
 
@@ -2364,45 +2317,121 @@ const App = (() => {
     let sigDrawing = false;
     let sigHasStrokes = false;
 
-    openModal(`Vistoria & Avarias — OS ${os.id}`, bodyHtml, () => {
+    // Determine confirm button text and color
+    let confirmBtnText = 'Salvar Alterações';
+    let confirmBtnStyle = 'background:#475569; border-color:#475569; font-weight:800; padding:12px; font-size:14px;';
+    if (!isConcluida) {
+      if (isEntrega) {
+        confirmBtnText = '✅ Concluir Entrega (Entregue)';
+        confirmBtnStyle = 'background:#10b981; border-color:#10b981; font-weight:800; padding:12px; font-size:14px;';
+      } else {
+        confirmBtnText = '✅ Concluir Retirada (Coletado)';
+        confirmBtnStyle = 'background:#2563eb; border-color:#2563eb; font-weight:800; padding:12px; font-size:14px;';
+      }
+    }
+
+    const modalTitle = isEntrega ? `Entrega & Vistoria — OS ${os.id}` : `Coleta & Vistoria — OS ${os.id}`;
+
+    const saveAndExecute = (isFinalizing = false) => {
+      // 1. Collect Checklist
+      const cNFC = document.getElementById('modal-chk-deixouCartaoNFC')?.checked || false;
+      const qNFC = cNFC ? Math.max(1, parseInt(document.getElementById('modal-qtd-qtdCartaoNFC')?.value) || 1) : 0;
+
+      const cChave = document.getElementById('modal-chk-deixouChave')?.checked || false;
+      const qChave = cChave ? Math.max(1, parseInt(document.getElementById('modal-qtd-qtdChave')?.value) || 1) : 0;
+
+      const cControle = document.getElementById('modal-chk-deixouControle')?.checked || false;
+      const qControle = cControle ? Math.max(1, parseInt(document.getElementById('modal-qtd-qtdControle')?.value) || 1) : 0;
+
+      const cCarregador = document.getElementById('modal-chk-deixouCarregador')?.checked || false;
+      const qCarregador = cCarregador ? Math.max(1, parseInt(document.getElementById('modal-qtd-qtdCarregador')?.value) || 1) : 0;
+
+      const cDocumento = document.getElementById('modal-chk-deixouDocumento')?.checked || false;
+      const qDocumento = cDocumento ? Math.max(1, parseInt(document.getElementById('modal-qtd-qtdDocumento')?.value) || 1) : 0;
+
+      // 2. Canvases
       const frontDataUrl = canvasFront ? canvasFront.toDataURL() : (os.avarias?.frontDataUrl || null);
       const rearDataUrl = canvasRear ? canvasRear.toDataURL() : (os.avarias?.rearDataUrl || null);
       const textObsAvarias = (document.getElementById('vistoria-obs-avarias')?.value || '').trim();
 
-      const validFotos = tempFotos.filter(f => typeof f === 'string' && f.length > 30);
+      // 3. Photos (máx. 4 — persistem no card e no PDF)
+      const validFotos = tempFotos.filter(f => typeof f === 'string' && f.length > 30).slice(0, 4);
 
-      let signatureBase64 = os.assinaturaCliente || null;
-      if (sigCanvasEl && sigHasStrokes && !isCanvasBlank(sigCanvasEl)) {
-        signatureBase64 = sigCanvasEl.toDataURL('image/png');
-      }
+      // 4. Signature
+      const nomeAssinante = (document.getElementById('vistoria-sig-nome')?.value || '').trim() || (os.clienteNome || 'Cliente');
+      const signatureBase64 = currentSig;
 
       const updates = {
+        deixouCartaoNFC: cNFC, qtdCartaoNFC: qNFC,
+        deixouChave: cChave, qtdChave: qChave,
+        deixouControle: cControle, qtdControle: qControle,
+        deixouCarregador: cCarregador, qtdCarregador: qCarregador,
+        deixouDocumento: cDocumento, qtdDocumento: qDocumento,
         avarias: { frontDataUrl, rearDataUrl },
         obsAvarias: textObsAvarias,
         fotosVeiculo: validFotos,
         fotos: validFotos,
         temFotos: validFotos.length > 0,
         assinaturaCliente: signatureBase64,
-        assinanteNome: os.clienteNome || 'Cliente',
-        dataAssinaturaCliente: signatureBase64 ? new Date().toISOString() : os.dataAssinaturaCliente,
+        assinanteNome: nomeAssinante,
+        dataAssinaturaCliente: signatureBase64 ? (os.dataAssinaturaCliente || new Date().toISOString()) : null,
         atualizadoEm: new Date().toISOString()
       };
 
-      Storage.updateOrdem(os.id, updates);
-      const updatedOS = Storage.getOrdemById(os.id);
-      showToast('Vistoria e Avarias salvas com sucesso!', 'success');
+      if (isFinalizing && !isConcluida) {
+        if (isEntrega) {
+          updates.status = 'entregue';
+          updates.statusEntrega = 'entregue';
+          updates.statusPagamento = 'pago';
+          updates.entregueEm = new Date().toISOString();
+          updates.entreguePor = currentUser ? currentUser.nome : 'Motorista';
+          updates.assinaturaEntrega = signatureBase64;
+          updates.assinanteEntregaNome = nomeAssinante;
+          updates.dataAssinaturaEntrega = new Date().toISOString();
+          Storage.updateOrdem(os.id, updates);
+          Storage.addHistorico(os.id, 'Entrega Concluída ao Cliente', currentUser ? currentUser.nome : 'Motorista');
+          showToast(`Entrega da OS ${os.id} concluída com sucesso!`, 'success');
+        } else {
+          updates.status = 'coletado';
+          updates.dataColetado = new Date().toISOString();
+          Storage.updateOrdem(os.id, updates);
+          Storage.addHistorico(os.id, 'Retirada Concluída pelo Motorista (Coletado)', currentUser ? currentUser.nome : 'Motorista');
+          showToast(`Retirada ${os.id} concluída com sucesso!`, 'success');
 
-      if (updatedOS && Utils.gerarDocumentoAtendimentoPDF) {
-        Utils.gerarDocumentoAtendimentoPDF(updatedOS);
+        }
+      } else {
+        Storage.updateOrdem(os.id, updates);
+        showToast(isFinalizing ? 'Alterações salvas com sucesso!' : 'Rascunho de vistoria salvo!', 'success');
       }
 
       renderMotoristaRetiradas();
       renderListaOS('aguardando');
+      renderListaOS('concluido');
+      updateNavBadges();
       return true;
-    });
+    };
+
+    openModal(modalTitle, bodyHtml, () => {
+      return saveAndExecute(true);
+    }, confirmBtnText, confirmBtnStyle);
 
     setTimeout(() => {
-      // 1. Initialize Damage Canvases
+      // 1. Checklist toggles
+      checklistDef.forEach(item => {
+        const chk = document.getElementById(`modal-chk-${item.field}`);
+        const boxQtd = document.getElementById(`modal-box-qtd-${item.field}`);
+        if (chk && boxQtd) {
+          chk.addEventListener('change', () => {
+            boxQtd.style.display = chk.checked ? 'flex' : 'none';
+            if (chk.checked) {
+              const inpQtd = document.getElementById(`modal-qtd-${item.qtdField}`);
+              if (inpQtd && (!inpQtd.value || parseInt(inpQtd.value) < 1)) inpQtd.value = 1;
+            }
+          });
+        }
+      });
+
+      // 2. Initialize Damage Canvases (Front Image 2, Rear Image 1)
       if (Utils.VehicleDamageCanvas) {
         canvasFront = new Utils.VehicleDamageCanvas('vistoria-canvas-front', 'scooter_front.png');
         canvasRear = new Utils.VehicleDamageCanvas('vistoria-canvas-rear', 'scooter_rear.png');
@@ -2427,116 +2456,297 @@ const App = (() => {
         });
       }
 
-      // 2. Initialize Photo Slots
-      [0, 1, 2, 3].forEach(idx => {
-        const slotEl = document.getElementById(`vistoria-slot-vphoto-${idx}`);
-        const inputEl = document.getElementById(`vistoria-input-vphoto-${idx}`);
-        const imgEl = document.getElementById(`vistoria-img-vphoto-${idx}`);
-        const placeholderEl = document.getElementById(`vistoria-placeholder-vphoto-${idx}`);
-        const removeBtn = document.getElementById(`vistoria-remove-vphoto-${idx}`);
+      // 3. Photo Uploader — máx 4 fotos (Câmera + Galeria), compressão correta via File
+      const MAX_FOTOS_VISTORIA = 4;
+      const inputCamera = document.getElementById('vistoria-input-photo-camera');
+      const inputGallery = document.getElementById('vistoria-input-photos-gallery');
+      const btnCamera = document.getElementById('vistoria-btn-photo-camera');
+      const btnGallery = document.getElementById('vistoria-btn-photo-gallery');
+      const photosContainer = document.getElementById('vistoria-photos-preview-container');
+      const fotosCounter = document.getElementById('vistoria-fotos-counter');
 
-        if (tempFotos[idx]) {
-          imgEl.src = tempFotos[idx];
-          imgEl.style.display = 'block';
-          if (placeholderEl) placeholderEl.style.display = 'none';
-          if (removeBtn) removeBtn.style.display = 'flex';
-        }
-
-        slotEl?.addEventListener('click', (e) => {
-          if (e.target.classList.contains('vehicle-photo-remove')) return;
-          inputEl?.click();
-        });
-
-        inputEl?.addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            Utils.comprimirFotoBase64(evt.target.result, 800, 800, 0.75).then(compressed => {
-              tempFotos[idx] = compressed;
-              imgEl.src = compressed;
-              imgEl.style.display = 'block';
-              if (placeholderEl) placeholderEl.style.display = 'none';
-              if (removeBtn) removeBtn.style.display = 'flex';
+      function renderPhotoPreviews() {
+        if (photosContainer) {
+          photosContainer.innerHTML = '';
+          tempFotos.forEach((photo, idx) => {
+            const item = document.createElement('div');
+            item.className = 'vehicle-photo-preview-item';
+            item.innerHTML = `
+              <img src="${photo}" alt="Foto ${idx + 1}">
+              <button type="button" class="remove-btn" title="Remover foto">×</button>
+            `;
+            item.querySelector('.remove-btn').addEventListener('click', (e) => {
+              e.stopPropagation();
+              tempFotos.splice(idx, 1);
+              renderPhotoPreviews();
             });
-          };
-          reader.readAsDataURL(file);
-        });
-
-        removeBtn?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          tempFotos[idx] = null;
-          imgEl.src = '';
-          imgEl.style.display = 'none';
-          if (placeholderEl) placeholderEl.style.display = 'flex';
-          if (removeBtn) removeBtn.style.display = 'none';
-          if (inputEl) inputEl.value = '';
-        });
-      });
-
-      // 3. Initialize Signature Pad
-      sigCanvasEl = document.getElementById('vistoria-signature-pad');
-      if (sigCanvasEl) {
-        const rect = sigCanvasEl.parentElement.getBoundingClientRect();
-        sigCanvasEl.width = rect.width || 300;
-        sigCanvasEl.height = rect.height || 100;
-        sigCtx = sigCanvasEl.getContext('2d');
-        sigCtx.fillStyle = '#ffffff';
-        sigCtx.fillRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
-
-        if (os.assinaturaCliente) {
-          const sigImg = new Image();
-          sigImg.onload = () => sigCtx.drawImage(sigImg, 0, 0, sigCanvasEl.width, sigCanvasEl.height);
-          sigImg.src = os.assinaturaCliente;
+            photosContainer.appendChild(item);
+          });
         }
-
-        const getSigPos = (e) => {
-          const r = sigCanvasEl.getBoundingClientRect();
-          const cx = e.touches && e.touches.length > 0 ? e.touches[0].clientX : (e.clientX || 0);
-          const cy = e.touches && e.touches.length > 0 ? e.touches[0].clientY : (e.clientY || 0);
-          return {
-            x: (cx - r.left) * (sigCanvasEl.width / r.width),
-            y: (cy - r.top) * (sigCanvasEl.height / r.height)
-          };
-        };
-
-        const startSig = (e) => {
-          e.preventDefault();
-          sigDrawing = true;
-          sigHasStrokes = true;
-          const p = getSigPos(e);
-          sigCtx.beginPath();
-          sigCtx.moveTo(p.x, p.y);
-          sigCtx.strokeStyle = '#0f172a';
-          sigCtx.lineWidth = 2.5;
-          sigCtx.lineCap = 'round';
-        };
-
-        const moveSig = (e) => {
-          if (!sigDrawing) return;
-          e.preventDefault();
-          const p = getSigPos(e);
-          sigCtx.lineTo(p.x, p.y);
-          sigCtx.stroke();
-        };
-
-        const stopSig = () => { sigDrawing = false; };
-
-        sigCanvasEl.addEventListener('pointerdown', startSig);
-        sigCanvasEl.addEventListener('pointermove', moveSig);
-        sigCanvasEl.addEventListener('pointerup', stopSig);
-        sigCanvasEl.addEventListener('touchstart', startSig, { passive: false });
-        sigCanvasEl.addEventListener('touchmove', moveSig, { passive: false });
-        sigCanvasEl.addEventListener('touchend', stopSig);
-
-        document.getElementById('btn-clear-vistoria-sig')?.addEventListener('click', () => {
-          sigCtx.clearRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
-          sigCtx.fillStyle = '#ffffff';
-          sigCtx.fillRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
-          sigHasStrokes = false;
+        if (fotosCounter) fotosCounter.textContent = `(${tempFotos.length}/${MAX_FOTOS_VISTORIA})`;
+        const cheio = tempFotos.length >= MAX_FOTOS_VISTORIA;
+        [btnCamera, btnGallery].forEach(b => {
+          if (!b) return;
+          b.style.opacity = cheio ? '0.5' : '1';
+          b.style.pointerEvents = cheio ? 'none' : 'auto';
         });
       }
+
+      async function processarFotosVistoria(fileList, inputEl) {
+        const files = Array.from(fileList || []);
+        if (!files.length) return;
+        const espaco = MAX_FOTOS_VISTORIA - tempFotos.length;
+        if (espaco <= 0) {
+          showToast(`Limite máximo de ${MAX_FOTOS_VISTORIA} fotos atingido!`, 'warning');
+          if (inputEl) inputEl.value = '';
+          return;
+        }
+        const paraProcessar = files.slice(0, espaco);
+        if (files.length > espaco) {
+          showToast(`Apenas ${espaco} foto(s) adicionada(s) — limite de ${MAX_FOTOS_VISTORIA}.`, 'info');
+        } else {
+          showToast('Processando foto(s)...', 'info');
+        }
+        for (const file of paraProcessar) {
+          try {
+            const comprimida = await Utils.comprimirFotoBase64(file, 900, 0.65);
+            tempFotos.push(comprimida);
+          } catch (err) {
+            console.error('Erro ao comprimir foto da vistoria:', err);
+            showToast('Erro ao processar uma foto.', 'error');
+          }
+        }
+        if (inputEl) inputEl.value = '';
+        renderPhotoPreviews();
+      }
+
+      renderPhotoPreviews();
+
+      btnCamera?.addEventListener('click', () => {
+        if (tempFotos.length >= MAX_FOTOS_VISTORIA) {
+          showToast(`Limite máximo de ${MAX_FOTOS_VISTORIA} fotos!`, 'warning');
+          return;
+        }
+        inputCamera?.click();
+      });
+      btnGallery?.addEventListener('click', () => {
+        if (tempFotos.length >= MAX_FOTOS_VISTORIA) {
+          showToast(`Limite máximo de ${MAX_FOTOS_VISTORIA} fotos!`, 'warning');
+          return;
+        }
+        inputGallery?.click();
+      });
+      inputCamera?.addEventListener('change', (e) => processarFotosVistoria(e.target.files, inputCamera));
+      inputGallery?.addEventListener('change', (e) => processarFotosVistoria(e.target.files, inputGallery));
+
+      // 4. Initialize Signature Button / Display Area
+      function renderSigDisplayArea() {
+        const area = document.getElementById('vistoria-sig-display-area');
+        if (!area) return;
+
+        if (currentSig) {
+          area.innerHTML = `
+            <div class="signature-preview-card-box">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <div style="width: 120px; height: 60px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0;">
+                  <img src="${currentSig}" alt="Assinatura" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+                <div style="min-width: 0;">
+                  <div style="font-size: 13px; font-weight: 800; color: #16a34a; display: flex; align-items: center; gap: 4px;">
+                    ✅ Assinatura Registrada
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                    Pronta para inclusão no termo
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-vistoria-refazer-sig" style="font-size: 12px; font-weight: 700; padding: 8px 12px; border-radius: 8px;">
+                  ✏️ Refazer
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-vistoria-remover-sig" style="font-size: 12px; font-weight: 700; padding: 8px 10px; color: #ef4444; border-color: rgba(239,68,68,0.3); border-radius: 8px;" title="Remover Assinatura">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          `;
+
+          document.getElementById('btn-vistoria-refazer-sig')?.addEventListener('click', () => {
+            openSigModal();
+          });
+
+          document.getElementById('btn-vistoria-remover-sig')?.addEventListener('click', () => {
+            currentSig = null;
+            renderSigDisplayArea();
+          });
+        } else {
+          area.innerHTML = `
+            <button type="button" class="btn btn-primary btn-block" id="btn-vistoria-abrir-sig" style="background: #2563eb; border-color: #2563eb; color: #ffffff; font-weight: 700; padding: 13px 16px; font-size: 14px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,99,235,0.25);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>✍️ Coletar Assinatura (Abrir em Tela Ampla / Horizontal)</span>
+            </button>
+            <div style="text-align: center; font-size: 11px; color: var(--text-tertiary); margin-top: 6px;">
+              Abre a tela ampla horizontal para o cliente desenhar a assinatura com espaço livre
+            </div>
+          `;
+
+          document.getElementById('btn-vistoria-abrir-sig')?.addEventListener('click', () => {
+            openSigModal();
+          });
+        }
+      }
+
+      function openSigModal() {
+        const nomeAtual = (document.getElementById('vistoria-sig-nome')?.value || '').trim() || (os.clienteNome || 'Cliente');
+        openSignatureFullscreenModal({
+          title: isEntrega ? '✍️ Assinatura de Entrega' : '✍️ Assinatura de Retirada',
+          subtitle: `Assinante: ${nomeAtual}`,
+          existingSig: currentSig,
+          onConfirm: (signatureDataUrl) => {
+            currentSig = signatureDataUrl;
+            renderSigDisplayArea();
+          }
+        });
+      }
+
+      renderSigDisplayArea();
+
+      // 5. Button Salvar Rascunho
+      document.getElementById('btn-save-draft-vistoria')?.addEventListener('click', () => {
+        saveAndExecute(false);
+        closeModal();
+      });
     }, 150);
+  }
+
+  function openSignatureFullscreenModal(options = {}) {
+    const overlay = document.getElementById('signature-fullscreen-overlay');
+    const titleEl = document.getElementById('sig-fullscreen-title');
+    const subTitleEl = document.getElementById('sig-fullscreen-subtitle');
+    const canvas = document.getElementById('signature-fullscreen-canvas');
+    const wrapper = document.getElementById('sig-fullscreen-canvas-wrapper');
+    const lineEl = document.getElementById('sig-fullscreen-line');
+    const hintEl = document.getElementById('sig-fullscreen-hint');
+    const btnClear = document.getElementById('btn-sig-fullscreen-clear');
+    const btnCancel = document.getElementById('btn-sig-fullscreen-cancel');
+    const btnConfirm = document.getElementById('btn-sig-fullscreen-confirm');
+
+    if (!overlay || !canvas || !wrapper) return;
+
+    if (titleEl) titleEl.textContent = options.title || '✍️ Coleta de Assinatura';
+    if (subTitleEl) subTitleEl.textContent = options.subtitle || 'Assinante: Cliente';
+
+    overlay.classList.add('active');
+
+    let isDrawing = false;
+    let hasStrokes = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Use requestAnimationFrame/setTimeout to ensure overlay is fully visible and width measured correctly
+    setTimeout(() => {
+      const rect = wrapper.getBoundingClientRect();
+      canvas.width = Math.round(rect.width) || 720;
+      canvas.height = Math.round(rect.height) || 280;
+
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (options.existingSig) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+        img.src = options.existingSig;
+        hasStrokes = true;
+        if (lineEl) lineEl.style.display = 'none';
+        if (hintEl) hintEl.style.display = 'none';
+      } else {
+        if (lineEl) lineEl.style.display = 'block';
+        if (hintEl) hintEl.style.display = 'block';
+      }
+
+      function getPos(e) {
+        const r = canvas.getBoundingClientRect();
+        const cx = e.touches && e.touches.length > 0 ? e.touches[0].clientX : (e.clientX || 0);
+        const cy = e.touches && e.touches.length > 0 ? e.touches[0].clientY : (e.clientY || 0);
+        return {
+          x: (cx - r.left) * (canvas.width / r.width),
+          y: (cy - r.top) * (canvas.height / r.height)
+        };
+      }
+
+      function startDraw(e) {
+        e.preventDefault();
+        isDrawing = true;
+        hasStrokes = true;
+        if (lineEl) lineEl.style.display = 'none';
+        if (hintEl) hintEl.style.display = 'none';
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+      }
+
+      function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+      }
+
+      function stopDraw() {
+        isDrawing = false;
+      }
+
+      canvas.onpointerdown = startDraw;
+      canvas.onpointermove = draw;
+      canvas.onpointerup = stopDraw;
+      canvas.onpointercancel = stopDraw;
+      canvas.ontouchstart = startDraw;
+      canvas.ontouchmove = draw;
+      canvas.ontouchend = stopDraw;
+
+      if (btnClear) {
+        btnClear.onclick = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          hasStrokes = false;
+          if (lineEl) lineEl.style.display = 'block';
+          if (hintEl) hintEl.style.display = 'block';
+        };
+      }
+
+      if (btnCancel) {
+        btnCancel.onclick = () => {
+          overlay.classList.remove('active');
+        };
+      }
+
+      if (btnConfirm) {
+        btnConfirm.onclick = () => {
+          if (!hasStrokes || isCanvasBlank(canvas)) {
+            showToast('Por favor, desenhe a assinatura antes de confirmar.', 'warning');
+            return;
+          }
+          const dataUrl = canvas.toDataURL('image/png');
+          overlay.classList.remove('active');
+          if (typeof options.onConfirm === 'function') {
+            options.onConfirm(dataUrl);
+          }
+        };
+      }
+    }, 60);
   }
 
   function openModalFotosRetirada(os) {
@@ -2560,8 +2770,8 @@ const App = (() => {
     if (!canvas || !wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
-    canvas.width = rect.width || 340;
-    canvas.height = rect.height || 180;
+    canvas.width = Math.round(rect.width) || 340;
+    canvas.height = Math.round(rect.height) || 110;
 
     const ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#0f172a';
@@ -5137,7 +5347,7 @@ const App = (() => {
     });
   }
 
-  function openModal(title, bodyHtml, onConfirm) {
+  function openModal(title, bodyHtml, onConfirm, confirmText = 'Confirmar', confirmStyle = '') {
     const overlay = document.getElementById('modal-overlay');
     const sheet = document.getElementById('bottom-sheet');
     document.getElementById('bottom-sheet-title').textContent = title;
@@ -5145,19 +5355,35 @@ const App = (() => {
     overlay.classList.add('active');
     sheet.classList.add('active');
 
-    document.getElementById('bottom-sheet-confirm').onclick = () => {
-      if (onConfirm) {
-        const result = onConfirm();
-        if (result !== false) closeModal();
+    const confirmBtn = document.getElementById('bottom-sheet-confirm');
+    if (confirmBtn) {
+      confirmBtn.textContent = confirmText || 'Confirmar';
+      if (confirmStyle) {
+        confirmBtn.setAttribute('style', confirmStyle);
       } else {
-        closeModal();
+        confirmBtn.removeAttribute('style');
+        confirmBtn.className = 'btn btn-primary btn-block';
       }
-    };
+      confirmBtn.onclick = () => {
+        if (onConfirm) {
+          const result = onConfirm();
+          if (result !== false) closeModal();
+        } else {
+          closeModal();
+        }
+      };
+    }
   }
 
   function closeModal() {
     document.getElementById('modal-overlay').classList.remove('active');
     document.getElementById('bottom-sheet').classList.remove('active');
+    const confirmBtn = document.getElementById('bottom-sheet-confirm');
+    if (confirmBtn) {
+      confirmBtn.textContent = 'Confirmar';
+      confirmBtn.removeAttribute('style');
+      confirmBtn.className = 'btn btn-primary btn-block';
+    }
   }
 
   // ---------- TOAST ----------
