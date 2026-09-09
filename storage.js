@@ -411,10 +411,21 @@ const Storage = (() => {
     }
   }
 
-  async function syncToSupabase(key, dataItem) {
-    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
+  async function syncToSupabase(key, dataItem, silencioso = false) {
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return false;
     const client = SupabaseConfig.getClient();
-    if (!client || !dataItem) return;
+    if (!client || !dataItem) return false;
+
+    // Acumula falhas e só avisa a UI se não for chamada silenciosa (backfill resume no fim)
+    let houveFalha = false;
+    const falhou = (tabela, mensagem) => {
+      houveFalha = true;
+      if (silencioso) {
+        console.warn(`Sincronização Supabase falhou (${tabela}):`, mensagem);
+      } else {
+        notificarErroSync(tabela, mensagem);
+      }
+    };
 
     try {
       if (key === KEYS.ORDENS) {
@@ -498,7 +509,7 @@ const Storage = (() => {
         if (o.criadoEm) payload.criado_em = o.criadoEm;
         const resOrdem = await upsertResiliente(client, 'ordens_servico', payload);
         if (!resOrdem.ok) {
-          notificarErroSync('ordens_servico', resOrdem.error.message);
+          falhou('ordens_servico', resOrdem.error.message);
         } else if (resOrdem.removidas && resOrdem.removidas.length) {
           console.warn('Colunas ignoradas no sync (ainda não existem no banco):', resOrdem.removidas.join(', '));
         }
@@ -516,7 +527,7 @@ const Storage = (() => {
         if (u.fotoPerfil) payload.foto_perfil = u.fotoPerfil;
         if (u.criadoEm) payload.criado_em = u.criadoEm;
         const resUser = await upsertResiliente(client, 'usuarios', payload, { onConflict: 'id', ignoreDuplicates: false });
-        if (!resUser.ok) notificarErroSync('usuarios', resUser.error.message);
+        if (!resUser.ok) falhou('usuarios', resUser.error.message);
       } else if (key === KEYS.CARGOS) {
         const c = dataItem;
         const payload = {
@@ -526,7 +537,7 @@ const Storage = (() => {
         };
         if (c.criadoEm) payload.criado_em = c.criadoEm;
         const resCargo = await upsertResiliente(client, 'cargos', payload);
-        if (!resCargo.ok) notificarErroSync('cargos', resCargo.error.message);
+        if (!resCargo.ok) falhou('cargos', resCargo.error.message);
       } else if (key === KEYS.OPCOES) {
         const op = dataItem;
         const payload = {
@@ -538,7 +549,7 @@ const Storage = (() => {
         };
         if (op.criadoEm) payload.criado_em = op.criadoEm;
         const resOp = await upsertResiliente(client, 'opcoes_listas', payload, { onConflict: 'campo' });
-        if (!resOp.ok) notificarErroSync('opcoes_listas', resOp.error.message);
+        if (!resOp.ok) falhou('opcoes_listas', resOp.error.message);
       } else if (key === KEYS.CAMPOS) {
         const cp = dataItem;
         const payload = {
@@ -550,18 +561,57 @@ const Storage = (() => {
         };
         if (cp.criadoEm) payload.criado_em = cp.criadoEm;
         const resCampo = await upsertResiliente(client, 'campos_personalizados', payload);
-        if (!resCampo.ok) notificarErroSync('campos_personalizados', resCampo.error.message);
+        if (!resCampo.ok) falhou('campos_personalizados', resCampo.error.message);
       } else if (key === KEYS.TEMPLATES_WHATSAPP) {
         const resTpl = await upsertResiliente(client, 'configuracoes', {
           chave: 'templates_whatsapp',
           valor: JSON.stringify(dataItem),
           atualizado_em: new Date().toISOString()
         });
-        if (!resTpl.ok) notificarErroSync('configuracoes', resTpl.error.message);
+        if (!resTpl.ok) falhou('configuracoes', resTpl.error.message);
       }
+      return !houveFalha;
     } catch (e) {
       console.warn('Erro ao salvar no Supabase:', e);
-      notificarErroSync('supabase', e.message || e);
+      if (!silencioso) notificarErroSync('supabase', e.message || e);
+      return false;
+    }
+  }
+
+  // Envia para a nuvem as OS locais que ainda não existem lá (ex: criadas
+  // enquanto o sync estava quebrado). Chamado no login/startup e no botão
+  // "Sincronizar agora". Retorna {enviados, falhas} para a UI informar.
+  async function enviarPendentesParaNuvem() {
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) {
+      return { enviados: 0, falhas: 0, erro: 'sem conexão' };
+    }
+    const client = SupabaseConfig.getClient();
+    if (!client) return { enviados: 0, falhas: 0, erro: 'sem conexão' };
+
+    try {
+      const { data: remotas, error } = await client.from('ordens_servico').select('id');
+      if (error) {
+        notificarErroSync('ordens_servico', error.message);
+        return { enviados: 0, falhas: 0, erro: error.message };
+      }
+      const idsRemotos = new Set((remotas || []).map(r => r.id));
+      const pendentes = getAllOrdens().filter(o => o && o.id && !o.deletado && !idsRemotos.has(o.id));
+
+      let enviados = 0, falhas = 0;
+      for (const o of pendentes) {
+        const ok = await syncToSupabase(KEYS.ORDENS, o, true);
+        if (ok) enviados++; else falhas++;
+      }
+
+      if (falhas > 0) {
+        notificarErroSync('ordens_servico', `${falhas} registro(s) não subiram para a nuvem. Verifique sua conexão.`);
+      } else if (enviados > 0) {
+        limparErroSync();
+      }
+      return { enviados, falhas };
+    } catch (e) {
+      console.warn('Erro no backfill de pendentes:', e);
+      return { enviados: 0, falhas: 0, erro: (e && e.message) || e };
     }
   }
 
@@ -1263,6 +1313,7 @@ const Storage = (() => {
     // Sync
     syncFromSupabase,
     sincronizarTudoComSupabase,
+    enviarPendentesParaNuvem,
     getUltimoErroSync,
     limparErroSync
   };

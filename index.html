@@ -596,7 +596,11 @@
           </div>
 
           <!-- Ações da Conta -->
-          <div style="margin-top: var(--space-xl); padding: 0 var(--space-sm);">
+          <div style="margin-top: var(--space-xl); padding: 0 var(--space-sm); display:flex; flex-direction:column; gap:10px;">
+            <button class="btn btn-secondary btn-block" id="btn-sync-agora">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Sincronizar agora
+            </button>
             <button class="btn btn-danger btn-block" id="btn-logout-admin">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
               Sair da Conta
@@ -837,9 +841,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-  <script src="supabase-config.js?v=34.0"></script>
-  <script src="utils.js?v=34.0"></script>
-  <script src="storage.js?v=34.0"></script>
-  <script src="app.js?v=34.0"></script>
+  <script src="supabase-config.js?v=35.0"></script>
+  <script src="utils.js?v=35.0"></script>
+  <script src="storage.js?v=35.0"></script>
+  <script src="app.js?v=35.0"></script>
 </body>
 </html>

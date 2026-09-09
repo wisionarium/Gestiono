@@ -117,14 +117,23 @@ const App = (() => {
     }
 
     // Always sync from Supabase on startup so all devices get fresh data (delayed to make app load instantly)
+    // Em seguida envia OS locais que ainda não estão na nuvem (backfill) e avisa quantas subiram
     setTimeout(() => {
       if (typeof Storage.syncFromSupabase === 'function') {
-        Storage.syncFromSupabase().then(() => {
+        Storage.syncFromSupabase().then(async () => {
           // Re-read user after sync in case users were updated from cloud
           currentUser = Storage.getUsuarioLogado();
           if (currentUser) {
             renderDashboard();
             renderCurrentList();
+            if (typeof Storage.enviarPendentesParaNuvem === 'function') {
+              const res = await Storage.enviarPendentesParaNuvem();
+              if (res && res.enviados > 0) {
+                showToast(`✅ ${res.enviados} registro(s) enviado(s) para a nuvem!`, 'success');
+                renderDashboard();
+                renderCurrentList();
+              }
+            }
           }
         }).catch(err => console.warn('Sync from Supabase failed:', err));
       }
@@ -177,6 +186,39 @@ const App = (() => {
       btnLogoutAdmin.addEventListener('click', () => {
         if (confirm('Deseja realmente sair da sua conta?')) {
           handleLogout();
+        }
+      });
+    }
+
+    const btnSyncAgora = document.getElementById('btn-sync-agora');
+    if (btnSyncAgora) {
+      btnSyncAgora.addEventListener('click', async () => {
+        btnSyncAgora.disabled = true;
+        const labelOriginal = btnSyncAgora.innerHTML;
+        btnSyncAgora.innerHTML = '⏳ Sincronizando...';
+        try {
+          if (typeof Storage.syncFromSupabase === 'function') {
+            await Storage.syncFromSupabase();
+          }
+          const res = await Storage.enviarPendentesParaNuvem();
+          currentUser = Storage.getUsuarioLogado();
+          renderDashboard();
+          renderCurrentList();
+          if (res.erro === 'sem conexão') {
+            showToast('⚠️ Sem conexão com a nuvem.', 'error');
+          } else if (res.falhas > 0) {
+            showToast(`⚠️ ${res.falhas} registro(s) não subiram. Tente de novo.`, 'error');
+          } else if (res.enviados > 0) {
+            showToast(`✅ ${res.enviados} registro(s) sincronizado(s)!`, 'success');
+          } else {
+            showToast('✅ Tudo já sincronizado!', 'success');
+          }
+        } catch (err) {
+          console.warn(err);
+          showToast('⚠️ Erro ao sincronizar.', 'error');
+        } finally {
+          btnSyncAgora.disabled = false;
+          btnSyncAgora.innerHTML = labelOriginal;
         }
       });
     }
@@ -609,10 +651,19 @@ const App = (() => {
         navigateTo('home');
         
         // Sincroniza o restante dos dados em segundo plano após o login bem-sucedido
+        // e envia OS locais que ainda não estão na nuvem (backfill entre aparelhos)
         if (typeof Storage.syncFromSupabase === 'function') {
-          Storage.syncFromSupabase().then(() => {
+          Storage.syncFromSupabase().then(async () => {
             renderDashboard();
             renderCurrentList();
+            if (typeof Storage.enviarPendentesParaNuvem === 'function') {
+              const res = await Storage.enviarPendentesParaNuvem();
+              if (res && res.enviados > 0) {
+                showToast(`✅ ${res.enviados} registro(s) enviado(s) para a nuvem!`, 'success');
+                renderDashboard();
+                renderCurrentList();
+              }
+            }
           });
         }
       } else {
@@ -2197,6 +2248,7 @@ const App = (() => {
     let currentSig = os.assinaturaCliente || os.assinaturaEntrega || null;
     const obsAvariasVal = os.obsAvarias || (os.avarias && os.avarias.observacoes) || '';
     const isConcluida = os.status === 'convertida' || os.status === 'coletado' || os.status === 'entregue' || os.statusEntrega === 'entregue';
+    const podeExcluirDefinitivo = currentUser && (temPermissao('excluir_os') || currentUser.role === 'role_admin' || (currentUser.usuario || '').toLowerCase() === 'suprabikemarketing@gmail.com');
 
     const checklistDef = [
       { field: 'deixouCartaoNFC', qtdField: 'qtdCartaoNFC', label: '💳 Cartão NFC', isChecked: !!os.deixouCartaoNFC, qtd: os.qtdCartaoNFC || (os.deixouCartaoNFC ? 1 : 0) },
@@ -2319,6 +2371,16 @@ const App = (() => {
           <button type="button" class="btn btn-secondary btn-block" id="btn-save-draft-vistoria" style="font-weight:700; padding:10px; font-size:12px; margin-top:4px;">
             💾 Salvar Rascunho (Sem Concluir)
           </button>
+        ` : ''}
+
+        <!-- Zona de perigo: excluir definitivamente (só concluída + com permissão) -->
+        ${(isConcluida && podeExcluirDefinitivo) ? `
+          <div style="margin-top:10px; padding:12px; border:1px solid rgba(239,68,68,0.35); background:rgba(239,68,68,0.06); border-radius:12px;">
+            <div style="font-size:12px; font-weight:800; color:#ef4444; margin-bottom:8px;">⚠️ Zona de Perigo</div>
+            <button type="button" class="btn btn-danger btn-block" id="btn-vistoria-excluir-definitivo" style="font-weight:700; padding:11px; font-size:13px;">
+              🗑️ Excluir definitivamente (apaga de verdade)
+            </button>
+          </div>
         ` : ''}
       </div>
     `;
@@ -2628,6 +2690,17 @@ const App = (() => {
       document.getElementById('btn-save-draft-vistoria')?.addEventListener('click', () => {
         saveAndExecute(false);
         closeModal();
+      });
+
+      // 6. Excluir definitivamente (concluída) — apaga de verdade, sem lixeira
+      document.getElementById('btn-vistoria-excluir-definitivo')?.addEventListener('click', () => {
+        if (!confirm(`⚠️ APAGAR DE VERDADE a ${isEntrega ? 'entrega' : 'retirada'} ${os.id} (${os.clienteNome || 'cliente'})?\n\nEsta ação NÃO poderá ser desfeita e remove o registro de todos os aparelhos.`)) return;
+        Storage.deleteOrdemPermanente(os.id);
+        showToast(`${os.id} excluída definitivamente.`, 'info');
+        closeModal();
+        renderMotoristaRetiradas();
+        renderListaOS('concluido');
+        updateNavBadges();
       });
     }, 150);
   }
