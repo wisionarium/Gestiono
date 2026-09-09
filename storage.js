@@ -14,7 +14,8 @@ const Storage = (() => {
     TEMPLATE_WHATSAPP: 'os_template_whatsapp',
     TEMPLATES_WHATSAPP: 'os_templates_whatsapp',
     TEMA: 'os_theme',
-    INITIALIZED: 'os_initialized'
+    INITIALIZED: 'os_initialized',
+    ERRO_SYNC: 'os_last_sync_error'
   };
 
   const DEFAULT_TEMPLATES_WHATSAPP = [
@@ -146,6 +147,53 @@ const Storage = (() => {
   }
 
   // ---------- SUPABASE CLOUD SYNC ----------
+
+  // ---------- SYNC RESILIENTE ----------
+  // Faz upsert removendo automaticamente colunas que ainda não existem no
+  // banco (erro PGRST204), para o app não voltar a falhar silencioso quando
+  // uma coluna nova for adicionada no código antes do SQL rodar no Supabase.
+  async function upsertResiliente(client, tabela, payload, extraOpts) {
+    const tentativa = { ...payload };
+    for (let i = 0; i < 10; i++) {
+      const { error } = await client.from(tabela).upsert(tentativa, extraOpts || undefined);
+      if (!error) {
+        return { ok: true, removidas: Object.keys(payload).filter(k => !(k in tentativa)) };
+      }
+      const msg = error.message || '';
+      const match = msg.match(/Could not find the '([^']+)' column/);
+      if (error.code === 'PGRST204' && match && match[1] in tentativa) {
+        delete tentativa[match[1]];
+        continue;
+      }
+      return { ok: false, error };
+    }
+    return { ok: false, error: { message: 'Limite de tentativas de upsert atingido' } };
+  }
+
+  function getUltimoErroSync() {
+    try {
+      return JSON.parse(localStorage.getItem(KEYS.ERRO_SYNC)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Registra a falha, persiste para a UI ler depois e avisa via evento
+  // (o app.js escuta 'supabase:sync-error' e mostra um toast — nunca silencioso).
+  function notificarErroSync(tabela, mensagem) {
+    const registro = { tabela, mensagem: String(mensagem || 'Erro desconhecido'), em: new Date().toISOString() };
+    try {
+      localStorage.setItem(KEYS.ERRO_SYNC, JSON.stringify(registro));
+    } catch (e) {}
+    console.warn(`Sincronização Supabase falhou (${tabela}):`, registro.mensagem);
+    try {
+      window.dispatchEvent(new CustomEvent('supabase:sync-error', { detail: registro }));
+    } catch (e) {}
+  }
+
+  function limparErroSync() {
+    try { localStorage.removeItem(KEYS.ERRO_SYNC); } catch (e) {}
+  }
 
   async function syncFromSupabase() {
     if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
@@ -356,6 +404,8 @@ const Storage = (() => {
           localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, singleConfig.valor);
         }
       }
+      // Leitura da nuvem OK = conexão saudável, limpa eventual erro antigo
+      limparErroSync();
     } catch (e) {
       console.warn('Erro ao sincronizar com Supabase:', e);
     }
@@ -440,9 +490,11 @@ const Storage = (() => {
           assinante_nome: o.assinanteNome || null
         };
         if (o.criadoEm) payload.criado_em = o.criadoEm;
-        const { error } = await client.from('ordens_servico').upsert(payload);
-        if (error) {
-          console.warn('Sincronização Supabase com aviso:', error.message);
+        const resOrdem = await upsertResiliente(client, 'ordens_servico', payload);
+        if (!resOrdem.ok) {
+          notificarErroSync('ordens_servico', resOrdem.error.message);
+        } else if (resOrdem.removidas && resOrdem.removidas.length) {
+          console.warn('Colunas ignoradas no sync (ainda não existem no banco):', resOrdem.removidas.join(', '));
         }
       } else if (key === KEYS.USUARIOS) {
         const u = dataItem;
@@ -457,7 +509,8 @@ const Storage = (() => {
         if (u.exibirNaDelegacao !== undefined) payload.exibir_na_delegacao = u.exibirNaDelegacao !== false;
         if (u.fotoPerfil) payload.foto_perfil = u.fotoPerfil;
         if (u.criadoEm) payload.criado_em = u.criadoEm;
-        await client.from('usuarios').upsert(payload, { onConflict: 'id', ignoreDuplicates: false });
+        const resUser = await upsertResiliente(client, 'usuarios', payload, { onConflict: 'id', ignoreDuplicates: false });
+        if (!resUser.ok) notificarErroSync('usuarios', resUser.error.message);
       } else if (key === KEYS.CARGOS) {
         const c = dataItem;
         const payload = {
@@ -466,7 +519,8 @@ const Storage = (() => {
           permissoes: c.permissoes || []
         };
         if (c.criadoEm) payload.criado_em = c.criadoEm;
-        await client.from('cargos').upsert(payload);
+        const resCargo = await upsertResiliente(client, 'cargos', payload);
+        if (!resCargo.ok) notificarErroSync('cargos', resCargo.error.message);
       } else if (key === KEYS.OPCOES) {
         const op = dataItem;
         const payload = {
@@ -477,7 +531,8 @@ const Storage = (() => {
           ativo: op.ativo ?? true
         };
         if (op.criadoEm) payload.criado_em = op.criadoEm;
-        await client.from('opcoes_listas').upsert(payload, { onConflict: 'campo' });
+        const resOp = await upsertResiliente(client, 'opcoes_listas', payload, { onConflict: 'campo' });
+        if (!resOp.ok) notificarErroSync('opcoes_listas', resOp.error.message);
       } else if (key === KEYS.CAMPOS) {
         const cp = dataItem;
         const payload = {
@@ -488,16 +543,19 @@ const Storage = (() => {
           ativo: cp.ativo ?? true
         };
         if (cp.criadoEm) payload.criado_em = cp.criadoEm;
-        await client.from('campos_personalizados').upsert(payload);
+        const resCampo = await upsertResiliente(client, 'campos_personalizados', payload);
+        if (!resCampo.ok) notificarErroSync('campos_personalizados', resCampo.error.message);
       } else if (key === KEYS.TEMPLATES_WHATSAPP) {
-        await client.from('configuracoes').upsert({
+        const resTpl = await upsertResiliente(client, 'configuracoes', {
           chave: 'templates_whatsapp',
           valor: JSON.stringify(dataItem),
           atualizado_em: new Date().toISOString()
         });
+        if (!resTpl.ok) notificarErroSync('configuracoes', resTpl.error.message);
       }
     } catch (e) {
       console.warn('Erro ao salvar no Supabase:', e);
+      notificarErroSync('supabase', e.message || e);
     }
   }
 
@@ -510,6 +568,7 @@ const Storage = (() => {
       console.log(`✅ Registro ${id} deletado do Supabase (${table})`);
     } catch (e) {
       console.warn(`Erro ao deletar ${id} do Supabase (${table}):`, e);
+      notificarErroSync(table, (e && e.message) || e);
     }
   }
 
@@ -1197,6 +1256,8 @@ const Storage = (() => {
     deleteCargo,
     // Sync
     syncFromSupabase,
-    sincronizarTudoComSupabase
+    sincronizarTudoComSupabase,
+    getUltimoErroSync,
+    limparErroSync
   };
 })();

@@ -150,6 +150,19 @@ const App = (() => {
   function bindGlobalEvents() {
     document.getElementById('login-form').addEventListener('submit', handleLogin);
 
+    // Falhas de sincronização com a nuvem nunca passam silenciosas
+    window.addEventListener('supabase:sync-error', (e) => {
+      const detalhe = (e && e.detail) || {};
+      showToast(`⚠️ Falha ao sincronizar (${detalhe.tabela || 'nuvem'}): ${detalhe.mensagem || 'verifique sua conexão'}`, 'error');
+    });
+    try {
+      const ultimoErro = Storage.getUltimoErroSync && Storage.getUltimoErroSync();
+      if (ultimoErro && ultimoErro.em && (Date.now() - new Date(ultimoErro.em).getTime()) < 10 * 60 * 1000) {
+        showToast(`⚠️ Última sincronização falhou (${ultimoErro.tabela}): ${ultimoErro.mensagem}`, 'error');
+        if (Storage.limparErroSync) Storage.limparErroSync();
+      }
+    } catch (err) {}
+
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', () => {
         const page = item.dataset.page;
