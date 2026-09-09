@@ -1323,7 +1323,7 @@ const Utils = (() => {
     const rearImg = avarias.rearDataUrl || 'scooter_rear.png';
 
     const diagramW = 85;
-    const diagramH = 75;
+    const diagramH = 85;
 
     try {
       doc.addImage(frontImg, 'PNG', ml + 2, y2, diagramW, diagramH);
