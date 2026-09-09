@@ -386,7 +386,8 @@ const Storage = (() => {
       }
 
       // 6. Template WA (Busca limpa sem gerar erro 406 caso a chave ainda não exista)
-      const { data: configs } = await client.from('configuracoes').select('*').in('chave', ['templates_whatsapp', 'template_whatsapp']);
+      // + lista compartilhada de IDs excluídos (para o "apagar de verdade" valer em todos os aparelhos)
+      const { data: configs } = await client.from('configuracoes').select('*').in('chave', ['templates_whatsapp', 'template_whatsapp', 'os_deleted_ids']);
       if (configs && configs.length > 0) {
         const multiConfig = configs.find(c => c.chave === 'templates_whatsapp');
         const singleConfig = configs.find(c => c.chave === 'template_whatsapp');
@@ -402,6 +403,28 @@ const Storage = (() => {
           }
         } else if (singleConfig && singleConfig.valor) {
           localStorage.setItem(KEYS.TEMPLATE_WHATSAPP, singleConfig.valor);
+        }
+
+        // IDs apagados em OUTRO aparelho: incorpora na lista local e some com
+        // as cópias locais (sem reenviar — o backfill respeita esta lista)
+        const delConfig = configs.find(c => c.chave === 'os_deleted_ids');
+        if (delConfig && delConfig.valor) {
+          try {
+            const idsRemotos = JSON.parse(delConfig.valor);
+            if (Array.isArray(idsRemotos) && idsRemotos.length > 0) {
+              let locais = [];
+              try { locais = JSON.parse(localStorage.getItem('os_deleted_permanently_ids') || '[]'); } catch (e) { locais = []; }
+              const unidos = Array.from(new Set([...(locais || []), ...idsRemotos]));
+              try { localStorage.setItem('os_deleted_permanently_ids', JSON.stringify(unidos)); } catch (e) {}
+              const todas = getData(KEYS.ORDENS) || [];
+              const filtradas = todas.filter(o => !o || !o.id || !unidos.includes(o.id));
+              if (filtradas.length !== todas.length) {
+                setData(KEYS.ORDENS, filtradas);
+              }
+            }
+          } catch (e) {
+            console.warn('Erro ao ler os_deleted_ids:', e);
+          }
         }
       }
       // Leitura da nuvem OK = conexão saudável, limpa eventual erro antigo
@@ -595,7 +618,9 @@ const Storage = (() => {
         return { enviados: 0, falhas: 0, erro: error.message };
       }
       const idsRemotos = new Set((remotas || []).map(r => r.id));
-      const pendentes = getAllOrdens().filter(o => o && o.id && !o.deletado && !idsRemotos.has(o.id));
+      // Primeiro alinha a lista de excluídos (não ressuscita o que foi apagado em outro aparelho)
+      const excluidos = await sincronizarListaExcluidos();
+      const pendentes = getAllOrdens().filter(o => o && o.id && !o.deletado && !idsRemotos.has(o.id) && !excluidos.includes(o.id));
 
       let enviados = 0, falhas = 0;
       for (const o of pendentes) {
@@ -854,6 +879,38 @@ const Storage = (() => {
     } catch(e) {}
 
     deleteFromSupabase('ordens_servico', id);
+    // Propaga o ID para a lista compartilhada: os outros aparelhos apagam a cópia local
+    sincronizarListaExcluidos();
+  }
+
+  // Une a lista local de excluídos com a da nuvem (ida e volta) para o
+  // "apagar de verdade" convergir em todos os aparelhos. Retorna a lista unida.
+  async function sincronizarListaExcluidos() {
+    let locais = [];
+    try { locais = JSON.parse(localStorage.getItem('os_deleted_permanently_ids') || '[]'); } catch (e) { locais = []; }
+    if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return locais || [];
+    const client = SupabaseConfig.getClient();
+    if (!client) return locais || [];
+    try {
+      const { data } = await client.from('configuracoes').select('valor').eq('chave', 'os_deleted_ids').maybeSingle();
+      let remotos = [];
+      try { remotos = data && data.valor ? JSON.parse(data.valor) : []; } catch (e) { remotos = []; }
+      if (!Array.isArray(remotos)) remotos = [];
+      const unidos = Array.from(new Set([...(locais || []), ...remotos]));
+      try { localStorage.setItem('os_deleted_permanently_ids', JSON.stringify(unidos)); } catch (e) {}
+      if (unidos.length !== (locais || []).length || unidos.length !== remotos.length) {
+        const res = await upsertResiliente(client, 'configuracoes', {
+          chave: 'os_deleted_ids',
+          valor: JSON.stringify(unidos),
+          atualizado_em: new Date().toISOString()
+        });
+        if (!res.ok) notificarErroSync('configuracoes', res.error.message);
+      }
+      return unidos;
+    } catch (e) {
+      console.warn('Erro ao sincronizar lista de excluídos:', e);
+      return locais || [];
+    }
   }
 
   function getOrdensByStatus(status) {

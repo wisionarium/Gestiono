@@ -17,6 +17,9 @@ const App = (() => {
   let formSalvoComSucesso = false;
   let fotosAnexadas = [];
   let deferredPwaPrompt = null;
+  // Versão única do app (manter igual ao ?v= dos scripts no index.html)
+  const APP_VERSAO = '36.0';
+  let ultimoStatusSync = { em: null, enviados: 0, falhas: 0, erro: null };
 
   function temPermissao(permissao) {
     if (!currentUser) return false;
@@ -52,6 +55,13 @@ const App = (() => {
   function init() {
     Storage.initialize();
     applyTheme();
+
+    // Força o service worker a buscar atualização na hora (unifica a versão em todos os aparelhos)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) reg.update().catch(() => {});
+      }).catch(() => {});
+    }
 
     // Registra Service Worker para PWA (offline & instalável)
     if ('serviceWorker' in navigator) {
@@ -128,6 +138,7 @@ const App = (() => {
             renderCurrentList();
             if (typeof Storage.enviarPendentesParaNuvem === 'function') {
               const res = await Storage.enviarPendentesParaNuvem();
+              registrarStatusSync(res.enviados || 0, res.falhas || 0, res.erro || null);
               if (res && res.enviados > 0) {
                 showToast(`✅ ${res.enviados} registro(s) enviado(s) para a nuvem!`, 'success');
                 renderDashboard();
@@ -163,6 +174,7 @@ const App = (() => {
     window.addEventListener('supabase:sync-error', (e) => {
       const detalhe = (e && e.detail) || {};
       showToast(`⚠️ Falha ao sincronizar (${detalhe.tabela || 'nuvem'}): ${detalhe.mensagem || 'verifique sua conexão'}`, 'error');
+      atualizarStatusSync();
     });
     try {
       const ultimoErro = Storage.getUltimoErroSync && Storage.getUltimoErroSync();
@@ -204,6 +216,7 @@ const App = (() => {
           currentUser = Storage.getUsuarioLogado();
           renderDashboard();
           renderCurrentList();
+          registrarStatusSync(res.enviados || 0, res.falhas || 0, res.erro || null);
           if (res.erro === 'sem conexão') {
             showToast('⚠️ Sem conexão com a nuvem.', 'error');
           } else if (res.falhas > 0) {
@@ -658,6 +671,7 @@ const App = (() => {
             renderCurrentList();
             if (typeof Storage.enviarPendentesParaNuvem === 'function') {
               const res = await Storage.enviarPendentesParaNuvem();
+              registrarStatusSync(res.enviados || 0, res.falhas || 0, res.erro || null);
               if (res && res.enviados > 0) {
                 showToast(`✅ ${res.enviados} registro(s) enviado(s) para a nuvem!`, 'success');
                 renderDashboard();
@@ -816,6 +830,32 @@ const App = (() => {
     renderDashboard();
   }
 
+  // Linha única de verdade: versão + estado da nuvem, igual em todo aparelho
+  function registrarStatusSync(enviados = 0, falhas = 0, erro = null) {
+    ultimoStatusSync = { em: new Date().toISOString(), enviados, falhas, erro };
+    atualizarStatusSync();
+  }
+
+  function atualizarStatusSync() {
+    const el = document.getElementById('sync-status-line');
+    if (!el) return;
+    let totalLocais = 0;
+    try { totalLocais = Storage.getOrdens().length; } catch (e) {}
+    const ultimoErro = (Storage.getUltimoErroSync && Storage.getUltimoErroSync()) || null;
+
+    if (ultimoErro && ultimoErro.em) {
+      el.innerHTML = `⚠️ <strong>v${APP_VERSAO}</strong> • falha de sync (${ultimoErro.tabela}): ${Utils.escapeHtml(ultimoErro.mensagem || '')} • ${totalLocais} neste aparelho`;
+      el.style.color = '#ef4444';
+    } else if (ultimoStatusSync.em) {
+      const hora = new Date(ultimoStatusSync.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      el.innerHTML = `✅ <strong>v${APP_VERSAO}</strong> • nuvem OK ${hora} • ${totalLocais} registros neste aparelho`;
+      el.style.color = 'var(--text-secondary)';
+    } else {
+      el.innerHTML = `☁️ <strong>v${APP_VERSAO}</strong> • ${totalLocais} registros neste aparelho`;
+      el.style.color = 'var(--text-secondary)';
+    }
+  }
+
   function renderDashboard() {
     if (!currentUser) return;
     
@@ -832,6 +872,7 @@ const App = (() => {
     // Renderiza a Bandeja de Histórico da Home
     renderTrayHistorico(currentTrayTab);
     initTrayHistoricoEvents();
+    atualizarStatusSync();
   }
 
   let currentTrayTab = 'servicos';
