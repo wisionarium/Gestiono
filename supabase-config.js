@@ -59,6 +59,16 @@ const SupabaseConfig = (() => {
   }
 
   let realtimeChannel = null;
+  let realtimeStatus = 'desconectado';
+  let onRealtimeStatusChange = null;
+
+  function setRealtimeStatusListener(fn) {
+    onRealtimeStatusChange = fn;
+  }
+
+  function realtimeAtivo() {
+    return realtimeStatus === 'SUBSCRIBED';
+  }
 
   function initRealtime(callback) {
     if (realtimeChannel) return realtimeChannel;
@@ -117,8 +127,12 @@ const SupabaseConfig = (() => {
           }
         )
         .subscribe((status) => {
+          realtimeStatus = status;
           if (status === 'SUBSCRIBED') {
             console.log('📡 Supabase Realtime conectado com sucesso!');
+          }
+          if (onRealtimeStatusChange) {
+            try { onRealtimeStatusChange(status); } catch (e) {}
           }
         });
 
@@ -137,6 +151,8 @@ const SupabaseConfig = (() => {
     isConnected,
     setCredentials,
     getCredentials,
-    initRealtime
+    initRealtime,
+    setRealtimeStatusListener,
+    realtimeAtivo
   };
 })();

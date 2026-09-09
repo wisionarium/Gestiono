@@ -15,7 +15,8 @@ const Storage = (() => {
     TEMPLATES_WHATSAPP: 'os_templates_whatsapp',
     TEMA: 'os_theme',
     INITIALIZED: 'os_initialized',
-    ERRO_SYNC: 'os_last_sync_error'
+    ERRO_SYNC: 'os_last_sync_error',
+    DIRTY: 'os_dirty_ids'
   };
 
   const DEFAULT_TEMPLATES_WHATSAPP = [
@@ -195,6 +196,35 @@ const Storage = (() => {
     try { localStorage.removeItem(KEYS.ERRO_SYNC); } catch (e) {}
   }
 
+  // ---------- DIRTY IDS (converência entre aparelhos) ----------
+  // Marca toda mutação local. No syncFrom, a nuvem vence para ids limpos
+  // (cópia velha nunca mais sombreia dado novo — era o bug do "Luis some no PC"),
+  // e o id sujo mantém a versão local até o backfill conseguir enviar.
+  function getDirtyIds() {
+    try {
+      const v = JSON.parse(localStorage.getItem(KEYS.DIRTY));
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+
+  function marcarDirty(id) {
+    if (!id) return;
+    try {
+      const lista = getDirtyIds();
+      if (!lista.includes(id)) {
+        lista.push(id);
+        localStorage.setItem(KEYS.DIRTY, JSON.stringify(lista));
+      }
+    } catch (e) {}
+  }
+
+  function limparDirty(id) {
+    if (!id) return;
+    try {
+      localStorage.setItem(KEYS.DIRTY, JSON.stringify(getDirtyIds().filter(x => x !== id)));
+    } catch (e) {}
+  }
+
   async function syncFromSupabase() {
     if (typeof SupabaseConfig === 'undefined' || !SupabaseConfig.isConnected()) return;
     const client = SupabaseConfig.getClient();
@@ -295,20 +325,20 @@ const Storage = (() => {
         // Remove do mapa remoto qualquer ID marcado como excluído permanentemente localmente
         deletedPermIds.forEach(delId => supabaseMap.delete(delId));
 
-        // Preserva TODOS os itens locais ainda não no Supabase ou que possuem alterações pendentes
+        // Preserva itens locais ainda não na nuvem OU editados aqui e não enviados.
+        // Para ids já sincronizados e limpos, a NUVEM vence (cópia velha local
+        // nunca sombreia o dado novo — ex: retirada do Luis sumindo no PC).
+        const dirtySet = new Set(getDirtyIds());
         const localOrdens = getData(KEYS.ORDENS) || [];
         localOrdens.forEach(localO => {
           if (localO && localO.id && !deletedPermIds.includes(localO.id)) {
             const remoteO = supabaseMap.get(localO.id);
-            if (!remoteO) {
-              // Item local que ainda não sincronizou com o Supabase -> Preserva no mapa!
+            if (!remoteO || dirtySet.has(localO.id)) {
+              // Novo neste aparelho ou com edição pendente -> mantém local (backfill envia)
               supabaseMap.set(localO.id, localO);
             } else {
-              // Item existe remotamente -> faz merge seguro para não perder estados locais
-              const mergedO = { ...remoteO, ...localO };
-              if (remoteO.status && !localO.status) mergedO.status = remoteO.status;
-              if (localO.deletado) mergedO.deletado = true;
-              supabaseMap.set(localO.id, mergedO);
+              // Já sincronizado e sem edição pendente -> nuvem é a verdade
+              supabaseMap.set(localO.id, remoteO);
             }
           }
         });
@@ -533,8 +563,11 @@ const Storage = (() => {
         const resOrdem = await upsertResiliente(client, 'ordens_servico', payload);
         if (!resOrdem.ok) {
           falhou('ordens_servico', resOrdem.error.message);
-        } else if (resOrdem.removidas && resOrdem.removidas.length) {
-          console.warn('Colunas ignoradas no sync (ainda não existem no banco):', resOrdem.removidas.join(', '));
+        } else {
+          limparDirty(o.id);
+          if (resOrdem.removidas && resOrdem.removidas.length) {
+            console.warn('Colunas ignoradas no sync (ainda não existem no banco):', resOrdem.removidas.join(', '));
+          }
         }
       } else if (key === KEYS.USUARIOS) {
         const u = dataItem;
@@ -620,7 +653,9 @@ const Storage = (() => {
       const idsRemotos = new Set((remotas || []).map(r => r.id));
       // Primeiro alinha a lista de excluídos (não ressuscita o que foi apagado em outro aparelho)
       const excluidos = await sincronizarListaExcluidos();
-      const pendentes = getAllOrdens().filter(o => o && o.id && !o.deletado && !idsRemotos.has(o.id) && !excluidos.includes(o.id));
+      // Envia o que não existe na nuvem + o que foi editado aqui e ainda está sujo
+      const sujas = new Set(getDirtyIds());
+      const pendentes = getAllOrdens().filter(o => o && o.id && !o.deletado && !excluidos.includes(o.id) && (!idsRemotos.has(o.id) || sujas.has(o.id)));
 
       let enviados = 0, falhas = 0;
       for (const o of pendentes) {
@@ -772,6 +807,7 @@ const Storage = (() => {
     }
 
     setData(KEYS.ORDENS, ordens);
+    marcarDirty(ordem.id);
     syncToSupabase(KEYS.ORDENS, ordem);
     return ordem;
   }
@@ -797,6 +833,7 @@ const Storage = (() => {
     }
 
     setData(KEYS.ORDENS, ordens);
+    marcarDirty(id);
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
     return ordens[idx];
   }
@@ -815,6 +852,7 @@ const Storage = (() => {
     
     ordens[idx].atualizadoEm = new Date().toISOString();
     setData(KEYS.ORDENS, ordens);
+    marcarDirty(id);
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
   }
 
@@ -843,6 +881,7 @@ const Storage = (() => {
       }
     } catch(e) {}
 
+    marcarDirty(id);
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
     deleteFromSupabase('ordens_servico', id);
   }
@@ -862,6 +901,7 @@ const Storage = (() => {
       timestamp: new Date().toISOString()
     });
     setData(KEYS.ORDENS, ordens);
+    marcarDirty(id);
     syncToSupabase(KEYS.ORDENS, ordens[idx]);
   }
 
@@ -879,6 +919,7 @@ const Storage = (() => {
     } catch(e) {}
 
     deleteFromSupabase('ordens_servico', id);
+    limparDirty(id);
     // Propaga o ID para a lista compartilhada: os outros aparelhos apagam a cópia local
     sincronizarListaExcluidos();
   }
@@ -1372,6 +1413,7 @@ const Storage = (() => {
     sincronizarTudoComSupabase,
     enviarPendentesParaNuvem,
     getUltimoErroSync,
-    limparErroSync
+    limparErroSync,
+    getDirtyIds
   };
 })();

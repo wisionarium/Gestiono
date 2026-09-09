@@ -18,7 +18,7 @@ const App = (() => {
   let fotosAnexadas = [];
   let deferredPwaPrompt = null;
   // Versão única do app (manter igual ao ?v= dos scripts no index.html)
-  const APP_VERSAO = '36.0';
+  const APP_VERSAO = '38.0';
   let ultimoStatusSync = { em: null, enviados: 0, falhas: 0, erro: null };
 
   function temPermissao(permissao) {
@@ -102,6 +102,9 @@ const App = (() => {
 
     // Conecta ao Supabase Realtime para atualizações instantâneas em tempo real sem F5
     if (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.initRealtime) {
+      if (SupabaseConfig.setRealtimeStatusListener) {
+        SupabaseConfig.setRealtimeStatusListener(() => atualizarStatusSync());
+      }
       SupabaseConfig.initRealtime((table, payload) => {
         if (typeof Storage.syncFromSupabase === 'function') {
           Storage.syncFromSupabase().then(() => {
@@ -842,16 +845,18 @@ const App = (() => {
     let totalLocais = 0;
     try { totalLocais = Storage.getOrdens().length; } catch (e) {}
     const ultimoErro = (Storage.getUltimoErroSync && Storage.getUltimoErroSync()) || null;
+    const rtOn = (typeof SupabaseConfig !== 'undefined' && SupabaseConfig.realtimeAtivo && SupabaseConfig.realtimeAtivo());
+    const rtIcon = rtOn ? '⚡' : '📡…';
 
     if (ultimoErro && ultimoErro.em) {
-      el.innerHTML = `⚠️ <strong>v${APP_VERSAO}</strong> • falha de sync (${ultimoErro.tabela}): ${Utils.escapeHtml(ultimoErro.mensagem || '')} • ${totalLocais} neste aparelho`;
+      el.innerHTML = `${rtIcon} ⚠️ <strong>v${APP_VERSAO}</strong> • falha de sync (${ultimoErro.tabela}): ${Utils.escapeHtml(ultimoErro.mensagem || '')} • ${totalLocais} neste aparelho`;
       el.style.color = '#ef4444';
     } else if (ultimoStatusSync.em) {
       const hora = new Date(ultimoStatusSync.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      el.innerHTML = `✅ <strong>v${APP_VERSAO}</strong> • nuvem OK ${hora} • ${totalLocais} registros neste aparelho`;
+      el.innerHTML = `${rtIcon} ✅ <strong>v${APP_VERSAO}</strong> • nuvem OK ${hora} • ${totalLocais} registros neste aparelho`;
       el.style.color = 'var(--text-secondary)';
     } else {
-      el.innerHTML = `☁️ <strong>v${APP_VERSAO}</strong> • ${totalLocais} registros neste aparelho`;
+      el.innerHTML = `${rtIcon} ☁️ <strong>v${APP_VERSAO}</strong> • ${totalLocais} registros neste aparelho`;
       el.style.color = 'var(--text-secondary)';
     }
   }
@@ -883,8 +888,9 @@ const App = (() => {
     if (!container) return;
 
     const allActive = Storage.getOrdens();
-    const activeServicos = allActive.filter(o => o.status === 'aguardando' || o.status === 'em_andamento');
-    const activeConcluidos = allActive.filter(o => o.status === 'concluido');
+    // Histórico REAL: ativas = tudo não finalizado; concluídas = OS + retiradas + entregas finalizadas
+    const activeServicos = allActive.filter(o => Utils.isAtivaOS(o));
+    const activeConcluidos = allActive.filter(o => Utils.isConcluidaOS(o));
     const ordensApagadas = Storage.getOrdensApagadas();
 
     // Update counts

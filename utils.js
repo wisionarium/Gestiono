@@ -105,8 +105,29 @@ const Utils = (() => {
   }
 
   function traduzirStatus(status) {
-    const map = { 'aguardando': 'Aguardando serviço', 'em_andamento': 'Em andamento', 'concluido': 'Concluído' };
+    const map = {
+      'aguardando': 'Aguardando serviço',
+      'em_andamento': 'Em andamento',
+      'concluido': 'Concluído',
+      'retirada_pendente': 'Retirada pendente',
+      'convertida': 'Convertida em OS',
+      'coletado': 'Coletado',
+      'entregue': 'Entregue'
+    };
     return map[status] || status;
+  }
+
+  // Histórico REAL: considera todos os status finais (OS + retiradas + entregas)
+  function isConcluidaOS(os) {
+    if (!os) return false;
+    return os.status === 'concluido' || os.status === 'convertida' ||
+      os.status === 'coletado' || os.status === 'entregue' ||
+      os.statusEntrega === 'entregue';
+  }
+
+  function isAtivaOS(os) {
+    if (!os || os.deletado) return false;
+    return !isConcluidaOS(os);
   }
 
   function traduzirVeiculo(tipo) {
@@ -1032,7 +1053,13 @@ const Utils = (() => {
 
     toDataURL() {
       this.redraw();
-      return this.canvas.toDataURL('image/png');
+      // JPEG compacto: o PNG com o fundo da scooter gerava centenas de KB por
+      // vistoria e travava o sync no celular. Visual das marcações preservado.
+      try {
+        return this.canvas.toDataURL('image/jpeg', 0.6);
+      } catch (e) {
+        return this.canvas.toDataURL('image/png');
+      }
     }
 
     loadFromDataURL(dataUrl) {
@@ -1429,6 +1456,7 @@ const Utils = (() => {
     formatarData, formatarDataHora, formatarHora, calcularTempoTotal,
     traduzirStatus, traduzirVeiculo, traduzirPagamento,
     traduzirStatusPagamento, traduzirRole, formatarDataEntrega,
+    isConcluidaOS, isAtivaOS,
     comprimirFotoBase64, removerAcentos, escapeHtml,
     gerarMensagemWhatsApp, gerarLinkWhatsApp, abrirInstagram,
     gerarPDFEntrega: gerarDocumentoAtendimentoPDF,
